@@ -1,0 +1,284 @@
+/* Глобальные стили для приложения массовой рассылки */
+
+:root {
+    --sap-border-radius: 12px;
+    --sap-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    --sap-shadow-hover: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+.FullHeight {
+    height: 100%;
+}
+
+/* Стили для зон Drag & Drop */
+.DropZone {
+    border: 2px dashed #cccccc;
+    border-radius: var(--sap-border-radius);
+    background-color: #fafafa;
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.DropZone:hover,
+.DropZoneActive {
+    border-color: #0a6ed1;
+    background-color: #f0f8ff;
+    box-shadow: 0 0 10px rgba(10, 110, 209, 0.2);
+}
+
+.DropZone .sapMText {
+    color: #666;
+    font-size: 0.875rem;
+}
+
+/* SegmentedButton - современный стиль */
+.sapMSegB {
+    border-radius: var(--sap-border-radius);
+    overflow: hidden;
+    box-shadow: var(--sap-shadow);
+}
+
+/* Rich Text Editor */
+.RichTextEditor {
+    border: 1px solid #cccccc;
+    border-radius: var(--sap-border-radius);
+    padding: 16px;
+    background-color: #ffffff;
+    overflow-y: auto;
+    min-height: 300px;
+    font-family: "72", Arial, Helvetica, sans-serif;
+    font-size: 16px;
+    line-height: 1.5;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);
+    transition: all 0.2s ease;
+}
+
+.RichTextEditor:focus {
+    outline: none;
+    border-color: #0a6ed1;
+    box-shadow: 0 0 0 2px rgba(10, 110, 209, 0.2);
+}
+
+.RichTextEditor img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 8px;
+}
+
+.RichTextEditor p {
+    margin: 0 0 12px 0;
+}
+
+/* Preview Box */
+.PreviewBox {
+    border: 1px solid #e0e0e0;
+    border-radius: var(--sap-border-radius);
+    padding: 12px;
+    background-color: #fafafa;
+    max-height: 300px;
+    overflow-y: auto;
+    box-shadow: var(--sap-shadow);
+}
+
+/* Адаптивность для ResponsiveSplitter */
+.sapFDynamicPageContent {
+    height: calc(100vh - 140px);
+}
+
+#responsiveSplitter {
+    height: 100%;
+}
+
+/* Стили для списка вложений */
+#attachmentsList .sapMLIB {
+    border-bottom: 1px solid #eeeeee;
+    border-radius: 8px;
+    margin-bottom: 4px;
+}
+
+#attachmentsList .sapMLIB:last-child {
+    border-bottom: none;
+}
+
+/* Стили для таблицы получателей */
+#recipientsTable {
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+#recipientsTable .sapMLIB {
+    border-bottom: 1px solid #eeeeee;
+    border-radius: 8px;
+}
+
+/* Кнопка удаления получателя */
+#recipientsTable .sapMBtnReject {
+    opacity: 0.7;
+    transition: opacity 0.2s;
+    border-radius: 50%;
+}
+
+#recipientsTable .sapMBtnReject:hover {
+    opacity: 1;
+}
+
+/* TextArea для буфера обмена */
+#clipboardInput {
+    font-family: monospace;
+    font-size: 0.875rem;
+    border-radius: var(--sap-border-radius);
+}
+
+/* BusyIndicator позиционирование */
+#busyIndicator {
+    position: relative;
+}
+
+/* Адаптивность для мобильных устройств */
+@media (max-width: 768px) {
+    .sapFDynamicPageContent {
+        height: auto;
+    }
+    
+    #responsiveSplitter {
+        flex-direction: column;
+    }
+    
+    .RichTextEditor {
+        min-height: 200px;
+    }
+    
+    .DropZone {
+        height: 80px !important;
+    }
+}
+
+/* Compact mode adjustments */
+.sapUiSizeCompact .RichTextEditor {
+    padding: 8px;
+    font-size: 14px;
+}
+
+.sapUiSizeCompact .DropZone {
+    height: 100px;
+}
+
+/* Hover эффекты для интерактивных элементов */
+.sapMLIBHoverable:hover {
+    background-color: #f5f5f5;
+}
+
+/* Scrollbar стилизация */
+.RichTextEditor::-webkit-scrollbar,
+.PreviewBox::-webkit-scrollbar,
+#recipientsTable::-webkit-scrollbar {
+    width: 8px;
+}
+
+.RichTextEditor::-webkit-scrollbar-track,
+.PreviewBox::-webkit-scrollbar-track,
+#recipientsTable::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+.RichTextEditor::-webkit-scrollbar-thumb,
+.PreviewBox::-webkit-scrollbar-thumb,
+#recipientsTable::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 4px;
+}
+
+.RichTextEditor::-webkit-scrollbar-thumb:hover,
+.PreviewBox::-webkit-scrollbar-thumb:hover,
+#recipientsTable::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}
+
+/* Toolbar styling */
+.sapMOverflowToolbar {
+    background-color: #fafafa;
+    border-bottom: 1px solid #e0e0e0;
+    border-radius: var(--sap-border-radius) var(--sap-border-radius) 0 0;
+}
+
+/* Panel заголовки */
+.sapMPanelHeader {
+    background-color: #fafafa;
+    border-radius: var(--sap-border-radius) var(--sap-border-radius) 0 0;
+}
+
+/* SearchField стили */
+.sapMSF {
+    max-width: 100%;
+    border-radius: var(--sap-border-radius);
+}
+
+/* FileUploader скрытый */
+.sapMFileUploader > input[type="file"] {
+    display: none;
+}
+
+/* Animation for drop zones */
+@keyframes pulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(10, 110, 209, 0.4);
+    }
+    70% {
+        box-shadow: 0 0 0 10px rgba(10, 110, 209, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(10, 110, 209, 0);
+    }
+}
+
+.DropZoneActive {
+    animation: pulse 1.5s infinite;
+}
+
+/* Status indicator colors */
+.status-success {
+    color: #107e3e;
+}
+
+.status-error {
+    color: #bb0000;
+}
+
+.status-warning {
+    color: #e9730c;
+}
+
+/* Email validation hint */
+.email-hint {
+    font-size: 0.75rem;
+    color: #666;
+    font-style: italic;
+}
+
+/* Новости - стили для форматирования */
+.news-item {
+    margin-bottom: 20px;
+    padding: 15px;
+    border-left: 3px solid #0a6ed1;
+    background: #f9f9f9;
+    border-radius: 0 var(--sap-border-radius) var(--sap-border-radius) 0;
+}
+
+.news-item h3 {
+    margin: 0 0 10px 0;
+    color: #0a6ed1;
+    font-size: 1.1rem;
+}
+
+.news-item .meta {
+    margin: 0 0 5px 0;
+    font-style: italic;
+    color: #666;
+    font-size: 0.875rem;
+}
+
+.news-item p {
+    margin: 0;
+    line-height: 1.6;
+}
