@@ -272,6 +272,31 @@
                                 </m:Table>
                             </m:Panel>
                             
+                            <!-- Ссылки на документы -->
+                            <m:Panel headerText="Ссылки на документы" 
+                                     expanded="true"
+                                     expandable="true"
+                                     class="sapUiSmallMarginBottom">
+                                <m:VBox class="sapUiSmallMargin">
+                                    <m:Button text="Добавить ссылку" 
+                                              icon="sap-icon://add" 
+                                              press="onAddDocumentLink"
+                                              class="sapUiTinyMarginBottom"/>
+                                    
+                                    <m:List id="documentLinksList" 
+                                            items="{appData>/documentLinks}"
+                                            noDataText="Нет добавленных ссылок"
+                                            mode="Delete"
+                                            delete="onRemoveDocumentLink">
+                                        <m:StandardListItem 
+                                            title="{appData>title}"
+                                            description="{appData>url}"
+                                            icon="sap-icon://link"
+                                            type="Inactive"/>
+                                    </m:List>
+                                </m:VBox>
+                            </m:Panel>
+                            
                             <!-- Предпросмотр письма -->
                             <m:Panel headerText="{i18n>previewSection}" 
                                      expanded="false"

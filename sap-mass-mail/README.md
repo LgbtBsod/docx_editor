@@ -1,216 +1,146 @@
-# SAP Mass Mail Service
+# SAP Mass Mail Application
 
-Сервис массовой рассылки писем на базе SAP UI5 1.71 + ECC 6.0 + HANA
+Приложение для массовой рассылки писем в SAP с использованием UI5 и OData.
 
-## 📋 Описание
+## Структура проекта
 
-Приложение позволяет:
-- Загружать DOCX шаблоны и конвертировать их в HTML (через Mammoth.js)
-- Редактировать шаблоны с полным WYSIWYG функционалом
-- Добавлять множественные вложения
-- Выбирать получателей через поиск по CDS view (ФИО, Email, Роль, Объект полномочий)
-- Вставлять email из буфера обмена (Ctrl+V)
-- Отправлять тестовые и массовые рассылки
-
-## 🏗️ Архитектура
-
-### Frontend (SAP UI5 1.71)
 ```
-webapp/
-├── Component.js              # Корневой компонент
-├── index.html                # Точка входа с Mammoth.js
-├── manifest.json             # Манифест приложения
-├── controller/
-│   └── Main.controller.js    # Логика контроллера
-├── view/
-│   └── Main.view.xml         # XML представление
-├── model/
-│   └── models.js             # Модели данных
-├── i18n/
-│   └── i18n.properties       # Локализация (RU)
-├── css/
-│   └── style.css             # Стили Fiori 3
-└── libs/
-    └── mammoth.browser.min.js # Библиотека парсинга DOCX
+sap-mass-mail/
+├── abap/                          # ABAP бэкенд
+│   ├── classes/
+│   │   ├── ZCL_MM_MASSMAIL_SERVICE.clas.abap  # Сервис отправки писем
+│   │   └── ZMM_CREATE_TABLES.prog.abap        # Программа создания таблиц
+│   └── cds/
+│       ├── Z_C_MASSMAIL_TEMPLATE.CDS.abap     # CDS view шаблонов
+│       └── Z_C_MASSMAIL_RECIPIENT.CDS.abap    # CDS view получателей
+└── webapp/                        # UI5 фронтенд
+    ├── controller/
+    │   └── Main.controller.js     # Контроллер основного экрана
+    ├── view/
+    │   └── Main.view.xml          # Основное представление
+    ├── i18n/
+    │   └── i18n.properties        # Тексты на русском языке
+    ├── css/
+    │   └── style.css              # Стили приложения
+    └── manifest.json              # Дескриптор приложения
 ```
 
-### Backend (ABAP ECC 6.0 + HANA)
+## Функциональность
 
-#### CDS Views
-- `Z_C_MASSMAIL_RECIPIENT` - Поиск получателей (USR21, ADRP, AGR_USERS)
-- `Z_C_MASSMAIL_BYAUTHOBJECT` - Поиск по объекту полномочий (UST12)
-- `Z_C_MASSMAIL_TEMPLATE` - Шаблоны писем
-- `Z_C_MASSMAIL_ATTACHMENT` - Вложения
+### Фронтенд (UI5)
+- **Редактор шаблонов**: WYSIWYG редактор с форматированием текста
+- **Загрузка DOCX**: Конвертация Word документов в HTML через Mammoth.js
+- **Управление вложениями**: Drag & Drop загрузка файлов
+- **Поиск получателей**: Интеграция с SAP HCM/UM через CDS views
+- **Пакетная отправка**: Отправка писем пакетами по 50 получателей
+- **Валидация email**: Проверка корректности email адресов
+- **История отправок**: Логирование всех отправленных писем
 
-#### ABAP Классы
-- `ZCL_MM_MASSMAIL_SERVICE` - Основной сервисный класс
-  - `CONVERT_DOCX_TO_HTML` - Конвертация DOCX → HTML
-  - `SEND_MASS_MAIL` - Отправка через BCS
-  - `SEARCH_RECIPIENTS` - Поиск через CDS
+### Бэкенд (ABAP)
+- **ZCL_MM_MASSMAIL_SERVICE**: Основной сервис отправки
+  - `search_recipients()` - Поиск получателей через CDS
+  - `send_mass_mail()` - Пакетная отправка через SAP BCS
+  - `log_send_history()` - Логирование в таблицы истории
+  - `validate_email_address()` - Валидация email
+  - `create_html_document()` - Создание HTML документа
+  - `send_batch()` - Отправка пакета писем
 
-#### OData Service (SEGW)
-- Service: `ZMM_MASSMAIL_SRV`
-- Entity Types: RecipientType, TemplateType, AttachmentType, MailSendType
+- **CDS Views**:
+  - `Z_C_MASSMAIL_RECIPIENT` - Получатели из SAP HCM
+  - `Z_C_MASSMAIL_BYAUTHOBJECT` - Поиск по объектам полномочий
+  - `Z_C_MASSMAIL_TEMPLATE` - Шаблоны писем
+  - `Z_C_MASSMAIL_ATTACHMENT` - Вложения
 
-## 🚀 Установка
+## Установка
 
-### 1. Бэкенд (SAP ECC 6.0)
-
+### 1. Создание таблиц
+Запустить программу `ZMM_CREATE_TABLES` в SAP:
 ```abap
-" 1. Создать таблицы (транзакция SE11 или выполнить ZMM_CREATE_TABLES)
-" 2. Активировать CDS views (транзакция SE38)
-" 3. Создать OData сервис в SEGW
-" 4. Зарегистрировать сервис в /IWFND/MAINT_SERVICE
-" 5. Назначить авторизации
+EXEC SQL.
+  CREATE COLUMN TABLE zmm_template (...)
+ENDEXEC.
 ```
 
-### 2. Фронтенд
+### 2. Активация CDS Views
+Активировать CDS views в ADT (Eclipse):
+- Z_C_MASSMAIL_RECIPIENT
+- Z_C_MASSMAIL_TEMPLATE
+- Z_C_MASSMAIL_ATTACHMENT
 
-```bash
-# Клонировать репозиторий
-cd sap-mass-mail/webapp
+### 3. Настройка OData сервиса
+Создать сервис в `/IWFND/MAINT_SERVICE`:
+- Service Name: `ZMM_MASSMAIL_SRV`
+- Technical Service Name: `ZMM_MASSMAIL_SRV`
+- System Alias: локальный алиас
 
-# Запустить локальный сервер
-python3 -m http.server 8080
+### 4. Развертывание UI5 приложения
+Загрузить приложение в SAP Gateway через `/UI5/REPOSITORY`:
+- Repository Name: `com.sap.mm.massmail`
+- Загрузить содержимое папки `webapp/`
 
-# Открыть в браузере
-# http://localhost:8080
-```
+## Конфигурация
 
-### 3. Интеграция с SAP
+### Параметры отправки
+- Размер пакета: 50 писем
+- Таймаут отправки: стандартный SAP BCS
+- Формат писем: HTML с поддержкой вложений
 
-Разместить файлы в SAP BSP приложении или настроить Web IDE:
-```
-/bsp/sap/ZMM_MASSMAIL/
-├── index.html
-├── Component.js
-├── manifest.json
-└── ...
-```
+### Объекты полномочий
+Для ограничения доступа к получателям используется объект авторизации `S_USER_AGR`.
 
-## 🔧 Настройка
+## API
 
-### Подключение к OData сервису
+### OData Entities
+- `/Recipients` - Получатели (поиск, фильтрация)
+- `/Templates` - Шаблоны писем (CRUD)
+- `/Attachments` - Вложения (CRUD)
+- `/MailSends` - Отправка писем (Create only)
+- `/SendHistory` - История отправок (Read only)
 
-В `manifest.json` изменить dataSource:
+### Пример запроса отправки
 ```json
-"dataSources": {
-  "mainService": {
-    "uri": "/sap/opu/odata/sap/ZMM_MASSMAIL_SRV/",
-    "type": "OData",
-    "settings": {
-      "odataVersion": "2.0"
-    }
-  }
-}
-```
-
-### Авторизации
-
-Необходимые роли:
-- `S_SMT_EMAIL` - Отправка email (BCS)
-- `S_USER_AGR` - Чтение ролей пользователей
-- `ZMM_MASSMAIL_USER` - Доступ к приложению
-
-## 📖 Использование
-
-### Загрузка шаблона
-1. Перетащите DOCX файл в левую зону или кликните для выбора
-2. Файл автоматически конвертируется в HTML через Mammoth.js
-3. Отредактируйте содержимое в WYSIWYG редакторе
-
-### Добавление вложений
-1. Перетащите файлы в правую верхнюю зону
-2. Или используйте FileUploader
-3.Multiple файлы поддерживаются
-
-### Выбор получателей
-
-**Вариант 1: Из буфера обмена**
-```
-Просто вставьте текст (Ctrl+V) в поле ввода:
-ivanov@company.com; petrov@company.com
-sidorova@company.com
-```
-Email адреса извлекутся автоматически!
-
-**Вариант 2: Поиск по ФИО**
-```
-Введите фамилию в поле поиска:
-Иванов → покажет всех Ивановых с email
-```
-
-**Вариант 3: Поиск по роли**
-```
-CDS view автоматически фильтрует по ролям из AGR_USERS
-```
-
-**Вариант 4: По объекту полномочий**
-```
-Параметр p_auth_obj в CDS view Z_C_MASSMAIL_BYAUTHOBJECT
-```
-
-### Отправка
-1. **Тестовая отправка** - отправит первому получателю
-2. **Массовая отправка** - отправит всем выбранным
-3. Подтверждение с указанием количества получателей
-
-## 🎨 UI/UX Features (SAP Best Practices)
-
-- ✅ Двухколоночный макет с ResponsiveSplitter
-- ✅ Drag & Drop зоны с анимацией
-- ✅ WYSIWYG редактор с тулбаром
-- ✅ Smart-вставка email из буфера
-- ✅ Подтверждения деструктивных действий
-- ✅ BusyIndicator при загрузке
-- ✅ MessageToast для уведомлений
-- ✅ MessageBox для диалогов
-- ✅ Адаптивность для мобильных
-- ✅ Compact/Cozy режимы
-- ✅ Fiori 3 тема
-
-## 🔌 API Endpoints
-
-### GET /Recipients
-```
-/ZMM_MASSMAIL_SRV/Recipients?$filter=contains(FullName,'Иванов')
-```
-
-### POST /MailSends
-```json
+POST /sap/opu/odata/sap/ZMM_MASSMAIL_SRV/MailSends
 {
   "Subject": "Тема письма",
-  "HtmlBody": "<p>Содержимое</p>",
-  "Recipients": ["email1@co.com", "email2@co.com"],
-  "Attachments": [
-    {
-      "fileName": "file.pdf",
-      "mimeType": "application/pdf",
-      "content": "base64..."
-    }
-  ]
+  "HtmlBody": "<p>Текст письма</p>",
+  "Sender": "USERNAME",
+  "Recipients": ["user1@company.com", "user2@company.com"],
+  "Attachments": [...],
+  "DocumentLinks": [{"title": "Doc", "url": "http://..."}]
 }
 ```
 
-## 🛠️ Расширение
+## Требования
 
-### Добавление новых полей поиска
-1. Обновить CDS view `Z_C_MASSMAIL_RECIPIENT`
-2. Добавить свойства в EntityType OData
-3. Обновить фильтр в `search_recipients()`
+### SAP Backend
+- SAP NetWeaver 7.5+ или S/4HANA
+- SAP Gateway установлен и настроен
+- SAP BCS (Business Communication Services)
+- HANA Database (для CDS views)
 
-### Интеграция с внешними системами
-```abap
-" Пример вызова REST API для расширенной конвертации DOCX
-cl_http_destination=>create_by_url( 'https://api.example.com/convert' )
-```
+### Frontend
+- SAP UI5 1.71+
+- Браузеры: Chrome, Firefox, Edge (последние версии)
+- Mammoth.js для конвертации DOCX
 
-## 📝 Лицензия
+## Мониторинг
 
-Внутренняя разработка SAP. Все права защищены.
+### Транзакции
+- `SOST` - Мониторинг отправки почты
+- `/IWFND/ERROR_LOG` - Логи OData сервиса
+- `ST22` - ABAP дамп логи
 
-## 👥 Контакты
+### Таблицы для отчетов
+- `ZMM_SEND_HISTORY` - История отправок
+- `ZMM_SEND_RECIPIENTS` - Статусы получателей
 
-Разработчик: SAP Development Team
-Версия: 1.0.0
-Дата: 2024
+## Безопасность
+
+- Авторизация через SAP Logon Tickets/SAML
+- Проверка полномочий на отправку массовых писем
+- Валидация email адресов получателей
+- Логирование всех операций отправки
+
+## Лицензия
+
+Внутреннее решение для корпоративного использования.

@@ -653,28 +653,141 @@ sap.ui.define([
                 HtmlBody: sContent,
                 Sender: sap.ui.getCore().getUser(),
                 Recipients: aRecipients.map(function (o) { return o.email; }),
-                Attachments: aAttachments
+                Attachments: aAttachments,
+                DocumentLinks: oModel.getProperty("/documentLinks") || []  // Ссылки на документы
             };
             
-            // TODO: Вызов OData сервиса для отправки
-            // POST /ZMM_MASSMAIL_SRV/MailSends
+            // Вызов OData сервиса для отправки
+            var oODataModel = this.getOwnerComponent().getModel();
+            var that = this;
             
-            // Эмуляция отправки
-            setTimeout(function () {
-                oModel.setProperty("/busy", false);
-                
-                var sMessage = isTest
-                    ? this.getResourceBundle().getText("testSendSuccess")
-                    : this.getResourceBundle().getText("massSendSuccess").replace("{0}", aRecipients.length);
-                
-                MessageBox.success(sMessage, {
-                    title: this.getResourceBundle().getText("sendComplete")
-                });
-                
-                // Логирование отправки
-                console.log("Отправлено:", oPayload);
-                
-            }.bind(this), 1500);
+            oODataModel.create("/MailSends", oPayload, {
+                success: function(oData) {
+                    oModel.setProperty("/busy", false);
+                    
+                    var sMessage = isTest
+                        ? that.getResourceBundle().getText("testSendSuccess")
+                        : that.getResourceBundle().getText("massSendSuccess").replace("{0}", aRecipients.length);
+                    
+                    MessageBox.success(sMessage, {
+                        title: that.getResourceBundle().getText("sendComplete")
+                    });
+                    
+                    // Логирование отправки
+                    console.log("Отправлено:", oData);
+                    
+                    // Очистка формы после успешной отправки
+                    if (!isTest) {
+                        that._clearForm();
+                    }
+                },
+                error: function(oError) {
+                    oModel.setProperty("/busy", false);
+                    var sErrorMsg = that.getResourceBundle().getText("sendError");
+                    
+                    try {
+                        var oErrorResponse = JSON.parse(oError.responseText);
+                        if (oErrorResponse.error && oErrorResponse.error.message) {
+                            sErrorMsg = oErrorResponse.error.message.value;
+                        }
+                    } catch (e) {
+                        // Используем стандартное сообщение
+                    }
+                    
+                    MessageBox.error(sErrorMsg, {
+                        title: that.getResourceBundle().getText("sendFailed")
+                    });
+                }
+            });
+        },
+        
+        _clearForm: function() {
+            var oModel = this.getView().getModel("appData");
+            oModel.setProperty("/subject", "");
+            oModel.setProperty("/templateContent", "<p>Здесь будет содержимое письма...</p>");
+            oModel.setProperty("/recipients", []);
+            oModel.setProperty("/attachments", []);
+            oModel.setProperty("/documentLinks", []);
+            oModel.setProperty("/hasLoadedTemplate", false);
+            
+            // Очистка редактора
+            this._setEditorContent("<p>Здесь будет содержимое письма...</p>");
+            
+            MessageToast.show(this.getResourceBundle().getText("formCleared"));
+        },
+
+        /* =========================================================== */
+        /* УПРАВЛЕНИЕ ССЫЛКАМИ НА ДОКУМЕНТЫ                            */
+        /* =========================================================== */
+        
+        onAddDocumentLink: function() {
+            var that = this;
+            var oDialog = new sap.m.Dialog({
+                title: "Добавить ссылку на документ",
+                content: [
+                    new sap.m.Input({
+                        placeholder: "Название документа",
+                        value: "{/linkTitle}"
+                    }),
+                    new sap.m.Input({
+                        placeholder: "URL документа",
+                        value: "{/linkUrl}",
+                        type: sap.m.InputType.Url
+                    })
+                ],
+                beginButton: new sap.m.Button({
+                    text: "Добавить",
+                    type: sap.m.ButtonType.Emphasized,
+                    press: function() {
+                        var oModel = that.getView().getModel("appData");
+                        var sTitle = oDialog.getContent()[0].getValue();
+                        var sUrl = oDialog.getContent()[1].getValue();
+                        
+                        if (!sTitle || !sUrl) {
+                            MessageBox.warning("Заполните оба поля");
+                            return;
+                        }
+                        
+                        // Валидация URL
+                        var urlPattern = /^(https?:\/\/)?([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?$/i;
+                        if (!urlPattern.test(sUrl)) {
+                            MessageBox.warning("Некорректный URL");
+                            return;
+                        }
+                        
+                        var aLinks = oModel.getProperty("/documentLinks") || [];
+                        aLinks.push({
+                            title: sTitle,
+                            url: sUrl
+                        });
+                        oModel.setProperty("/documentLinks", aLinks);
+                        
+                        oDialog.close();
+                        MessageToast.show("Ссылка добавлена: " + sTitle);
+                    }
+                }),
+                endButton: new sap.m.Button({
+                    text: "Отмена",
+                    press: function() {
+                        oDialog.close();
+                    }
+                })
+            });
+            
+            this.getView().addDependent(oDialog);
+            oDialog.open();
+        },
+        
+        onRemoveDocumentLink: function(oEvent) {
+            var oContext = oEvent.getParameter("listItem").getBindingContext("appData");
+            var iIndex = parseInt(oContext.getPath().split("/").pop());
+            
+            var oModel = this.getView().getModel("appData");
+            var aLinks = oModel.getProperty("/documentLinks") || [];
+            aLinks.splice(iIndex, 1);
+            oModel.setProperty("/documentLinks", aLinks);
+            
+            MessageToast.show(this.getResourceBundle().getText("linkRemoved"));
         },
 
         /* =========================================================== */
