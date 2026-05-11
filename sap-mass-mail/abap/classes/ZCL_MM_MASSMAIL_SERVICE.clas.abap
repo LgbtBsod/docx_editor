@@ -18,7 +18,14 @@ CLASS zcl_mm_massmail_service DEFINITION
              sent_count    TYPE i,
              failed_count  TYPE i,
              error_log     TYPE string,
-           END OF ty_send_result.
+           END OF ty_send_result,
+
+           BEGIN OF ty_attachment,
+             file_name TYPE so_obj_des,
+             file_type TYPE so_obj_tp,
+             hex_bin   TYPE solix_tab,
+           END OF ty_attachment,
+           tt_attachments TYPE STANDARD TABLE OF ty_attachment WITH EMPTY KEY.
 
     " Поиск получателей по CDS view
     METHODS search_recipients
@@ -35,12 +42,10 @@ CLASS zcl_mm_massmail_service DEFINITION
         iv_subject        TYPE so_obj_des
         iv_html_body      TYPE string
         it_recipients     TYPE TABLE OF ad_smtpadr
-        it_attachments    TYPE TABLE OF solix
+        it_attachments    TYPE tt_attachments
         it_document_links TYPE tt_doc_links
       RETURNING
-        VALUE(rs_result)  TYPE ty_send_result
-      EXCEPTIONS
-        send_failed.
+        VALUE(rs_result)  TYPE ty_send_result.
 
     " Логирование истории отправок
     METHODS log_send_history
@@ -85,20 +90,25 @@ ENDCLASS.
 CLASS zcl_mm_massmail_service IMPLEMENTATION.
 
   METHOD search_recipients.
-    " Поиск через CDS view с параметрами - оптимизированный запрос
-    DATA: lv_filter TYPE string.
+    " Безопасный поиск без динамического SQL
+    DATA(lv_pattern) = |%{ iv_search_term }%|.
 
-    " Формируем динамический фильтр
-    lv_filter = |full_name LIKE '%{ iv_search_term }%' OR email_address LIKE '%{ iv_search_term }%' OR username LIKE '%{ iv_search_term }%'|.
-
-    IF iv_role IS NOT INITIAL.
-      lv_filter = lv_filter && | AND role_name = '{ iv_role }'|.
+    IF iv_role IS INITIAL.
+      SELECT * FROM z_c_massmail_recipient
+        WHERE full_name     LIKE @lv_pattern
+           OR email_address LIKE @lv_pattern
+           OR username      LIKE @lv_pattern
+        INTO TABLE @rt_result
+        ORDER BY full_name ASCENDING.
+    ELSE.
+      SELECT * FROM z_c_massmail_recipient
+        WHERE ( full_name     LIKE @lv_pattern
+             OR email_address LIKE @lv_pattern
+             OR username      LIKE @lv_pattern )
+          AND role_name = @iv_role
+        INTO TABLE @rt_result
+        ORDER BY full_name ASCENDING.
     ENDIF.
-
-    SELECT * FROM z_c_massmail_recipient
-      WHERE (lv_filter)
-      INTO TABLE @rt_result
-      ORDER BY FULL_NAME ASCENDING.
 
     " Если указан объект полномочий, используем CDS с параметром
     IF iv_auth_obj IS NOT INITIAL.
@@ -202,31 +212,19 @@ CLASS zcl_mm_massmail_service IMPLEMENTATION.
         " Определяем общий статус
         IF rs_result-sent_count > 0.
           rs_result-success = abap_true.
-        ELSEIF rs_result-failed_count > 0.
-          RAISE EXCEPTION TYPE send_failed
-            EXPORTING
-              textid = rs_result-error_log.
         ENDIF.
 
       CATCH cx_bcs INTO lx_error.
         rs_result-error_log = lx_error->get_text( ).
-        RAISE EXCEPTION TYPE send_failed
-          EXPORTING
-            textid = rs_result-error_log.
+        rs_result-success = abap_false.
     ENDTRY.
   ENDMETHOD.
 
   METHOD create_html_document.
     DATA: lv_links_html TYPE string.
 
-    " Создаем базовый документ
-    ro_document = cl_document_bcs=>create_document(
-      i_type    = 'HTM'
-      i_text    = iv_html_body
-      i_subject = iv_subject
-    ).
+    DATA(lv_html_full) = iv_html_body.
 
-    " Добавляем ссылки на документы в конец письма
     IF it_document_links IS NOT INITIAL.
       lv_links_html = |<br/><hr/><p style="font-size:12px;color:#666;"><strong>Документы:</strong><br/>|.
 
@@ -236,12 +234,14 @@ CLASS zcl_mm_massmail_service IMPLEMENTATION.
       ENDLOOP.
 
       lv_links_html = lv_links_html && |</p>|.
-
-      " Обновляем тело документа с ссылками
-      ro_document->set_body_text(
-        i_text = iv_html_body && lv_links_html
-      ).
+      lv_html_full = lv_html_full && lv_links_html.
     ENDIF.
+
+    ro_document = cl_document_bcs=>create_document(
+      i_type    = 'HTM'
+      i_text    = lv_html_full
+      i_subject = iv_subject
+    ).
   ENDMETHOD.
 
   METHOD send_batch.
@@ -284,16 +284,16 @@ CLASS zcl_mm_massmail_service IMPLEMENTATION.
     DATA: lv_timestamp TYPE timestamp.
 
     TRY.
-        " Генерируем UUID для send_id если не передан
-        IF is_header-send_id IS INITIAL.
-          is_header-send_id = cl_system_uuid=>create_uuid_c32_static( ).
+        DATA(lv_send_id) = is_header-send_id.
+        IF lv_send_id IS INITIAL.
+          lv_send_id = cl_system_uuid=>create_uuid_c32_static( ).
         ENDIF.
 
         GET TIME STAMP FIELD lv_timestamp.
 
         " Вставка записи в историю
         INSERT zmm_send_history VALUES (
-          send_id         = is_header-send_id
+          send_id         = lv_send_id
           template_id     = is_header-template_id
           subject         = is_header-subject
           sender          = is_header-sender
@@ -305,7 +305,7 @@ CLASS zcl_mm_massmail_service IMPLEMENTATION.
 
         " Вставка получателей
         LOOP AT it_recipients INTO DATA(ls_recipient).
-          ls_recipient-send_id = is_header-send_id.
+          ls_recipient-send_id = lv_send_id.
           ls_recipient-sent_at = lv_timestamp.
           INSERT zmm_send_recipients VALUES ls_recipient.
         ENDLOOP.
