@@ -1,5 +1,5 @@
 {
-  "_version": "1.12.0",
+  "_version": "1.58.0",
   "sap.app": {
     "id": "com.sap.mm.massmail",
     "type": "application",
@@ -15,21 +15,35 @@
         "uri": "/sap/opu/odata/sap/ZMM_MASSMAIL_SRV/",
         "type": "OData",
         "settings": {
-          "odataVersion": "2.0"
+          "odataVersion": "2.0",
+          "localUri": "localService/metadata.xml"
         }
       }
     },
     "offline": false,
     "sourceTemplate": {
       "id": "ui5template.fioriElementsApp",
-      "version": "1.40.12"
+      "version": "1.71.0"
+    },
+    "crossNavigation": {
+      "inbounds": {
+        "massmail-display": {
+          "semanticObject": "MassMail",
+          "action": "display",
+          "title": "{{appTitle}}",
+          "signature": {
+            "parameters": {},
+            "additionalParameters": "allowed"
+          }
+        }
+      }
     }
   },
   "sap.ui": {
     "technology": "UI5",
     "icons": {
-      "icon": "",
-      "favIcon": "",
+      "icon": "sap-icon://email",
+      "favIcon": "sap-icon://email",
       "phone": "",
       "phone@2": "",
       "tablet": "",
@@ -39,7 +53,13 @@
       "desktop": true,
       "tablet": true,
       "phone": true
-    }
+    },
+    "supportedThemes": [
+      "sap_fiori_3",
+      "sap_fiori_3_dark",
+      "sap_belize",
+      "sap_bluecrystal"
+    ]
   },
   "sap.ui5": {
     "flexEnabled": true,
@@ -50,7 +70,8 @@
         "sap.ui.core": {},
         "sap.ui.layout": {},
         "sap.ui.table": {},
-        "sap.f": {}
+        "sap.f": {},
+        "sap.suite.ui.generic.template": {}
       }
     },
     "contentDensities": {
@@ -61,7 +82,9 @@
       "i18n": {
         "type": "sap.ui.model.resource.ResourceModel",
         "settings": {
-          "bundleName": "com.sap.mm.massmail.i18n.i18n"
+          "bundleName": "com.sap.mm.massmail.i18n.i18n",
+          "supportedLocales": ["en", "ru", "de"],
+          "fallbackLocale": "en"
         }
       },
       "": {
@@ -70,7 +93,10 @@
         "settings": {
           "defaultBindingMode": "TwoWay",
           "defaultCountMode": "Inline",
-          "refreshAfterChange": false
+          "refreshAfterChange": false,
+          "metadataUrlParams": {
+            "sap-value-list": "none"
+          }
         }
       }
     },
@@ -94,15 +120,17 @@
         "viewPath": "com.sap.mm.massmail.view",
         "controlAggregation": "pages",
         "controlId": "app",
-        "clearControlAggregation": false
+        "clearControlAggregation": false,
+        "transition": "slide",
+        "bypassed": {
+          "target": "notFound"
+        }
       },
       "routes": [
         {
           "name": "RouteMain",
           "pattern": ":?query:",
-          "target": [
-            "TargetMain"
-          ]
+          "target": ["TargetMain"]
         }
       ],
       "targets": {
@@ -111,7 +139,15 @@
           "transition": "slide",
           "clearControlAggregation": false,
           "viewId": "Main",
-          "viewName": "Main"
+          "viewName": "Main",
+          "level": 0
+        },
+        "notFound": {
+          "viewType": "XML",
+          "transition": "slide",
+          "clearControlAggregation": false,
+          "viewId": "NotFound",
+          "viewName": "NotFound"
         }
       }
     },
@@ -120,10 +156,29 @@
       "type": "XML",
       "async": true,
       "id": "Main"
+    },
+    "extends": {
+      "extensions": {
+        "sap.ui.viewExtensions": {
+          "com.sap.mm.massmail.view.Main": {
+            "beforePageHeader|CustomActions": {
+              "className": "sap.ui.core.Fragment",
+              "fragmentName": "com.sap.mm.massmail.fragment.CustomActions",
+              "type": "XML"
+            }
+          }
+        }
+      }
     }
   },
   "sap.cloud": {
     "public": true,
     "service": "comsapmmmassmail"
+  },
+  "sap.platform.abap": {
+    "uri": ""
+  },
+  "sap.platform.hcp": {
+    "uri": ""
   }
 }
