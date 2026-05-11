@@ -1,0 +1,37 @@
+```
+# ABAP development
+**/*.trc
+**/*.log
+**/local/.*
+**/temp/
+
+# SAP specific
+sap-mass-mail/**/logs/
+sap-mass-mail/**/temp/
+sap-mass-mail/**/cache/
+
+# Build outputs
+sap-mass-mail/webapp/dist/
+sap-mass-mail/webapp/build/
+
+# Dependencies
+sap-mass-mail/webapp/node_modules/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Environment
+.env
+.env.local
+*.env.*
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+```

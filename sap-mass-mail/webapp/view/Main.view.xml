@@ -1,0 +1,299 @@
+<mvc:View controllerName="com.sap.mm.massmail.controller.Main"
+    xmlns:mvc="sap.ui.core.mvc"
+    xmlns:m="sap.m"
+    xmlns:l="sap.ui.layout"
+    xmlns:f="sap.f"
+    xmlns:core="sap.ui.core">
+    
+    <f:DynamicPage id="dynamicPage" toggleHeaderOnTitleClick="false">
+        <f:title>
+            <f:DynamicPageTitle>
+                <f:heading>
+                    <m:Title text="{i18n>appTitle}" level="H2"/>
+                </f:heading>
+            </f:DynamicPageTitle>
+        </f:title>
+        
+        <f:header>
+            <f:DynamicPageHeader>
+                <l:HorizontalLayout>
+                    <m:Button 
+                        text="{i18n>btnSendTest}" 
+                        type="Emphasized" 
+                        press="onSendTest"
+                        icon="sap-icon://paper-plane"/>
+                    <m:Button 
+                        text="{i18n>btnSendMass}" 
+                        type="Accept" 
+                        press="onSendMass"
+                        icon="sap-icon://email"/>
+                    <m:ToolbarSpacer/>
+                    <m:BusyIndicator id="busyIndicator" visible="{appData>/busy}"/>
+                </l:HorizontalLayout>
+            </f:DynamicPageHeader>
+        </f:header>
+        
+        <f:content>
+            <l:ResponsiveSplitter id="responsiveSplitter" defaultPane="leftPane">
+                <l:PaneContainer id="leftContainer">
+                    <l:SplitPane id="leftPane" requiredParentWidth="300">
+                        <!-- ЛЕВАЯ КОЛОНКА - Редактор шаблона -->
+                        <l:VerticalLayout class="FullHeight" width="100%">
+                            
+                            <!-- Переключатель источников контента -->
+                            <m:SegmentedButton id="contentSourceSelector" 
+                                               selectionChange="onContentSourceChange"
+                                               class="sapUiSmallMarginBottom"
+                                               width="100%">
+                                <m:items>
+                                    <m:SegmentedButtonItem key="manual" text="Ручной ввод" icon="sap-icon://write-new"/>
+                                    <m:SegmentedButtonItem key="file" text="Загрузить файл" icon="sap-icon://upload-to-cloud"/>
+                                    <m:SegmentedButtonItem key="news" text="Выбрать новости" icon="sap-icon://news"/>
+                                </m:items>
+                            </m:SegmentedButton>
+                            
+                            <!-- Зона загрузки DOCX (видима только при выборе "Загрузить файл") -->
+                            <m:VBox class="DropZone sapUiSmallMarginBottom" 
+                                    height="120px"
+                                    alignItems="Center" 
+                                    justifyContent="Center"
+                                    drop="onTemplateDrop" 
+                                    dragEnter="onDragEnter"
+                                    dragLeave="onDragLeave"
+                                    visible="{= ${appData>/contentSource} === 'file' }">
+                                <m:Image src="sap-icon://attachment-html" 
+                                         densityAware="false" 
+                                         decorative="true"
+                                         width="48px" 
+                                         height="48px"/>
+                                <m:Text text="{i18n>dropDocxHere}" 
+                                        class="sapUiTinyMarginTopBottom"/>
+                                <m:Text text="{i18n>orClickToUpload}" 
+                                        class="sapUiTinyMarginTop"
+                                        wrapping="false"/>
+                                <m:Link text="{i18n>selectFile}" 
+                                        press="onSelectTemplateFile"
+                                        class="sapUiTinyMarginTop"/>
+                                <m:FileUploader id="templateUploader" 
+                                                change="onTemplateUploaded"
+                                                fileType="docx,doc"
+                                                mimeType="application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/msword"
+                                                style="Transparent"
+                                                visible="false"
+                                                multiple="false"/>
+                            </m:VBox>
+                            
+                            <!-- Подсказка для ручного ввода -->
+                            <m:VBox class="sapUiSmallMarginBottom" 
+                                    height="120px"
+                                    alignItems="Center" 
+                                    justifyContent="Center"
+                                    visible="{= ${appData>/contentSource} === 'manual' }">
+                                <m:Image src="sap-icon://write-new" 
+                                         densityAware="false" 
+                                         decorative="true"
+                                         width="48px" 
+                                         height="48px"/>
+                                <m:Text text="Вставьте текст из буфера обмена (Ctrl+V)" 
+                                        class="sapUiTinyMarginTopBottom"/>
+                                <m:Text text="или начните вводить вручную" 
+                                        class="sapUiTinyMarginTop"
+                                        wrapping="false"/>
+                            </m:VBox>
+                            
+                            <!-- Подсказка для новостей -->
+                            <m:VBox class="sapUiSmallMarginBottom" 
+                                    height="120px"
+                                    alignItems="Center" 
+                                    justifyContent="Center"
+                                    visible="{= ${appData>/contentSource} === 'news' }">
+                                <m:Image src="sap-icon://news" 
+                                         densityAware="false" 
+                                         decorative="true"
+                                         width="48px" 
+                                         height="48px"/>
+                                <m:Text text="Нажмите «Выбрать новости»" 
+                                        class="sapUiTinyMarginTopBottom"/>
+                                <m:Text text="для добавления новостей в письмо" 
+                                        class="sapUiTinyMarginTop"
+                                        wrapping="false"/>
+                            </m:VBox>
+                            
+                            <!-- Тулбар редактора -->
+                            <m:OverflowToolbar design="Transparent" class="sapUiTinyMarginBottom">
+                                <m:Button icon="sap-icon://bold" press="onFormatBold" tooltip="{i18n>tooltipBold}"/>
+                                <m:Button icon="sap-icon://italic" press="onFormatItalic" tooltip="{i18n>tooltipItalic}"/>
+                                <m:Button icon="sap-icon://underline" press="onFormatUnderline" tooltip="{i18n>tooltipUnderline}"/>
+                                <m:ToolbarSeparator/>
+                                <m:Button icon="sap-icon://align-left" press="onAlignLeft" tooltip="{i18n>tooltipAlignLeft}"/>
+                                <m:Button icon="sap-icon://align-center" press="onAlignCenter" tooltip="{i18n>tooltipAlignCenter}"/>
+                                <m:Button icon="sap-icon://align-right" press="onAlignRight" tooltip="{i18n>tooltipAlignRight}"/>
+                                <m:ToolbarSeparator/>
+                                <m:Select selectedKey="16" change="onFontSizeChange">
+                                    <core:Item key="12" text="12px"/>
+                                    <core:Item key="14" text="14px"/>
+                                    <core:Item key="16" text="16px"/>
+                                    <core:Item key="18" text="18px"/>
+                                    <core:Item key="20" text="20px"/>
+                                    <core:Item key="24" text="24px"/>
+                                </m:Select>
+                                <m:ToolbarSpacer/>
+                                <m:Button icon="sap-icon://image" press="onInsertImage" tooltip="{i18n>tooltipInsertImage}"/>
+                                <m:Button icon="sap-icon://paste" press="onPasteFromClipboard" tooltip="{i18n>tooltipPaste}"/>
+                                <m:ToolbarSeparator/>
+                                <m:Button icon="sap-icon://upload" text="{i18n>btnLoadNew}" press="onSelectTemplateFile"/>
+                                <m:Button icon="sap-icon://save" text="{i18n>btnSaveTemplate}" press="onSaveTemplate"/>
+                            </m:OverflowToolbar>
+                            
+                            <!-- Rich Text Editor (основная область редактирования) -->
+                            <m:VBox fitContainer="true" class="FullHeight">
+                                <div id="richTextEditor" 
+                                     contenteditable="true" 
+                                     class="RichTextEditor FullHeight"
+                                     paste="onEditorPaste"></div>
+                            </m:VBox>
+                            
+                            <!-- Статус сохранения -->
+                            <m:Label text="{i18n>lastSaved}: {appData>/lastSaved}" 
+                                     class="sapUiTinyMarginTop"
+                                     visible="{= !!${appData>/lastSaved} }"/>
+                        </l:VerticalLayout>
+                    </l:SplitPane>
+                </l:PaneContainer>
+                
+                <l:PaneContainer id="rightContainer">
+                    <l:SplitPane id="rightPane" requiredParentWidth="300">
+                        <!-- ПРАВАЯ КОЛОНКА -->
+                        <l:VerticalLayout class="FullHeight" width="100%">
+                            
+                            <!-- Зона загрузки вложений -->
+                            <m:VBox class="DropZone sapUiSmallMarginBottom" 
+                                    height="100px"
+                                    alignItems="Center" 
+                                    justifyContent="Center"
+                                    drop="onAttachmentDrop" 
+                                    dragEnter="onDragEnter"
+                                    dragLeave="onDragLeave">
+                                <m:Image src="sap-icon://attachment" 
+                                         densityAware="false" 
+                                         decorative="true"
+                                         width="32px" 
+                                         height="32px"/>
+                                <m:Text text="{i18n>dropAttachmentsHere}" 
+                                        class="sapUiTinyMarginBottom"/>
+                                <m:Text text="{i18n>multipleFilesAllowed}" 
+                                        class="sapUiTinyMarginTop"
+                                        wrapping="false"/>
+                                <m:FileUploader id="attachmentUploader" 
+                                                change="onAttachmentUploaded"
+                                                style="Transparent"
+                                                visible="false"
+                                                multiple="true"/>
+                            </m:VBox>
+                            
+                            <!-- Список вложений -->
+                            <m:Panel headerText="{i18n>attachmentsSection}" 
+                                     expanded="true"
+                                     expandable="true"
+                                     class="sapUiSmallMarginBottom">
+                                <m:List id="attachmentsList" 
+                                        noDataText="{i18n>noAttachments}"
+                                        mode="Delete"
+                                        delete="onAttachmentDelete">
+                                    <m:StandardListItem 
+                                        title="{fileName}"
+                                        description="{fileSizeText}"
+                                        icon="sap-icon://document"
+                                        type="Inactive"/>
+                                </m:List>
+                            </m:Panel>
+                            
+                            <!-- Выбор получателей -->
+                            <m:Panel headerText="{i18n>recipientsSection}" 
+                                     expanded="true"
+                                     expandable="true"
+                                     class="sapUiSmallMarginBottom">
+                                
+                                <!-- Вставка из буфера -->
+                                <m:TextArea 
+                                    id="clipboardInput"
+                                    placeholder="{i18n>pasteEmailsHere}"
+                                    rows="3"
+                                    class="sapUiSmallMarginBottom"
+                                    liveChange="onClipboardPaste"/>
+                                
+                                <!-- Поиск получателей -->
+                                <m:SearchField 
+                                    id="recipientSearch"
+                                    search="onSearchRecipients"
+                                    placeholder="{i18n>searchByNameOrEmail}"
+                                    class="sapUiSmallMarginBottom"
+                                    width="100%"/>
+                                
+                                <!-- Кнопки управления -->
+                                <l:HorizontalLayout class="sapUiSmallMarginBottom">
+                                    <m:Button text="{i18n>btnImportCSV}" 
+                                              icon="sap-icon://upload-to-cloud" 
+                                              press="onImportCSV"/>
+                                    <m:Button text="{i18n>btnExportClipboard}" 
+                                              icon="sap-icon://copy" 
+                                              press="onExportToClipboard"/>
+                                    <m:Button text="{i18n>btnClearAll}" 
+                                              icon="sap-icon://delete" 
+                                              press="onClearRecipients"
+                                              type="Reject"/>
+                                </l:HorizontalLayout>
+                                
+                                <!-- Таблица получателей -->
+                                <m:Table id="recipientsTable"
+                                         items="{appData>/recipients}"
+                                         noDataText="{i18n>noRecipients}"
+                                         growing="true"
+                                         growingThreshold="10">
+                                    <m:columns>
+                                        <m:Column><m:Text text="{i18n>colEmail}"/></m:Column>
+                                        <m:Column><m:Text text="{i18n>colFullName}"/></m:Column>
+                                        <m:Column><m:Text text="{i18n>colRole}"/></m:Column>
+                                        <m:Column hAlign="End"><m:Text text="{i18n>colActions}"/></m:Column>
+                                    </m:columns>
+                                    <m:items>
+                                        <m:ColumnListItem>
+                                            <m:cells>
+                                                <m:Text text="{appData>email}"/>
+                                                <m:Text text="{appData>fullName}"/>
+                                                <m:Text text="{appData>role}"/>
+                                                <m:Button icon="sap-icon://decline" 
+                                                          type="Reject"
+                                                          press="onRemoveRecipient"
+                                                          tooltip="{i18n>btnRemove}"/>
+                                            </m:cells>
+                                        </m:ColumnListItem>
+                                    </m:items>
+                                </m:Table>
+                            </m:Panel>
+                            
+                            <!-- Предпросмотр письма -->
+                            <m:Panel headerText="{i18n>previewSection}" 
+                                     expanded="false"
+                                     expandable="true">
+                                <m:VBox class="sapUiSmallMargin">
+                                    <m:Label text="{i18n>lblSubject}" labelFor="subjectInput"/>
+                                    <m:Input id="subjectInput" 
+                                             value="{appData>/subject}"
+                                             placeholder="{i18n>enterSubject}"
+                                             class="sapUiSmallMarginBottom"/>
+                                    
+                                    <m:Label text="{i18n>lblPreview}"/>
+                                    <m:VBox class="PreviewBox sapUiSmallMarginTop">
+                                        <core:HTML content="{appData>/templateContent}"/>
+                                    </m:VBox>
+                                </m:VBox>
+                            </m:Panel>
+                            
+                        </l:VerticalLayout>
+                    </l:SplitPane>
+                </l:PaneContainer>
+            </l:ResponsiveSplitter>
+        </f:content>
+    </f:DynamicPage>
+</mvc:View>
