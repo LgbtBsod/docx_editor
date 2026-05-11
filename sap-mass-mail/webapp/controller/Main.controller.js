@@ -2,10 +2,8 @@ sap.ui.define([
     "sap/ui/core/mvc/Controller",
     "sap/ui/model/json/JSONModel",
     "sap/m/MessageToast",
-    "sap/m/MessageBox",
-    "sap/ui/core/BusyIndicator",
-    "sap/ui/core/HTML"
-], function (Controller, JSONModel, MessageToast, MessageBox, BusyIndicator, HTML) {
+    "sap/m/MessageBox"
+], function (Controller, JSONModel, MessageToast, MessageBox) {
     "use strict";
 
     return Controller.extend("com.sap.mm.massmail.controller.Main", {
@@ -22,19 +20,25 @@ sap.ui.define([
                 lastSaved: null,
                 hasLoadedTemplate: false,
                 selectedNews: [],
-                newsSearchQuery: ""
+                newsSearchQuery: "",
+                allNews: [],
+                newsAreaFilter: "",
+                newsQuarterFilter: "",
+                newsDateFrom: null,
+                newsDateTo: null
             });
             this.getView().setModel(oViewModel, "appData");
             
             // Моковая модель новостей (в реальности будет OData)
             var oNewsModel = new JSONModel([
-                { id: "1", title: "Изменения в графике отпусков", author: "HR Департамент", area: "Кадры", text: "Уважаемые коллеги, напоминаем о необходимости подачи заявлений на отпуск не позднее чем за 2 недели до планируемой даты." },
-                { id: "2", title: "Обновление системы безопасности", author: "IT Отдел", area: "Информационная безопасность", text: "В связи с обновлением политик безопасности, просим всех сотрудников сменить пароли до конца месяца." },
-                { id: "3", title: "Корпоративное мероприятие", author: "Совет директоров", area: "События", text: "Приглашаем всех сотрудников на ежегодный пикник компании, который состоится в следующие выходные." },
-                { id: "4", title: "Новые правила командирования", author: "Финансовый отдел", area: "Финансы", text: "Изменился лимит суточных расходов при командировках. Подробности в прикрепленном документе." },
-                { id: "5", title: "Обучение и развитие", author: "L&D Отдел", area: "Обучение", text: "Открыта регистрация на курсы повышения квалификации. Количество мест ограничено." }
+                { id: "1", title: "Изменения в графике отпусков", author: "HR Департамент", area: "Кадры", publishedAt: "2026-01-15", text: "Уважаемые коллеги, напоминаем о необходимости подачи заявлений на отпуск не позднее чем за 2 недели до планируемой даты." },
+                { id: "2", title: "Обновление системы безопасности", author: "IT Отдел", area: "Информационная безопасность", publishedAt: "2026-02-20", text: "В связи с обновлением политик безопасности, просим всех сотрудников сменить пароли до конца месяца." },
+                { id: "3", title: "Корпоративное мероприятие", author: "Совет директоров", area: "События", publishedAt: "2026-03-18", text: "Приглашаем всех сотрудников на ежегодный пикник компании, который состоится в следующие выходные." },
+                { id: "4", title: "Новые правила командирования", author: "Финансовый отдел", area: "Финансы", publishedAt: "2026-04-10", text: "Изменился лимит суточных расходов при командировках. Подробности в прикрепленном документе." },
+                { id: "5", title: "Обучение и развитие", author: "L&D Отдел", area: "Обучение", publishedAt: "2026-05-01", text: "Открыта регистрация на курсы повышения квалификации. Количество мест ограничено." }
             ]);
             this.getView().setModel(oNewsModel, "news");
+            this.getView().getModel("appData").setProperty("/allNews", oNewsModel.getData());
             
             // Инициализация редактора
             this._initEditor();
@@ -58,8 +62,6 @@ sap.ui.define([
         onContentSourceChange: function (oEvent) {
             var sSource = oEvent.getParameter("selectedKey");
             var oModel = this.getView().getModel("appData");
-            var that = this;
-
             if (sSource === "manual") {
                 oModel.setProperty("/contentSource", "manual");
                 oModel.setProperty("/templateContent", "");
@@ -85,6 +87,14 @@ sap.ui.define([
             // Сброс выбранных новостей
             var oModel = this.getView().getModel("appData");
             oModel.setProperty("/selectedNews", []);
+            oModel.setProperty("/newsAreaFilter", "");
+            oModel.setProperty("/newsQuarterFilter", "");
+            oModel.setProperty("/newsDateFrom", null);
+            oModel.setProperty("/newsDateTo", null);
+            oModel.setProperty("/newsSearchQuery", "");
+            if (this._oNewsDateFromPicker) { this._oNewsDateFromPicker.setDateValue(null); }
+            if (this._oNewsDateToPicker) { this._oNewsDateToPicker.setDateValue(null); }
+            this.getView().getModel("news").setData(oModel.getProperty("/allNews"));
             
             oDialog.open();
         },
@@ -92,6 +102,16 @@ sap.ui.define([
         _createNewsDialog: function () {
             var oView = this.getView();
             
+            this._oNewsDateFromPicker = new sap.m.DatePicker({ width: "130px", change: this.onNewsDateRangeChange.bind(this) });
+            this._oNewsDateToPicker = new sap.m.DatePicker({ width: "130px", change: this.onNewsDateRangeChange.bind(this) });
+
+            var aAreas = (this.getView().getModel("appData").getProperty("/allNews") || []).map(function (o) { return o.area; })
+                .filter(function (v, i, a) { return v && a.indexOf(v) === i; });
+
+            var aAreaItems = [new sap.ui.core.Item({ key: "", text: "Все" })].concat(aAreas.map(function (sArea) {
+                return new sap.ui.core.Item({ key: sArea, text: sArea });
+            }));
+
             var oDialog = new sap.m.Dialog({
                 id: "newsDialog",
                 title: "Выберите новости для рассылки",
@@ -103,6 +123,32 @@ sap.ui.define([
                         placeholder: "Поиск новостей...",
                         width: "100%",
                         search: this.onNewsSearch.bind(this)
+                    }),
+                    new sap.m.Toolbar({
+                        content: [
+                            new sap.m.Label({ text: "Область" }),
+                            new sap.m.Select({
+                                width: "160px",
+                                change: this.onNewsAreaChange.bind(this),
+items: aAreaItems
+                            }),
+                            new sap.m.Label({ text: "Квартал" }),
+                            new sap.m.Select({
+                                width: "120px",
+                                change: this.onNewsQuarterChange.bind(this),
+                                items: [
+                                    new sap.ui.core.Item({ key: "", text: "Все" }),
+                                    new sap.ui.core.Item({ key: "Q1", text: "Q1" }),
+                                    new sap.ui.core.Item({ key: "Q2", text: "Q2" }),
+                                    new sap.ui.core.Item({ key: "Q3", text: "Q3" }),
+                                    new sap.ui.core.Item({ key: "Q4", text: "Q4" })
+                                ]
+                            }),
+                            new sap.m.Label({ text: "С" }),
+                            this._oNewsDateFromPicker,
+                            new sap.m.Label({ text: "По" }),
+                            this._oNewsDateToPicker
+                        ]
                     }),
                     new sap.m.Table({
                         id: "newsTable",
@@ -142,23 +188,51 @@ sap.ui.define([
         },
 
         onNewsSearch: function (oEvent) {
-            var sQuery = oEvent.getParameter("query").toLowerCase();
-            var oNewsModel = this.getView().getModel("news");
-            var aNews = oNewsModel.getData();
-            
-            if (!sQuery) {
-                oNewsModel.setData(aNews);
-                return;
-            }
-            
+            var sQuery = (oEvent.getParameter("query") || "").toLowerCase();
+            this.getView().getModel("appData").setProperty("/newsSearchQuery", sQuery);
+            this._applyNewsFilters();
+        },
+
+        onNewsAreaChange: function (oEvent) {
+            this.getView().getModel("appData").setProperty("/newsAreaFilter", oEvent.getParameter("selectedItem").getKey());
+            this._applyNewsFilters();
+        },
+
+        onNewsQuarterChange: function (oEvent) {
+            this.getView().getModel("appData").setProperty("/newsQuarterFilter", oEvent.getParameter("selectedItem").getKey());
+            this._applyNewsFilters();
+        },
+
+        onNewsDateRangeChange: function () {
+            var dFrom = this._oNewsDateFromPicker ? this._oNewsDateFromPicker.getDateValue() : null;
+            var dTo = this._oNewsDateToPicker ? this._oNewsDateToPicker.getDateValue() : null;
+            var oModel = this.getView().getModel("appData");
+            oModel.setProperty("/newsDateFrom", dFrom);
+            oModel.setProperty("/newsDateTo", dTo);
+            this._applyNewsFilters();
+        },
+
+        _applyNewsFilters: function () {
+            var oModel = this.getView().getModel("appData");
+            var aNews = oModel.getProperty("/allNews") || [];
+            var sQuery = (oModel.getProperty("/newsSearchQuery") || "").toLowerCase();
+            var sArea = oModel.getProperty("/newsAreaFilter");
+            var sQuarter = oModel.getProperty("/newsQuarterFilter");
+            var dFrom = oModel.getProperty("/newsDateFrom");
+            var dTo = oModel.getProperty("/newsDateTo");
+
             var aFiltered = aNews.filter(function (item) {
-                return item.title.toLowerCase().includes(sQuery) ||
-                       item.author.toLowerCase().includes(sQuery) ||
-                       item.area.toLowerCase().includes(sQuery) ||
-                       item.text.toLowerCase().includes(sQuery);
+                var bMatchQuery = !sQuery || item.title.toLowerCase().includes(sQuery) || item.author.toLowerCase().includes(sQuery) || item.area.toLowerCase().includes(sQuery) || item.text.toLowerCase().includes(sQuery);
+                var bMatchArea = !sArea || item.area === sArea;
+                var oDate = new Date(item.publishedAt);
+                var iQuarter = Math.floor(oDate.getMonth() / 3) + 1;
+                var bMatchQuarter = !sQuarter || ("Q" + iQuarter) === sQuarter;
+                var bMatchFrom = !dFrom || oDate >= dFrom;
+                var bMatchTo = !dTo || oDate < new Date(dTo.getFullYear(), dTo.getMonth(), dTo.getDate() + 1);
+                return bMatchQuery && bMatchArea && bMatchQuarter && bMatchFrom && bMatchTo;
             });
-            
-            oNewsModel.setData(aFiltered);
+
+            this.getView().getModel("news").setData(aFiltered);
         },
 
         onNewsSelectionChange: function (oEvent) {
@@ -220,7 +294,7 @@ sap.ui.define([
 
         onTemplateUploaded: function (oEvent) {
             var oFileUploader = oEvent.getSource();
-            var oFile = oFileUploader.oFile;
+            var oFile = oEvent.getParameter("files") && oEvent.getParameter("files")[0];
             
             if (!oFile) {
                 return;
@@ -346,7 +420,6 @@ sap.ui.define([
         },
 
         onFontSizeChange: function (oEvent) {
-            var sSize = oEvent.getParameter("selectedItem").getKey();
             document.execCommand("fontSize", false, "7");
             // Дополнительно можно применить стиль через CSS
             this._updateTemplateContent();
@@ -414,7 +487,7 @@ sap.ui.define([
 
         onAttachmentUploaded: function (oEvent) {
             var oFileUploader = oEvent.getSource();
-            var files = oFileUploader.oFiles;
+            var files = oEvent.getParameter("files") || [];
             
             if (files && files.length > 0) {
                 this._processAttachments(files);
@@ -527,17 +600,19 @@ sap.ui.define([
                 var aRecipients = oModel.getProperty("/recipients");
                 
                 // Добавляем найденного (для примера)
-                if (sQuery.indexOf("@") > -1) {
+                var sEmail = sQuery.indexOf("@") > -1
+                    ? sQuery.toLowerCase()
+                    : sQuery.toLowerCase().replace(/\s/g, ".") + "@company.com";
+
+                var bExists = aRecipients.some(function (oRecipient) {
+                    return oRecipient.email && oRecipient.email.toLowerCase() === sEmail;
+                });
+
+                if (!bExists) {
                     aRecipients.push({
-                        email: sQuery,
-                        fullName: "Иванов Иван",
-                        role: "Пользователь"
-                    });
-                } else {
-                    aRecipients.push({
-                        email: sQuery.toLowerCase().replace(/\s/g, ".") + "@company.com",
-                        fullName: sQuery,
-                        role: "Сотрудник"
+                        email: sEmail,
+                        fullName: sQuery.indexOf("@") > -1 ? "Иванов Иван" : sQuery,
+                        role: sQuery.indexOf("@") > -1 ? "Пользователь" : "Сотрудник"
                     });
                 }
                 
@@ -580,8 +655,18 @@ sap.ui.define([
             var oModel = this.getView().getModel("appData");
             var aRecipients = oModel.getProperty("/recipients");
             
-            var sEmails = aRecipients.map(function (o) { return o.email; }).join("; ");
-            
+            var sEmails = aRecipients.map(function (o) { return o.email; }).filter(Boolean).join("; ");
+            if (!sEmails) {
+                MessageBox.warning("Список получателей пуст");
+                return;
+            }
+            var that = this;
+
+            if (!navigator.clipboard || !navigator.clipboard.writeText) {
+                MessageBox.error("Clipboard API недоступен в текущем браузере");
+                return;
+            }
+
             navigator.clipboard.writeText(sEmails).then(function () {
                 MessageToast.show(that.getResourceBundle().getText("emailsCopied"));
             }).catch(function () {
@@ -722,6 +807,16 @@ sap.ui.define([
         
         onAddDocumentLink: function() {
             var that = this;
+            this._oNewsDateFromPicker = new sap.m.DatePicker({ width: "130px", change: this.onNewsDateRangeChange.bind(this) });
+            this._oNewsDateToPicker = new sap.m.DatePicker({ width: "130px", change: this.onNewsDateRangeChange.bind(this) });
+
+            var aAreas = (this.getView().getModel("appData").getProperty("/allNews") || []).map(function (o) { return o.area; })
+                .filter(function (v, i, a) { return v && a.indexOf(v) === i; });
+
+            var aAreaItems = [new sap.ui.core.Item({ key: "", text: "Все" })].concat(aAreas.map(function (sArea) {
+                return new sap.ui.core.Item({ key: sArea, text: sArea });
+            }));
+
             var oDialog = new sap.m.Dialog({
                 title: "Добавить ссылку на документ",
                 content: [
