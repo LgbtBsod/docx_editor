@@ -6,6 +6,8 @@ sap.ui.define([
 ], function (Controller, JSONModel, MessageToast, MessageBox) {
     "use strict";
 
+    var DEFAULT_EDITOR_HTML = "<p>Здесь будет содержимое письма...</p>";
+
     return Controller.extend("com.sap.mm.massmail.controller.Main", {
 
         onInit: function () {
@@ -25,7 +27,8 @@ sap.ui.define([
                 newsAreaFilter: "",
                 newsQuarterFilter: "",
                 newsDateFrom: null,
-                newsDateTo: null
+                newsDateTo: null,
+                documentLinks: []
             });
             this.getView().setModel(oViewModel, "appData");
             
@@ -47,7 +50,7 @@ sap.ui.define([
         _initEditor: function () {
             var oEditor = this.byId("richTextEditor");
             if (oEditor) {
-                oEditor.innerHTML = "<p>Здесь будет содержимое письма...</p>";
+                oEditor.innerHTML = DEFAULT_EDITOR_HTML;
             }
         },
 
@@ -242,7 +245,7 @@ items: aAreaItems
             
             var aSelectedData = aSelected.map(function (oItem) {
                 var sPath = oItem.getBindingContext("news").getPath();
-                var iIndex = parseInt(sPath.split("/").pop());
+                var iIndex = parseInt(sPath.split("/").pop(), 10);
                 return aAllNews[iIndex];
             });
             
@@ -259,12 +262,12 @@ items: aAreaItems
             
             var sContent = aSelected.map(function (oNews) {
                 return "<div style='margin-bottom: 20px; padding: 15px; border-left: 3px solid #0a6ed1; background: #f9f9f9;'>" +
-                       "<h3 style='margin: 0 0 10px 0; color: #0a6ed1;'>" + oNews.title + "</h3>" +
-                       "<p style='margin: 0 0 5px 0; font-style: italic; color: #666;'><strong>Автор:</strong> " + oNews.author + 
-                       " | <strong>Область:</strong> " + oNews.area + "</p>" +
-                       "<p style='margin: 0;'>" + oNews.text + "</p>" +
+                       "<h3 style='margin: 0 0 10px 0; color: #0a6ed1;'>" + this._escapeHtml(oNews.title) + "</h3>" +
+                       "<p style='margin: 0 0 5px 0; font-style: italic; color: #666;'><strong>Автор:</strong> " + this._escapeHtml(oNews.author) + 
+                       " | <strong>Область:</strong> " + this._escapeHtml(oNews.area) + "</p>" +
+                       "<p style='margin: 0;'>" + this._escapeHtml(oNews.text) + "</p>" +
                        "</div>";
-            }).join("<hr style='margin: 20px 0;'>");
+            }.bind(this)).join("<hr style='margin: 20px 0;'>");
             
             this._setEditorContent(sContent);
             
@@ -280,7 +283,7 @@ items: aAreaItems
         _setEditorContent: function (sHtml) {
             var oEditor = this.byId("richTextEditor");
             if (oEditor) {
-                oEditor.innerHTML = sHtml || "<p>Здесь будет содержимое письма...</p>";
+                oEditor.innerHTML = sHtml || DEFAULT_EDITOR_HTML;
             }
         },
 
@@ -747,7 +750,7 @@ items: aAreaItems
             var that = this;
             
             oODataModel.create("/MailSends", oPayload, {
-                success: function(oData) {
+                success: function() {
                     oModel.setProperty("/busy", false);
                     
                     var sMessage = isTest
@@ -758,8 +761,6 @@ items: aAreaItems
                         title: that.getResourceBundle().getText("sendComplete")
                     });
                     
-                    // Логирование отправки
-                    console.log("Отправлено:", oData);
                     
                     // Очистка формы после успешной отправки
                     if (!isTest) {
@@ -789,14 +790,14 @@ items: aAreaItems
         _clearForm: function() {
             var oModel = this.getView().getModel("appData");
             oModel.setProperty("/subject", "");
-            oModel.setProperty("/templateContent", "<p>Здесь будет содержимое письма...</p>");
+            oModel.setProperty("/templateContent", DEFAULT_EDITOR_HTML);
             oModel.setProperty("/recipients", []);
             oModel.setProperty("/attachments", []);
             oModel.setProperty("/documentLinks", []);
             oModel.setProperty("/hasLoadedTemplate", false);
             
             // Очистка редактора
-            this._setEditorContent("<p>Здесь будет содержимое письма...</p>");
+            this._setEditorContent(DEFAULT_EDITOR_HTML);
             
             MessageToast.show(this.getResourceBundle().getText("formCleared"));
         },
@@ -807,16 +808,6 @@ items: aAreaItems
         
         onAddDocumentLink: function() {
             var that = this;
-            this._oNewsDateFromPicker = new sap.m.DatePicker({ width: "130px", change: this.onNewsDateRangeChange.bind(this) });
-            this._oNewsDateToPicker = new sap.m.DatePicker({ width: "130px", change: this.onNewsDateRangeChange.bind(this) });
-
-            var aAreas = (this.getView().getModel("appData").getProperty("/allNews") || []).map(function (o) { return o.area; })
-                .filter(function (v, i, a) { return v && a.indexOf(v) === i; });
-
-            var aAreaItems = [new sap.ui.core.Item({ key: "", text: "Все" })].concat(aAreas.map(function (sArea) {
-                return new sap.ui.core.Item({ key: sArea, text: sArea });
-            }));
-
             var oDialog = new sap.m.Dialog({
                 title: "Добавить ссылку на документ",
                 content: [
@@ -843,11 +834,13 @@ items: aAreaItems
                             return;
                         }
                         
-                        // Валидация URL
-                        var urlPattern = /^(https?:\/\/)?([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?$/i;
-                        if (!urlPattern.test(sUrl)) {
+                        if (!this._isValidHttpUrl(sUrl)) {
                             MessageBox.warning("Некорректный URL");
                             return;
+                        }
+
+                        if (!/^https?:\/\//i.test(sUrl)) {
+                            sUrl = "https://" + sUrl;
                         }
                         
                         var aLinks = oModel.getProperty("/documentLinks") || [];
@@ -859,7 +852,7 @@ items: aAreaItems
                         
                         oDialog.close();
                         MessageToast.show("Ссылка добавлена: " + sTitle);
-                    }
+                    }.bind(this)
                 }),
                 endButton: new sap.m.Button({
                     text: "Отмена",
@@ -875,7 +868,7 @@ items: aAreaItems
         
         onRemoveDocumentLink: function(oEvent) {
             var oContext = oEvent.getParameter("listItem").getBindingContext("appData");
-            var iIndex = parseInt(oContext.getPath().split("/").pop());
+            var iIndex = parseInt(oContext.getPath().split("/").pop(), 10);
             
             var oModel = this.getView().getModel("appData");
             var aLinks = oModel.getProperty("/documentLinks") || [];
@@ -883,6 +876,27 @@ items: aAreaItems
             oModel.setProperty("/documentLinks", aLinks);
             
             MessageToast.show(this.getResourceBundle().getText("linkRemoved"));
+        },
+
+
+        _escapeHtml: function (sValue) {
+            return String(sValue || "")
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#39;");
+        },
+
+        _isValidHttpUrl: function (sValue) {
+            var sCandidate = /^https?:\/\//i.test(sValue) ? sValue : "https://" + sValue;
+
+            try {
+                var oUrl = new URL(sCandidate);
+                return oUrl.protocol === "http:" || oUrl.protocol === "https:";
+            } catch (e) {
+                return false;
+            }
         },
 
         /* =========================================================== */
