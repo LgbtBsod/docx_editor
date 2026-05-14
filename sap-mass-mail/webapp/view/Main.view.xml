@@ -147,10 +147,7 @@
                             
                             <!-- Rich Text Editor (основная область редактирования) -->
                             <m:VBox fitContainer="true" class="FullHeight">
-                                <div id="richTextEditor" 
-                                     contenteditable="true" 
-                                     class="RichTextEditor FullHeight"
-                                     paste="onEditorPaste"></div>
+                                <core:HTML id="richTextEditor" content="&lt;div id=&quot;editorContent&quot; contenteditable=&quot;true&quot; class=&quot;RichTextEditor FullHeight&quot;&gt;&lt;/div&gt;"/>
                             </m:VBox>
                             
                             <!-- Статус сохранения -->
@@ -235,6 +232,13 @@
                                     <m:Button text="{i18n>btnImportCSV}" 
                                               icon="sap-icon://upload-to-cloud" 
                                               press="onImportCSV"/>
+                                    <m:FileUploader id="csvUploader"
+                                                    visible="false"
+                                                    multiple="false"
+                                                    style="Transparent"
+                                                    fileType="csv,txt"
+                                                    mimeType="text/csv,text/plain,application/vnd.ms-excel"
+                                                    change="onCsvUploaded"/>
                                     <m:Button text="{i18n>btnExportClipboard}" 
                                               icon="sap-icon://copy" 
                                               press="onExportToClipboard"/>
