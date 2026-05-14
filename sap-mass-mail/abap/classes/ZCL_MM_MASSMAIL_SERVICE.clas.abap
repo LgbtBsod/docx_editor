@@ -84,6 +84,18 @@ CLASS zcl_mm_massmail_service DEFINITION
         cv_error_log      TYPE string
       RETURNING
         VALUE(rv_success) TYPE abap_bool.
+
+    METHODS sanitize_html
+      IMPORTING
+        iv_html        TYPE string
+      RETURNING
+        VALUE(rv_html) TYPE string.
+
+    METHODS normalize_https_url
+      IMPORTING
+        iv_url        TYPE string
+      RETURNING
+        VALUE(rv_url) TYPE string.
 ENDCLASS.
 
 
@@ -223,14 +235,19 @@ CLASS zcl_mm_massmail_service IMPLEMENTATION.
   METHOD create_html_document.
     DATA: lv_links_html TYPE string.
 
-    DATA(lv_html_full) = iv_html_body.
+    DATA(lv_html_full) = sanitize_html( iv_html_body ).
 
     IF it_document_links IS NOT INITIAL.
       lv_links_html = |<br/><hr/><p style="font-size:12px;color:#666;"><strong>Документы:</strong><br/>|.
 
       LOOP AT it_document_links INTO DATA(ls_link).
+        DATA(lv_safe_url) = normalize_https_url( ls_link-url ).
+        IF lv_safe_url IS INITIAL.
+          CONTINUE.
+        ENDIF.
+
         lv_links_html = lv_links_html &&
-                        |<a href="{ ls_link-url }" target="_blank">{ ls_link-title }</a><br/>|.
+                        |<a href="{ lv_safe_url }" target="_blank">{ ls_link-title }</a><br/>|.
       ENDLOOP.
 
       lv_links_html = lv_links_html && |</p>|.
@@ -321,7 +338,7 @@ CLASS zcl_mm_massmail_service IMPLEMENTATION.
     " Простая валидация email адреса через regex
     DATA: lv_pattern TYPE string.
 
-    lv_pattern = '^[\\w\\.-]+@[\\w\\.-]+\\.\\w+$'.
+    lv_pattern = '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$'.
 
     IF iv_email CA '@' AND iv_email CA '.'.
       FIND REGEX lv_pattern IN iv_email.
@@ -333,6 +350,37 @@ CLASS zcl_mm_massmail_service IMPLEMENTATION.
     ELSE.
       rv_valid = abap_false.
     ENDIF.
+  ENDMETHOD.
+
+  METHOD sanitize_html.
+    rv_html = iv_html.
+
+    REPLACE ALL OCCURRENCES OF REGEX '<script[\s\S]*?>[\s\S]*?</script>' IN rv_html WITH ''.
+    REPLACE ALL OCCURRENCES OF REGEX '<iframe[\s\S]*?>[\s\S]*?</iframe>' IN rv_html WITH ''.
+    REPLACE ALL OCCURRENCES OF REGEX ' on[a-zA-Z]+[[:space:]]*=[[:space:]]*"[^"]*"' IN rv_html WITH ''.
+    REPLACE ALL OCCURRENCES OF REGEX ' on[a-zA-Z]+[[:space:]]*=[[:space:]]*''[^'']*''' IN rv_html WITH ''.
+    REPLACE ALL OCCURRENCES OF REGEX '(href|src)[[:space:]]*=[[:space:]]*"javascript:[^"]*"' IN rv_html WITH ''.
+    REPLACE ALL OCCURRENCES OF REGEX '(href|src)[[:space:]]*=[[:space:]]*''javascript:[^'']*''' IN rv_html WITH ''.
+  ENDMETHOD.
+
+  METHOD normalize_https_url.
+    rv_url = condense( iv_url ).
+    TRANSLATE rv_url TO LOWER CASE.
+
+    IF rv_url IS INITIAL.
+      RETURN.
+    ENDIF.
+
+    IF rv_url CP 'https://*'.
+      RETURN.
+    ENDIF.
+
+    IF rv_url CP 'http://*'.
+      rv_url = ''.
+      RETURN.
+    ENDIF.
+
+    rv_url = |https://{ rv_url }|.
   ENDMETHOD.
 
 ENDCLASS.

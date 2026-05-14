@@ -7,6 +7,18 @@ sap.ui.define([
     "use strict";
 
     var DEFAULT_EDITOR_HTML = "<p>Здесь будет содержимое письма...</p>";
+    var MAX_ATTACHMENT_SIZE_BYTES = 10 * 1024 * 1024;
+    var MAX_TOTAL_ATTACHMENTS_SIZE_BYTES = 25 * 1024 * 1024;
+    var ALLOWED_ATTACHMENT_MIME = [
+        "application/pdf",
+        "application/msword",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "application/vnd.ms-excel",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "image/png",
+        "image/jpeg",
+        "text/plain"
+    ];
 
     return Controller.extend("com.sap.mm.massmail.controller.Main", {
 
@@ -404,7 +416,7 @@ items: aAreaItems
                 if (typeof mammoth !== "undefined") {
                     mammoth.convertToHtml({arrayBuffer: arrayBuffer})
                         .then(function (result) {
-                            var html = result.value;
+                            var html = that._sanitizeHtml(result.value);
                             var messages = result.messages;
                             
                             // Устанавливаем HTML в редактор
@@ -523,7 +535,11 @@ items: aAreaItems
             var oEditor = this._getEditorDom();
             if (oEditor) {
                 var oModel = this.getView().getModel("appData");
-                oModel.setProperty("/templateContent", oEditor.innerHTML);
+                var sSanitized = this._sanitizeHtml(oEditor.innerHTML);
+                if (oEditor.innerHTML !== sSanitized) {
+                    oEditor.innerHTML = sSanitized;
+                }
+                oModel.setProperty("/templateContent", sSanitized);
             }
         },
 
@@ -574,6 +590,11 @@ items: aAreaItems
             
             for (var i = 0; i < files.length; i++) {
                 var oFile = files[i];
+
+                if (!this._isAttachmentAllowed(oFile, aAttachments)) {
+                    continue;
+                }
+
                 var oReader = new FileReader();
                 
                 oReader.onload = (function (file) {
@@ -851,6 +872,12 @@ items: aAreaItems
                 MessageBox.warning(this.getResourceBundle().getText("warningNoSubject"));
             }
             
+            var oPreflight = this._buildPreflightReport(sContent, aRecipients, aAttachments, oModel.getProperty("/documentLinks") || []);
+            if (!oPreflight.ok) {
+                MessageBox.error(oPreflight.message);
+                return;
+            }
+
             var that = this;
             
             // Подтверждение отправки
@@ -878,7 +905,7 @@ items: aAreaItems
             // Подготовка данных для бэкенда
             var oPayload = {
                 Subject: sSubject || "(Без темы)",
-                HtmlBody: sContent,
+                HtmlBody: this._sanitizeHtml(sContent),
                 Sender: sap.ui.getCore().getUser(),
                 Recipients: aRecipients.map(function (o) { return o.email; }),
                 Attachments: aAttachments,
@@ -979,8 +1006,10 @@ items: aAreaItems
                             return;
                         }
 
-                        if (!/^https?:\/\//i.test(sUrl)) {
-                            sUrl = "https://" + sUrl;
+                        sUrl = this._normalizeHttpsUrl(sUrl);
+                        if (!sUrl) {
+                            MessageBox.warning("Разрешены только корректные HTTPS ссылки");
+                            return;
                         }
                         
                         var aLinks = oModel.getProperty("/documentLinks") || [];
@@ -1038,6 +1067,88 @@ items: aAreaItems
                 return false;
             }
         },
+
+        _sanitizeHtml: function (sHtml) {
+            var sValue = String(sHtml || "");
+            sValue = sValue.replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, "");
+            sValue = sValue.replace(/<iframe[\s\S]*?>[\s\S]*?<\/iframe>/gi, "");
+            sValue = sValue.replace(/\son\w+\s*=\s*(["']).*?\1/gi, "");
+            sValue = sValue.replace(/\s(href|src)\s*=\s*(["'])\s*javascript:[^"']*\2/gi, "");
+            return sValue;
+        },
+
+        _normalizeHttpsUrl: function (sValue) {
+            var sCandidate = String(sValue || "").trim();
+            if (!sCandidate) {
+                return "";
+            }
+
+            if (!/^https?:\/\//i.test(sCandidate)) {
+                sCandidate = "https://" + sCandidate;
+            }
+
+            try {
+                var oUrl = new URL(sCandidate);
+                return oUrl.protocol === "https:" ? oUrl.toString() : "";
+            } catch (e) {
+                return "";
+            }
+        },
+
+        _isAttachmentAllowed: function (oFile, aCurrentAttachments) {
+            var aAttachments = aCurrentAttachments || [];
+            var iCurrentSize = aAttachments.reduce(function (sum, oItem) { return sum + (oItem.fileSize || 0); }, 0);
+
+            if (oFile.size > MAX_ATTACHMENT_SIZE_BYTES) {
+                MessageBox.warning("Файл слишком большой: " + oFile.name + ". Максимум 10 MB на файл.");
+                return false;
+            }
+
+            if (iCurrentSize + oFile.size > MAX_TOTAL_ATTACHMENTS_SIZE_BYTES) {
+                MessageBox.warning("Превышен общий лимит вложений 25 MB.");
+                return false;
+            }
+
+            if (oFile.type && ALLOWED_ATTACHMENT_MIME.indexOf(oFile.type) === -1) {
+                MessageBox.warning("Недопустимый тип файла: " + oFile.name);
+                return false;
+            }
+
+            return true;
+        },
+
+        _buildPreflightReport: function (sContent, aRecipients, aAttachments, aLinks) {
+            var iTotalSize = (aAttachments || []).reduce(function (sum, oItem) { return sum + (oItem.fileSize || 0); }, 0);
+            var aInvalidRecipients = (aRecipients || []).filter(function (o) { return !o.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(o.email); });
+            var oSeen = {};
+            var iDuplicates = 0;
+            (aRecipients || []).forEach(function (o) {
+                var k = (o.email || "").toLowerCase();
+                if (!k) { return; }
+                if (oSeen[k]) { iDuplicates++; }
+                oSeen[k] = true;
+            });
+            var bBadLinks = (aLinks || []).some(function (o) { return !o.url || !/^https:\/\//i.test(o.url); });
+
+            if (aInvalidRecipients.length > 0) {
+                return { ok: false, message: "Есть невалидные email получателей. Исправьте список перед отправкой." };
+            }
+            if (iDuplicates > 0) {
+                return { ok: false, message: "Найдены дубликаты получателей (" + iDuplicates + "). Удалите повторы." };
+            }
+            if (iTotalSize > MAX_TOTAL_ATTACHMENTS_SIZE_BYTES) {
+                return { ok: false, message: "Превышен лимит вложений 25 MB." };
+            }
+            if (bBadLinks) {
+                return { ok: false, message: "Обнаружены небезопасные ссылки. Разрешены только HTTPS URL." };
+            }
+            if (this._sanitizeHtml(sContent) !== sContent) {
+                return { ok: false, message: "Контент содержит небезопасный HTML. Удалите потенциально опасные элементы." };
+            }
+
+            return { ok: true, message: "OK" };
+        },
+
 
         /* =========================================================== */
         /* DRAG & DROP ОБРАБОТКА                                       */
