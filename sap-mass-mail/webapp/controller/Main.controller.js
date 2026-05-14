@@ -44,13 +44,50 @@ sap.ui.define([
             this.getView().getModel("appData").setProperty("/allNews", oNewsModel.getData());
             
             // Инициализация редактора
+            this._boundEditor = null;
+            this._onEditorInput = this._updateTemplateContent.bind(this);
+            this._onEditorPaste = this.onEditorPaste.bind(this);
             this._initEditor();
         },
 
         _initEditor: function () {
-            var oEditor = this.byId("richTextEditor");
-            if (oEditor) {
-                oEditor.innerHTML = DEFAULT_EDITOR_HTML;
+            var oModel = this.getView().getModel("appData");
+            oModel.setProperty("/templateContent", DEFAULT_EDITOR_HTML);
+        },
+
+        _getEditorDom: function () {
+            var oHtml = this.byId("richTextEditor");
+            var oContainer = oHtml && oHtml.getDomRef();
+            return oContainer ? oContainer.querySelector("#editorContent") : null;
+        },
+
+        onAfterRendering: function () {
+            var oEditor = this._getEditorDom();
+            if (!oEditor) {
+                return;
+            }
+
+            if (this._boundEditor && this._boundEditor !== oEditor) {
+                this._boundEditor.removeEventListener("paste", this._onEditorPaste);
+                this._boundEditor.removeEventListener("input", this._onEditorInput);
+            }
+
+            if (this._boundEditor !== oEditor) {
+                oEditor.addEventListener("paste", this._onEditorPaste);
+                oEditor.addEventListener("input", this._onEditorInput);
+                this._boundEditor = oEditor;
+            }
+
+            var sContent = this.getView().getModel("appData").getProperty("/templateContent") || DEFAULT_EDITOR_HTML;
+            if (oEditor.innerHTML !== sContent) {
+                oEditor.innerHTML = sContent;
+            }
+        },
+
+        onExit: function () {
+            if (this._boundEditor) {
+                this._boundEditor.removeEventListener("paste", this._onEditorPaste);
+                this._boundEditor.removeEventListener("input", this._onEditorInput);
             }
         },
 
@@ -281,10 +318,13 @@ items: aAreaItems
         },
 
         _setEditorContent: function (sHtml) {
-            var oEditor = this.byId("richTextEditor");
+            var sResolvedHtml = sHtml || DEFAULT_EDITOR_HTML;
+            var oEditor = this._getEditorDom();
             if (oEditor) {
-                oEditor.innerHTML = sHtml || DEFAULT_EDITOR_HTML;
+                oEditor.innerHTML = sResolvedHtml;
             }
+
+            this.getView().getModel("appData").setProperty("/templateContent", sResolvedHtml);
         },
 
         /* =========================================================== */
@@ -292,7 +332,29 @@ items: aAreaItems
         /* =========================================================== */
 
         onSelectTemplateFile: function () {
-            this.byId("templateUploader").$file.trigger("click");
+            this._openUploaderFileDialog("templateUploader");
+        },
+
+        _openUploaderFileDialog: function (sUploaderId) {
+            var oUploader = this.byId(sUploaderId);
+            if (!oUploader) {
+                return false;
+            }
+
+            var oDomRef = oUploader.getFocusDomRef && oUploader.getFocusDomRef();
+            var oFileInput = oDomRef && oDomRef.tagName === "INPUT" ? oDomRef : null;
+            if (!oFileInput && oUploader.getDomRef) {
+                var oContainer = oUploader.getDomRef();
+                oFileInput = oContainer ? oContainer.querySelector("input[type='file']") : null;
+            }
+
+            if (oFileInput) {
+                oFileInput.click();
+                return true;
+            }
+
+            MessageBox.error("Не удалось открыть диалог выбора файла");
+            return false;
         },
 
         onTemplateUploaded: function (oEvent) {
@@ -346,7 +408,7 @@ items: aAreaItems
                             var messages = result.messages;
                             
                             // Устанавливаем HTML в редактор
-                            var oEditor = that.byId("richTextEditor");
+                            var oEditor = that._getEditorDom();
                             if (oEditor) {
                                 oEditor.innerHTML = html;
                             }
@@ -392,47 +454,54 @@ items: aAreaItems
         /* РЕДАКТИРОВАНИЕ ШАБЛОНА                                      */
         /* =========================================================== */
 
-        onFormatBold: function () {
-            document.execCommand("bold", false, null);
+        _execEditorCommand: function (sCommand, sValue) {
+            var oEditor = this._getEditorDom();
+            if (!oEditor) {
+                return;
+            }
+
+            oEditor.focus();
+            if (document.queryCommandSupported && !document.queryCommandSupported(sCommand)) {
+                MessageToast.show("Команда форматирования недоступна в этом браузере");
+                return;
+            }
+
+            document.execCommand(sCommand, false, sValue || null);
             this._updateTemplateContent();
+        },
+
+        onFormatBold: function () {
+            this._execEditorCommand("bold");
         },
 
         onFormatItalic: function () {
-            document.execCommand("italic", false, null);
-            this._updateTemplateContent();
+            this._execEditorCommand("italic");
         },
 
         onFormatUnderline: function () {
-            document.execCommand("underline", false, null);
-            this._updateTemplateContent();
+            this._execEditorCommand("underline");
         },
 
         onAlignLeft: function () {
-            document.execCommand("justifyLeft", false, null);
-            this._updateTemplateContent();
+            this._execEditorCommand("justifyLeft");
         },
 
         onAlignCenter: function () {
-            document.execCommand("justifyCenter", false, null);
-            this._updateTemplateContent();
+            this._execEditorCommand("justifyCenter");
         },
 
         onAlignRight: function () {
-            document.execCommand("justifyRight", false, null);
-            this._updateTemplateContent();
+            this._execEditorCommand("justifyRight");
         },
 
         onFontSizeChange: function (oEvent) {
-            document.execCommand("fontSize", false, "7");
-            // Дополнительно можно применить стиль через CSS
-            this._updateTemplateContent();
+            this._execEditorCommand("fontSize", "7");
         },
 
         onInsertImage: function () {
             var sUrl = prompt(this.getResourceBundle().getText("enterImageUrl"));
             if (sUrl) {
-                document.execCommand("insertImage", false, sUrl);
-                this._updateTemplateContent();
+                this._execEditorCommand("insertImage", sUrl);
             }
         },
 
@@ -451,7 +520,7 @@ items: aAreaItems
         },
 
         _updateTemplateContent: function () {
-            var oEditor = this.byId("richTextEditor");
+            var oEditor = this._getEditorDom();
             if (oEditor) {
                 var oModel = this.getView().getModel("appData");
                 oModel.setProperty("/templateContent", oEditor.innerHTML);
@@ -651,7 +720,55 @@ items: aAreaItems
         },
 
         onImportCSV: function () {
-            MessageBox.information("Функция импорта CSV будет реализована в следующей версии");
+            this._openUploaderFileDialog("csvUploader");
+        },
+
+        onCsvUploaded: function (oEvent) {
+            var oFileUploader = oEvent.getSource();
+            var oFile = oEvent.getParameter("files") && oEvent.getParameter("files")[0];
+            if (!oFile) {
+                return;
+            }
+
+            var oReader = new FileReader();
+            oReader.onload = function (e) {
+                var sText = e.target.result || "";
+                var aEmails = (sText.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g) || [])
+                    .map(function (sEmail) { return sEmail.trim().toLowerCase(); });
+                var iAdded = this._addRecipientsByEmails(aEmails);
+                MessageToast.show("Импорт завершен. Добавлено: " + iAdded);
+            }.bind(this);
+            oReader.onerror = function () {
+                MessageBox.error("Не удалось прочитать CSV файл");
+            };
+            oReader.readAsText(oFile, "utf-8");
+            oFileUploader.clear();
+        },
+
+        _addRecipientsByEmails: function (aEmails) {
+            var oModel = this.getView().getModel("appData");
+            var aRecipients = oModel.getProperty("/recipients") || [];
+            var oExisting = {};
+            aRecipients.forEach(function (oRecipient) {
+                if (oRecipient.email) {
+                    oExisting[oRecipient.email.toLowerCase()] = true;
+                }
+            });
+
+            var iAdded = 0;
+            aEmails.forEach(function (sEmail) {
+                if (!oExisting[sEmail]) {
+                    aRecipients.push({
+                        email: sEmail,
+                        fullName: "",
+                        role: ""
+                    });
+                    oExisting[sEmail] = true;
+                    iAdded++;
+                }
+            });
+            oModel.setProperty("/recipients", aRecipients);
+            return iAdded;
         },
 
         onExportToClipboard: function () {
@@ -665,16 +782,39 @@ items: aAreaItems
             }
             var that = this;
 
-            if (!navigator.clipboard || !navigator.clipboard.writeText) {
-                MessageBox.error("Clipboard API недоступен в текущем браузере");
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(sEmails).then(function () {
+                    MessageToast.show(that.getResourceBundle().getText("emailsCopied"));
+                }).catch(function () {
+                    that._copyToClipboardFallback(sEmails);
+                });
                 return;
             }
 
-            navigator.clipboard.writeText(sEmails).then(function () {
-                MessageToast.show(that.getResourceBundle().getText("emailsCopied"));
-            }).catch(function () {
-                MessageBox.error("Не удалось скопировать в буфер обмена");
-            });
+            this._copyToClipboardFallback(sEmails);
+        },
+
+        _copyToClipboardFallback: function (sText) {
+            var oTextarea = document.createElement("textarea");
+            oTextarea.value = sText;
+            oTextarea.setAttribute("readonly", "readonly");
+            oTextarea.style.position = "absolute";
+            oTextarea.style.left = "-9999px";
+            document.body.appendChild(oTextarea);
+            oTextarea.select();
+
+            try {
+                var bCopied = document.execCommand("copy");
+                if (bCopied) {
+                    MessageToast.show(this.getResourceBundle().getText("emailsCopied"));
+                } else {
+                    MessageBox.error("Не удалось скопировать в буфер обмена");
+                }
+            } catch (e) {
+                MessageBox.error("Clipboard API недоступен в текущем браузере");
+            } finally {
+                document.body.removeChild(oTextarea);
+            }
         },
 
         /* =========================================================== */
