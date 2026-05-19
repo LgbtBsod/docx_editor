@@ -110,6 +110,27 @@ POST /sap/opu/odata/sap/ZMM_MASSMAIL_SRV/MailSends
 }
 ```
 
+## Mock-стенд для локальной проверки
+
+В репозитории добавлены простые mock-артефакты для smoke-проверки:
+
+- `mock/mock-send-payload.json` — пример payload для отправки.
+- `mock/mock-generated-email.html` — пример сформированного HTML письма.
+- `mock/mock-generated-email-captured.html` — HTML, полученный через локальный HTTP запуск.
+- `mock/mock-service-ui.svg` — скрин сервиса (mock run).
+- `mock/mock-generated-email.svg` — скрин captured HTML результата.
+
+Быстрый запуск:
+
+```bash
+cd sap-mass-mail
+python3 -m http.server 4173
+```
+
+Проверка в браузере/по URL:
+- `http://127.0.0.1:4173/webapp/index.html`
+- `http://127.0.0.1:4173/mock/mock-generated-email.html`
+
 ## Требования
 
 ### SAP Backend
