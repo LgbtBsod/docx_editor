@@ -150,6 +150,12 @@
                                 <core:HTML id="richTextEditor" content="&lt;div id=&quot;editorContent&quot; contenteditable=&quot;true&quot; class=&quot;RichTextEditor FullHeight&quot;&gt;&lt;/div&gt;"/>
                             </m:VBox>
                             
+                            <m:HBox justifyContent="End" class="sapUiTinyMarginTopBottom EditorCounterWrap">
+                                <m:ObjectStatus text="{= ${appData>/templateCharCount} + ' / 50000' }"
+                                                state="{= ${appData>/templateCharCount} > 45000 ? 'Warning' : 'Success' }"
+                                                class="EditorCounter"/>
+                            </m:HBox>
+
                             <!-- Статус сохранения -->
                             <m:Label text="{i18n>lastSaved}: {appData>/lastSaved}" 
                                      class="sapUiTinyMarginTop"

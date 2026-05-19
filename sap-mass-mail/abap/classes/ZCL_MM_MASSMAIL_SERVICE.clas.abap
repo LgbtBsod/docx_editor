@@ -31,8 +31,6 @@ CLASS zcl_mm_massmail_service DEFINITION
     METHODS search_recipients
       IMPORTING
         iv_search_term TYPE string
-        iv_role        TYPE agr_name OPTIONAL
-        iv_auth_obj    TYPE ust12-auth OPTIONAL
       RETURNING
         VALUE(rt_result) TYPE TABLE FOR READ Z_C_MASSMAIL_RECIPIENT.
 
@@ -96,47 +94,38 @@ CLASS zcl_mm_massmail_service DEFINITION
         iv_url        TYPE string
       RETURNING
         VALUE(rv_url) TYPE string.
+
+    METHODS is_allowed_internal_url
+      IMPORTING
+        iv_url         TYPE string
+      RETURNING
+        VALUE(rv_allowed) TYPE abap_bool.
+
+    METHODS encode_sensitive
+      IMPORTING iv_value TYPE string
+      RETURNING VALUE(rv_value) TYPE string.
+
+    METHODS decode_sensitive
+      IMPORTING iv_value TYPE string
+      RETURNING VALUE(rv_value) TYPE string.
 ENDCLASS.
 
 
 CLASS zcl_mm_massmail_service IMPLEMENTATION.
 
   METHOD search_recipients.
-    " Безопасный поиск без динамического SQL
-    DATA(lv_pattern) = |%{ iv_search_term }%|.
-
-    IF iv_role IS INITIAL.
-      SELECT * FROM z_c_massmail_recipient
-        WHERE full_name     LIKE @lv_pattern
-           OR email_address LIKE @lv_pattern
-           OR username      LIKE @lv_pattern
-        INTO TABLE @rt_result
-        ORDER BY full_name ASCENDING.
-    ELSE.
-      SELECT * FROM z_c_massmail_recipient
-        WHERE ( full_name     LIKE @lv_pattern
-             OR email_address LIKE @lv_pattern
-             OR username      LIKE @lv_pattern )
-          AND role_name = @iv_role
-        INTO TABLE @rt_result
-        ORDER BY full_name ASCENDING.
+    " Минимум 3 символа для поиска по ФИО
+    DATA(lv_term) = condense( iv_search_term ).
+    IF strlen( lv_term ) < 3.
+      RETURN.
     ENDIF.
 
-    " Если указан объект полномочий, используем CDS с параметром
-    IF iv_auth_obj IS NOT INITIAL.
-      SELECT * FROM z_c_massmail_byauthobject(
-          p_uname = @sy-uname
-          p_auth_obj = @iv_auth_obj )
-        INTO TABLE @DATA(lt_auth_result).
+    DATA(lv_pattern) = |%{ lv_term }%|.
 
-      " Объединяем результаты, исключая дубликаты по email
-      LOOP AT lt_auth_result INTO DATA(ls_auth).
-        READ TABLE rt_result WITH KEY email_address = ls_auth-email_address TRANSPORTING NO FIELDS.
-        IF sy-subrc <> 0.
-          APPEND ls_auth TO rt_result.
-        ENDIF.
-      ENDLOOP.
-    ENDIF.
+    SELECT * FROM z_c_massmail_recipient
+      WHERE full_name LIKE @lv_pattern
+      INTO TABLE @rt_result
+      ORDER BY full_name ASCENDING.
   ENDMETHOD.
 
   METHOD send_mass_mail.
@@ -145,9 +134,31 @@ CLASS zcl_mm_massmail_service IMPLEMENTATION.
           lx_error         TYPE REF TO cx_bcs,
           lc_batch_size    TYPE i VALUE 50,
           lt_current_batch TYPE TABLE OF ad_smtpadr,
-          lv_batch_count   TYPE i VALUE 0.
+          lv_batch_count   TYPE i VALUE 0,
+          lc_max_attachment_size TYPE i VALUE 10485760,
+          lc_max_total_size TYPE i VALUE 20971520,
+          lv_total_attachment_size TYPE i VALUE 0,
+          lv_attach_lines TYPE i,
+          lv_attachment_size TYPE i.
 
     rs_result-success = abap_false.
+
+    " Серверные лимиты вложений
+    LOOP AT it_attachments INTO DATA(ls_attachment_check).
+      DESCRIBE TABLE ls_attachment_check-hex_bin LINES lv_attach_lines.
+      lv_attachment_size = lv_attach_lines * 255.
+      lv_total_attachment_size = lv_total_attachment_size + lv_attachment_size.
+      IF lv_attachment_size > lc_max_attachment_size.
+        rs_result-error_log = rs_result-error_log && |Вложение слишком большое: { ls_attachment_check-file_name }; |.
+        rs_result-failed_count = rs_result-failed_count + 1.
+        RETURN.
+      ENDIF.
+    ENDLOOP.
+
+    IF lv_total_attachment_size > lc_max_total_size.
+      rs_result-error_log = rs_result-error_log && |Превышен общий лимит вложений 20 MB; |.
+      RETURN.
+    ENDIF.
 
     TRY.
         " Создаем HTML документ с ссылками на документы
@@ -280,7 +291,7 @@ CLASS zcl_mm_massmail_service IMPLEMENTATION.
         ENDLOOP.
 
         " Отправка пакета
-        lv_success = lo_batch_request->send( i_with_error_screen = 'X' ).
+        lv_success = lo_batch_request->send( i_with_error_screen = space ).
 
         IF lv_success = 'X'.
           cv_sent_count = cv_sent_count + lines( it_batch_emails ).
@@ -356,11 +367,12 @@ CLASS zcl_mm_massmail_service IMPLEMENTATION.
     rv_html = iv_html.
 
     REPLACE ALL OCCURRENCES OF REGEX '<script[\s\S]*?>[\s\S]*?</script>' IN rv_html WITH ''.
-    REPLACE ALL OCCURRENCES OF REGEX '<iframe[\s\S]*?>[\s\S]*?</iframe>' IN rv_html WITH ''.
     REPLACE ALL OCCURRENCES OF REGEX ' on[a-zA-Z]+[[:space:]]*=[[:space:]]*"[^"]*"' IN rv_html WITH ''.
     REPLACE ALL OCCURRENCES OF REGEX ' on[a-zA-Z]+[[:space:]]*=[[:space:]]*''[^'']*''' IN rv_html WITH ''.
     REPLACE ALL OCCURRENCES OF REGEX '(href|src)[[:space:]]*=[[:space:]]*"javascript:[^"]*"' IN rv_html WITH ''.
     REPLACE ALL OCCURRENCES OF REGEX '(href|src)[[:space:]]*=[[:space:]]*''javascript:[^'']*''' IN rv_html WITH ''.
+    REPLACE ALL OCCURRENCES OF REGEX '(href|src)[[:space:]]*=[[:space:]]*"data:[^"]*"' IN rv_html WITH ''.
+    REPLACE ALL OCCURRENCES OF REGEX '(href|src)[[:space:]]*=[[:space:]]*''data:[^'']*''' IN rv_html WITH ''.
   ENDMETHOD.
 
   METHOD normalize_https_url.
@@ -372,6 +384,9 @@ CLASS zcl_mm_massmail_service IMPLEMENTATION.
     ENDIF.
 
     IF rv_url CP 'https://*'.
+      IF is_allowed_internal_url( rv_url ) = abap_false.
+        rv_url = ''.
+      ENDIF.
       RETURN.
     ENDIF.
 
@@ -381,6 +396,44 @@ CLASS zcl_mm_massmail_service IMPLEMENTATION.
     ENDIF.
 
     rv_url = |https://{ rv_url }|.
+  ENDMETHOD.
+
+  METHOD is_allowed_internal_url.
+    DATA: lv_host TYPE string,
+          lv_exists TYPE abap_bool VALUE abap_false.
+
+    rv_allowed = abap_false.
+
+    FIND REGEX '^https://([^/:]+)' IN iv_url SUBMATCHES lv_host.
+    IF sy-subrc <> 0 OR lv_host IS INITIAL.
+      RETURN.
+    ENDIF.
+
+    TRANSLATE lv_host TO LOWER CASE.
+
+    SELECT SINGLE @abap_true FROM zmm_allowed_host
+      WHERE host_name = @lv_host
+      INTO @lv_exists.
+
+    IF sy-subrc = 0 AND lv_exists = abap_true.
+      rv_allowed = abap_true.
+    ENDIF.
+  ENDMETHOD.
+
+  METHOD encode_sensitive.
+    DATA lv_x TYPE xstring.
+    lv_x = cl_abap_codepage=>convert_to( iv_value ).
+    rv_value = cl_http_utility=>encode_x_base64( lv_x ).
+  ENDMETHOD.
+
+  METHOD decode_sensitive.
+    DATA lv_x TYPE xstring.
+    TRY.
+        lv_x = cl_http_utility=>decode_x_base64( iv_value ).
+        rv_value = cl_abap_codepage=>convert_from( lv_x ).
+      CATCH cx_root.
+        rv_value = iv_value.
+    ENDTRY.
   ENDMETHOD.
 
 ENDCLASS.

@@ -75,6 +75,40 @@ FORM create_tables .
       WRITE: / icon_message_warning AS ICON, 'ZMM_SEND_HISTORY:', lx_error->get_text( ).
   ENDTRY.
 
+
+  " Таблица разрешенных хостов ссылок
+  TRY.
+      EXEC SQL.
+        CREATE COLUMN TABLE zmm_allowed_host (
+          host_name NVARCHAR(255) NOT NULL,
+          created_by NVARCHAR(12),
+          created_at TIMESTAMP,
+          PRIMARY KEY (host_name)
+        )
+      ENDEXEC.
+      WRITE: / icon_message_success AS ICON, 'Таблица ZMM_ALLOWED_HOST создана.'.
+    CATCH cx_root INTO lx_error.
+      WRITE: / icon_message_warning AS ICON, 'ZMM_ALLOWED_HOST:', lx_error->get_text( ).
+  ENDTRY.
+
+  " Таблица security-аудита
+  TRY.
+      EXEC SQL.
+        CREATE COLUMN TABLE zmm_security_audit (
+          audit_id NVARCHAR(32) NOT NULL,
+          uname NVARCHAR(12),
+          event_type NVARCHAR(30),
+          details_hash NVARCHAR(64),
+          event_ts TIMESTAMP,
+          result_count INTEGER,
+          PRIMARY KEY (audit_id)
+        )
+      ENDEXEC.
+      WRITE: / icon_message_success AS ICON, 'Таблица ZMM_SECURITY_AUDIT создана.'.
+    CATCH cx_root INTO lx_error.
+      WRITE: / icon_message_warning AS ICON, 'ZMM_SECURITY_AUDIT:', lx_error->get_text( ).
+  ENDTRY.
+
   " Таблица получателей в истории
   TRY.
       EXEC SQL.
