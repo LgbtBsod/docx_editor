@@ -108,6 +108,19 @@ CLASS zcl_mm_massmail_service DEFINITION
     METHODS decode_sensitive
       IMPORTING iv_value TYPE string
       RETURNING VALUE(rv_value) TYPE string.
+
+    METHODS mask_email
+      IMPORTING iv_email TYPE string
+      RETURNING VALUE(rv_masked) TYPE string.
+
+    METHODS sanitize_error_text
+      IMPORTING iv_error_text TYPE string
+      RETURNING VALUE(rv_error_text) TYPE string.
+
+    METHODS write_security_audit
+      IMPORTING
+        iv_event_type TYPE char30
+        iv_details    TYPE string.
 ENDCLASS.
 
 
@@ -116,6 +129,7 @@ CLASS zcl_mm_massmail_service IMPLEMENTATION.
   METHOD search_recipients.
     " Минимум 3 символа для поиска по ФИО
     DATA(lv_term) = condense( iv_search_term ).
+    DATA(lc_max_rows) = 100.
     IF strlen( lv_term ) < 3.
       RETURN.
     ENDIF.
@@ -125,7 +139,8 @@ CLASS zcl_mm_massmail_service IMPLEMENTATION.
     SELECT * FROM z_c_massmail_recipient
       WHERE full_name LIKE @lv_pattern
       INTO TABLE @rt_result
-      ORDER BY full_name ASCENDING.
+      ORDER BY full_name ASCENDING
+      UP TO @lc_max_rows ROWS.
   ENDMETHOD.
 
   METHOD send_mass_mail.
@@ -139,9 +154,80 @@ CLASS zcl_mm_massmail_service IMPLEMENTATION.
           lc_max_total_size TYPE i VALUE 20971520,
           lv_total_attachment_size TYPE i VALUE 0,
           lv_attach_lines TYPE i,
-          lv_attachment_size TYPE i.
+          lv_attachment_size TYPE i,
+          lc_max_recipients TYPE i VALUE 5000,
+          lt_unique_recipients TYPE SORTED TABLE OF ad_smtpadr WITH UNIQUE KEY table_line,
+          lt_rejected_emails TYPE STANDARD TABLE OF string WITH EMPTY KEY,
+          lc_max_subject_len TYPE i VALUE 255,
+          lc_max_body_len TYPE i VALUE 50000.
 
     rs_result-success = abap_false.
+
+    IF iv_subject IS INITIAL OR strlen( iv_subject ) > lc_max_subject_len.
+      rs_result-error_log = |Некорректная тема письма (пусто или > { lc_max_subject_len }); |.
+      write_security_audit(
+        iv_event_type = 'SEND_VALIDATION'
+        iv_details    = rs_result-error_log
+      ).
+      RETURN.
+    ENDIF.
+
+    IF iv_html_body IS INITIAL OR strlen( iv_html_body ) > lc_max_body_len.
+      rs_result-error_log = |Некорректное тело письма (пусто или > { lc_max_body_len }); |.
+      write_security_audit(
+        iv_event_type = 'SEND_VALIDATION'
+        iv_details    = rs_result-error_log
+      ).
+      RETURN.
+    ENDIF.
+
+    IF it_attachments IS INITIAL.
+      " Разрешаем отправку без вложений
+    ELSE.
+      LOOP AT it_attachments INTO DATA(ls_attachment_schema).
+        IF ls_attachment_schema-file_name IS INITIAL
+           OR ls_attachment_schema-file_type IS INITIAL
+           OR ls_attachment_schema-hex_bin IS INITIAL.
+          rs_result-error_log = |Некорректная структура вложения (name/type/content обязательны); |.
+          write_security_audit(
+            iv_event_type = 'SEND_VALIDATION'
+            iv_details    = rs_result-error_log
+          ).
+          RETURN.
+        ENDIF.
+      ENDLOOP.
+    ENDIF.
+
+    LOOP AT it_document_links INTO DATA(ls_link_schema).
+      DATA(lv_checked_url) = normalize_https_url( ls_link_schema-url ).
+      IF ls_link_schema-title IS INITIAL OR lv_checked_url IS INITIAL.
+        rs_result-error_log = |Некорректная ссылка документа (title/url обязательны, только https и allowlist host); |.
+        write_security_audit(
+          iv_event_type = 'SEND_VALIDATION'
+          iv_details    = rs_result-error_log
+        ).
+        RETURN.
+      ENDIF.
+    ENDLOOP.
+
+    LOOP AT it_recipients INTO DATA(lv_input_email).
+      DATA(lv_normalized_email) = lv_input_email.
+      TRANSLATE lv_normalized_email TO LOWER CASE.
+      CONDENSE lv_normalized_email NO-GAPS.
+      IF lv_normalized_email IS NOT INITIAL.
+        INSERT lv_normalized_email INTO TABLE lt_unique_recipients.
+      ENDIF.
+    ENDLOOP.
+
+    IF lines( lt_unique_recipients ) > lc_max_recipients.
+      rs_result-error_log = |Превышен лимит получателей: максимум { lc_max_recipients }; |.
+      rs_result-failed_count = lines( lt_unique_recipients ).
+      write_security_audit(
+        iv_event_type = 'SEND_VALIDATION'
+        iv_details    = rs_result-error_log
+      ).
+      RETURN.
+    ENDIF.
 
     " Серверные лимиты вложений
     LOOP AT it_attachments INTO DATA(ls_attachment_check).
@@ -151,12 +237,20 @@ CLASS zcl_mm_massmail_service IMPLEMENTATION.
       IF lv_attachment_size > lc_max_attachment_size.
         rs_result-error_log = rs_result-error_log && |Вложение слишком большое: { ls_attachment_check-file_name }; |.
         rs_result-failed_count = rs_result-failed_count + 1.
+        write_security_audit(
+          iv_event_type = 'SEND_VALIDATION'
+          iv_details    = rs_result-error_log
+        ).
         RETURN.
       ENDIF.
     ENDLOOP.
 
     IF lv_total_attachment_size > lc_max_total_size.
       rs_result-error_log = rs_result-error_log && |Превышен общий лимит вложений 20 MB; |.
+      write_security_audit(
+        iv_event_type = 'SEND_VALIDATION'
+        iv_details    = rs_result-error_log
+      ).
       RETURN.
     ENDIF.
 
@@ -186,7 +280,7 @@ CLASS zcl_mm_massmail_service IMPLEMENTATION.
         lo_send_request->set_sender( lo_sender ).
 
         " ПАКЕТНАЯ ОТПРАВКА получателям с валидацией email
-        LOOP AT it_recipients INTO DATA(lv_email).
+        LOOP AT lt_unique_recipients INTO DATA(lv_email).
           IF validate_email_address( lv_email ) = abap_true.
             APPEND lv_email TO lt_current_batch.
 
@@ -209,9 +303,19 @@ CLASS zcl_mm_massmail_service IMPLEMENTATION.
             ENDIF.
           ELSE.
             rs_result-failed_count = rs_result-failed_count + 1.
-            rs_result-error_log = rs_result-error_log && |Невалидный email: { lv_email }; |.
+            DATA(lv_masked) = mask_email( lv_email ).
+            APPEND lv_masked TO lt_rejected_emails.
+            rs_result-error_log = rs_result-error_log && |Невалидный email: { lv_masked }; |.
+            write_security_audit(
+              iv_event_type = 'SEND_VALIDATION'
+              iv_details    = rs_result-error_log
+            ).
           ENDIF.
         ENDLOOP.
+
+        IF lt_rejected_emails IS NOT INITIAL.
+          rs_result-error_log = rs_result-error_log && |Отклоненные адреса: { concat_lines_of( table = lt_rejected_emails sep = ', ' ) }; |.
+        ENDIF.
 
         " Отправка остатка получателей (последний пакет)
         IF lt_current_batch IS NOT INITIAL.
@@ -238,7 +342,11 @@ CLASS zcl_mm_massmail_service IMPLEMENTATION.
         ENDIF.
 
       CATCH cx_bcs INTO lx_error.
-        rs_result-error_log = lx_error->get_text( ).
+        rs_result-error_log = sanitize_error_text( lx_error->get_text( ) ).
+        write_security_audit(
+          iv_event_type = 'SEND_TRANSPORT'
+          iv_details    = rs_result-error_log
+        ).
         rs_result-success = abap_false.
     ENDTRY.
   ENDMETHOD.
@@ -276,36 +384,45 @@ CLASS zcl_mm_massmail_service IMPLEMENTATION.
     DATA: lo_batch_request TYPE REF TO cl_bcs,
           lo_recipient     TYPE REF TO if_recipient_bcs,
           lv_success       TYPE os_boolean,
-          lx_error         TYPE REF TO cx_bcs.
+          lx_error         TYPE REF TO cx_bcs,
+          lv_attempt       TYPE i,
+          lc_max_attempts  TYPE i VALUE 3.
 
     rv_success = abap_true.
 
-    TRY.
-        " Создаем копию запроса для пакета
-        lo_batch_request = io_request->copy( ).
+    DO lc_max_attempts TIMES.
+      lv_attempt = sy-index.
+      TRY.
+          " Создаем копию запроса для пакета
+          lo_batch_request = io_request->copy( ).
 
-        " Добавляем получателей пакета
-        LOOP AT it_batch_emails INTO DATA(lv_batch_email).
-          lo_recipient = cl_cam_address_bcs=>create_internet_address( lv_batch_email ).
-          lo_batch_request->add_recipient( i_recipient = lo_recipient ).
-        ENDLOOP.
+          " Добавляем получателей пакета
+          LOOP AT it_batch_emails INTO DATA(lv_batch_email).
+            lo_recipient = cl_cam_address_bcs=>create_internet_address( lv_batch_email ).
+            lo_batch_request->add_recipient( i_recipient = lo_recipient ).
+          ENDLOOP.
 
-        " Отправка пакета
-        lv_success = lo_batch_request->send( i_with_error_screen = space ).
+          " Отправка пакета
+          lv_success = lo_batch_request->send( i_with_error_screen = space ).
 
-        IF lv_success = 'X'.
-          cv_sent_count = cv_sent_count + lines( it_batch_emails ).
-        ELSE.
-          cv_failed_count = cv_failed_count + lines( it_batch_emails ).
-          cv_error_log = cv_error_log && |Пакет { iv_batch_number }: ошибка отправки; |.
-          rv_success = abap_false.
-        ENDIF.
+          IF lv_success = 'X'.
+            cv_sent_count = cv_sent_count + lines( it_batch_emails ).
+            RETURN.
+          ENDIF.
 
-      CATCH cx_bcs INTO lx_error.
-        cv_failed_count = cv_failed_count + lines( it_batch_emails ).
-        cv_error_log = cv_error_log && |Пакет { iv_batch_number }: { lx_error->get_text( ) }; |.
-        rv_success = abap_false.
-    ENDTRY.
+        CATCH cx_bcs INTO lx_error.
+          IF lv_attempt = lc_max_attempts.
+            cv_failed_count = cv_failed_count + lines( it_batch_emails ).
+            cv_error_log = cv_error_log && |Пакет { iv_batch_number } после { lc_max_attempts } попыток: { sanitize_error_text( lx_error->get_text( ) ) }; |.
+            rv_success = abap_false.
+            RETURN.
+          ENDIF.
+      ENDTRY.
+    ENDDO.
+
+    cv_failed_count = cv_failed_count + lines( it_batch_emails ).
+    cv_error_log = cv_error_log && |Пакет { iv_batch_number }: ошибка отправки после { lc_max_attempts } попыток; |.
+    rv_success = abap_false.
   ENDMETHOD.
 
   METHOD log_send_history.
@@ -385,12 +502,20 @@ CLASS zcl_mm_massmail_service IMPLEMENTATION.
 
     IF rv_url CP 'https://*'.
       IF is_allowed_internal_url( rv_url ) = abap_false.
+        write_security_audit(
+          iv_event_type = 'LINK_REJECTED'
+          iv_details    = 'HOST_NOT_ALLOWED'
+        ).
         rv_url = ''.
       ENDIF.
       RETURN.
     ENDIF.
 
     IF rv_url CP 'http://*'.
+      write_security_audit(
+        iv_event_type = 'LINK_REJECTED'
+        iv_details    = 'SCHEME_HTTP_BLOCKED'
+      ).
       rv_url = ''.
       RETURN.
     ENDIF.
@@ -434,6 +559,45 @@ CLASS zcl_mm_massmail_service IMPLEMENTATION.
       CATCH cx_root.
         rv_value = iv_value.
     ENDTRY.
+  ENDMETHOD.
+
+  METHOD mask_email.
+    DATA(lv_email) = condense( iv_email ).
+    DATA(lv_local) TYPE string.
+    DATA(lv_domain) TYPE string.
+
+    SPLIT lv_email AT '@' INTO lv_local lv_domain.
+    IF lv_local IS INITIAL OR lv_domain IS INITIAL.
+      rv_masked = '***'.
+      RETURN.
+    ENDIF.
+
+    rv_masked = |{ lv_local(1) }***@{ lv_domain }|.
+  ENDMETHOD.
+
+  METHOD sanitize_error_text.
+    rv_error_text = condense( iv_error_text ).
+
+    IF strlen( rv_error_text ) > 250.
+      rv_error_text = rv_error_text(250) && '...'.
+    ENDIF.
+
+    REPLACE ALL OCCURRENCES OF REGEX '[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}' IN rv_error_text WITH '***@***'.
+    REPLACE ALL OCCURRENCES OF REGEX '<[^>]+>' IN rv_error_text WITH '[HTML]'.
+  ENDMETHOD.
+
+  METHOD write_security_audit.
+    DATA(lv_details_hash) = cl_abap_message_digest=>calculate_hash_for_char(
+      if_algorithm = 'SHA256'
+      if_data      = iv_details
+    ).
+
+    INSERT zmm_security_audit FROM VALUE #(
+      uname        = sy-uname
+      event_type   = iv_event_type
+      details_hash = lv_details_hash
+      event_ts     = CONV timestampl( |{ sy-datum }{ sy-uzeit }| )
+    ).
   ENDMETHOD.
 
 ENDCLASS.

@@ -10,6 +10,9 @@ sap.ui.define([
     var MAX_ATTACHMENT_SIZE_BYTES = 10 * 1024 * 1024;
     var MAX_TOTAL_ATTACHMENTS_SIZE_BYTES = 20 * 1024 * 1024;
     var MAX_TEMPLATE_CHARS = 50000;
+    var RECIPIENT_SEARCH_MIN_LEN = 3;
+    var RECIPIENT_SEARCH_THROTTLE_MS = 800;
+    var RECIPIENT_SEARCH_MAX_RESULTS = 50;
     var ALLOWED_ATTACHMENT_MIME = [
         "application/pdf",
         "application/msword",
@@ -64,6 +67,7 @@ sap.ui.define([
             this._boundEditor = null;
             this._onEditorInput = this._updateTemplateContent.bind(this);
             this._onEditorPaste = this.onEditorPaste.bind(this);
+            this._recipientSearchTimer = null;
             this._initEditor();
             this._loadAllowedHosts();
         },
@@ -568,8 +572,7 @@ items: aAreaItems
                 if (sPlainText.length > MAX_TEMPLATE_CHARS) {
                     MessageToast.show("Превышен лимит текста 50 000 символов");
                     sPlainText = sPlainText.slice(0, MAX_TEMPLATE_CHARS);
-                    sSanitized = this._escapeHtml(sPlainText).replace(/
-/g, "<br>");
+                    sSanitized = this._escapeHtml(sPlainText).replace(/\n/g, "<br>");
                     oEditor.innerHTML = sSanitized;
                 }
                 oModel.setProperty("/templateCharCount", sPlainText.length);
@@ -714,43 +717,50 @@ items: aAreaItems
             var that = this;
             var oModel = this.getView().getModel("appData");
             
-            if (!sQuery || sQuery.length < 2) {
+            if (!sQuery || sQuery.trim().length < RECIPIENT_SEARCH_MIN_LEN) {
+                MessageToast.show("Введите минимум " + RECIPIENT_SEARCH_MIN_LEN + " символа(ов) для поиска");
                 return;
             }
-            
-            oModel.setProperty("/busy", true);
-            
-            // TODO: Вызов OData сервиса для поиска
-            // Поддерживаем базовые префиксы:
-            // role:ehsm_*  -> поиск по роли
-            // auth:S_USER_AGR=VALUE -> поиск по объекту полномочий
-            // иначе поиск по ФИО
-            
-            // Эмуляция поиска
-            setTimeout(function () {
-                var aRecipients = oModel.getProperty("/recipients");
-                
-                // Добавляем найденного (для примера)
-                var sEmail = sQuery.indexOf("@") > -1
-                    ? sQuery.toLowerCase()
-                    : sQuery.toLowerCase().replace(/\s/g, ".") + "@company.com";
+            if (this._recipientSearchTimer) {
+                clearTimeout(this._recipientSearchTimer);
+            }
+            this._recipientSearchTimer = setTimeout(function () {
+                oModel.setProperty("/busy", true);
+                var oODataModel = this.getOwnerComponent().getModel();
+                oODataModel.read("/Recipients", {
+                    urlParameters: {
+                        "$top": RECIPIENT_SEARCH_MAX_RESULTS,
+                        "$search": sQuery.trim()
+                    },
+                    success: function (oData) {
+                        var aRecipients = oModel.getProperty("/recipients");
+                        var oKnown = {};
+                        aRecipients.forEach(function (oRecipient) {
+                            oKnown[(oRecipient.email || "").toLowerCase()] = true;
+                        });
 
-                var bExists = aRecipients.some(function (oRecipient) {
-                    return oRecipient.email && oRecipient.email.toLowerCase() === sEmail;
+                        (oData.results || []).forEach(function (oFound) {
+                            var sEmail = (oFound.Email || "").trim().toLowerCase();
+                            if (!sEmail || oKnown[sEmail]) {
+                                return;
+                            }
+                            aRecipients.push({
+                                email: sEmail,
+                                fullName: oFound.FullName || "",
+                                role: oFound.Role || ""
+                            });
+                            oKnown[sEmail] = true;
+                        });
+                        oModel.setProperty("/recipients", aRecipients);
+                        oModel.setProperty("/busy", false);
+                        MessageToast.show(that.getResourceBundle().getText("searchComplete"));
+                    },
+                    error: function () {
+                        oModel.setProperty("/busy", false);
+                        MessageBox.error("Не удалось выполнить поиск получателей");
+                    }
                 });
-
-                if (!bExists) {
-                    aRecipients.push({
-                        email: sEmail,
-                        fullName: sQuery.indexOf("@") > -1 ? "Иванов Иван" : sQuery,
-                        role: sQuery.indexOf("@") > -1 ? "Пользователь" : "Сотрудник"
-                    });
-                }
-                
-                oModel.setProperty("/recipients", aRecipients);
-                oModel.setProperty("/busy", false);
-                MessageToast.show(that.getResourceBundle().getText("searchComplete"));
-            }, 500);
+            }.bind(this), RECIPIENT_SEARCH_THROTTLE_MS);
         },
 
         onRemoveRecipient: function (oEvent) {
@@ -867,10 +877,8 @@ items: aAreaItems
                 if (bCopied) {
                     MessageToast.show(this.getResourceBundle().getText("emailsCopied"));
                 } else {
-                    MessageBox.error("Не удалось скопировать в буфер обмена");
+                    MessageBox.warning("Не удалось автоматически скопировать. Скопируйте вручную: " + sText);
                 }
-            } catch (e) {
-                MessageBox.error("Clipboard API недоступен в текущем браузере");
             } finally {
                 document.body.removeChild(oTextarea);
             }
