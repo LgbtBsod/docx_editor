@@ -61,6 +61,15 @@
         <Property Name="ChangedAt" Type="Edm.DateTimeOffset" Precision="7" sap:label="Изменено"/>
       </EntityType>
 
+      <EntityType Name="AllowedHostType">
+        <Key>
+          <PropertyRef Name="HostName"/>
+        </Key>
+        <Property Name="HostName" Type="Edm.String" Nullable="false" MaxLength="255" sap:label="Разрешенный хост"/>
+        <Property Name="CreatedBy" Type="Edm.String" MaxLength="12" sap:label="Кто добавил"/>
+        <Property Name="CreatedAt" Type="Edm.DateTimeOffset" Precision="7" sap:label="Когда добавил"/>
+      </EntityType>
+
       <EntityType Name="AttachmentType">
         <Key>
           <PropertyRef Name="AttachmentId"/>
@@ -103,6 +112,7 @@
         <EntitySet Name="Recipients" EntityType="ZMM_MASSMAIL_SRV.RecipientType" sap:creatable="false" sap:updatable="false" sap:deletable="false" sap:searchable="true" sap:content-version="1"/>
         <EntitySet Name="Templates" EntityType="ZMM_MASSMAIL_SRV.TemplateType" sap:searchable="true" sap:content-version="1"/>
         <EntitySet Name="Attachments" EntityType="ZMM_MASSMAIL_SRV.AttachmentType" sap:content-version="1"/>
+        <EntitySet Name="AllowedHosts" EntityType="ZMM_MASSMAIL_SRV.AllowedHostType" sap:creatable="false" sap:updatable="false" sap:deletable="false" sap:content-version="1"/>
         <EntitySet Name="MailSends" EntityType="ZMM_MASSMAIL_SRV.MailSendType" sap:content-version="1"/>
         
         <AssociationSet Name="RecipientAssocSet" Association="ZMM_MASSMAIL_SRV.RecipientAssoc" sap:creatable="false" sap:updatable="false" sap:deletable="false" sap:content-version="1">
