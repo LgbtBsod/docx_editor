@@ -2,35 +2,21 @@ sap.ui.define([
     "sap/ui/core/mvc/Controller",
     "sap/ui/model/json/JSONModel",
     "sap/m/MessageToast",
-    "sap/m/MessageBox"
-], function (Controller, JSONModel, MessageToast, MessageBox) {
+    "sap/m/MessageBox",
+    "com/sap/mm/massmail/constants/AppConstants",
+    "com/sap/mm/massmail/utils/SecurityUtils",
+    "com/sap/mm/massmail/utils/ValidationUtils",
+    "com/sap/mm/massmail/utils/CsvParser",
+    "com/sap/mm/massmail/services/EmailService"
+], function (Controller, JSONModel, MessageToast, MessageBox, AppConstants, SecurityUtils, ValidationUtils, CsvParser, EmailService) {
     "use strict";
-
-    var DEFAULT_EDITOR_HTML = "<p>Здесь будет содержимое письма...</p>";
-    var MAX_ATTACHMENT_SIZE_BYTES = 10 * 1024 * 1024;
-    var MAX_TOTAL_ATTACHMENTS_SIZE_BYTES = 20 * 1024 * 1024;
-    var MAX_TEMPLATE_CHARS = 50000;
-    var RECIPIENT_SEARCH_MIN_LEN = 3;
-    var RECIPIENT_SEARCH_THROTTLE_MS = 800;
-    var RECIPIENT_SEARCH_MAX_RESULTS = 50;
-    var ALLOWED_ATTACHMENT_MIME = [
-        "application/pdf",
-        "application/msword",
-        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        "application/vnd.ms-excel",
-        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        "application/vnd.ms-powerpoint",
-        "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-        "image/png",
-        "image/jpeg"
-    ];
 
     return Controller.extend("com.sap.mm.massmail.controller.Main", {
 
         onInit: function () {
             var oViewModel = new JSONModel({
                 busy: false,
-                contentSource: "manual", // manual, file, news
+                contentSource: AppConstants.CONTENT_SOURCE.MANUAL,
                 templateContent: "",
                 templateName: "",
                 attachments: [],
@@ -63,6 +49,9 @@ sap.ui.define([
             this.getView().setModel(oNewsModel, "news");
             this.getView().getModel("appData").setProperty("/allNews", oNewsModel.getData());
             
+            // Initialize services
+            this._oEmailService = new EmailService(this.getOwnerComponent().getModel());
+            
             // Инициализация редактора
             this._boundEditor = null;
             this._onEditorInput = this._updateTemplateContent.bind(this);
@@ -74,7 +63,7 @@ sap.ui.define([
 
         _initEditor: function () {
             var oModel = this.getView().getModel("appData");
-            oModel.setProperty("/templateContent", DEFAULT_EDITOR_HTML);
+            oModel.setProperty("/templateContent", AppConstants.AppConstants.DEFAULT_EDITOR_HTML);
         },
 
         _getEditorDom: function () {
@@ -117,16 +106,34 @@ sap.ui.define([
                 this._boundEditor = oEditor;
             }
 
-            var sContent = this.getView().getModel("appData").getProperty("/templateContent") || DEFAULT_EDITOR_HTML;
+            var sContent = this.getView().getModel("appData").getProperty("/templateContent") || AppConstants.DEFAULT_EDITOR_HTML;
             if (oEditor.innerHTML !== sContent) {
                 oEditor.innerHTML = sContent;
             }
         },
 
         onExit: function () {
+            // Cleanup event listeners
             if (this._boundEditor) {
                 this._boundEditor.removeEventListener("paste", this._onEditorPaste);
                 this._boundEditor.removeEventListener("input", this._onEditorInput);
+                this._boundEditor = null;
+            }
+            // Cleanup timers
+            if (this._recipientSearchTimer) {
+                clearTimeout(this._recipientSearchTimer);
+                this._recipientSearchTimer = null;
+            }
+            // Cleanup any pending dialogs
+            if (this._oPreflightDialog) {
+                this._oPreflightDialog.destroy();
+                this._oPreflightDialog = null;
+            }
+            // Clear models
+            var oView = this.getView();
+            if (oView) {
+                oView.setModel(null, "appData");
+                oView.setModel(null, "news");
             }
         },
 
@@ -357,7 +364,7 @@ items: aAreaItems
         },
 
         _setEditorContent: function (sHtml) {
-            var sResolvedHtml = sHtml || DEFAULT_EDITOR_HTML;
+            var sResolvedHtml = sHtml || AppConstants.DEFAULT_EDITOR_HTML;
             var oEditor = this._getEditorDom();
             if (oEditor) {
                 oEditor.innerHTML = sResolvedHtml;
@@ -569,9 +576,9 @@ items: aAreaItems
                     oEditor.innerHTML = sSanitized;
                 }
                 var sPlainText = sSanitized.replace(/<[^>]*>/g, "");
-                if (sPlainText.length > MAX_TEMPLATE_CHARS) {
+                if (sPlainText.length > AppConstants.MAX_TEMPLATE_CHARS) {
                     MessageToast.show("Превышен лимит текста 50 000 символов");
-                    sPlainText = sPlainText.slice(0, MAX_TEMPLATE_CHARS);
+                    sPlainText = sPlainText.slice(0, AppConstants.MAX_TEMPLATE_CHARS);
                     sSanitized = this._escapeHtml(sPlainText).replace(/\n/g, "<br>");
                     oEditor.innerHTML = sSanitized;
                 }
@@ -717,8 +724,8 @@ items: aAreaItems
             var that = this;
             var oModel = this.getView().getModel("appData");
             
-            if (!sQuery || sQuery.trim().length < RECIPIENT_SEARCH_MIN_LEN) {
-                MessageToast.show("Введите минимум " + RECIPIENT_SEARCH_MIN_LEN + " символа(ов) для поиска");
+            if (!sQuery || sQuery.trim().length < AppConstants.RECIPIENT_SEARCH_MIN_LEN) {
+                MessageToast.show("Введите минимум " + AppConstants.RECIPIENT_SEARCH_MIN_LEN + " символа(ов) для поиска");
                 return;
             }
             if (this._recipientSearchTimer) {
@@ -729,7 +736,7 @@ items: aAreaItems
                 var oODataModel = this.getOwnerComponent().getModel();
                 oODataModel.read("/Recipients", {
                     urlParameters: {
-                        "$top": RECIPIENT_SEARCH_MAX_RESULTS,
+                        "$top": AppConstants.RECIPIENT_SEARCH_MAX_RESULTS,
                         "$search": sQuery.trim()
                     },
                     success: function (oData) {
@@ -760,7 +767,7 @@ items: aAreaItems
                         MessageBox.error("Не удалось выполнить поиск получателей");
                     }
                 });
-            }.bind(this), RECIPIENT_SEARCH_THROTTLE_MS);
+            }.bind(this), AppConstants.RECIPIENT_SEARCH_THROTTLE_MS);
         },
 
         onRemoveRecipient: function (oEvent) {
@@ -802,16 +809,52 @@ items: aAreaItems
             var oReader = new FileReader();
             oReader.onload = function (e) {
                 var sText = e.target.result || "";
-                var aEmails = (sText.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g) || [])
-                    .map(function (sEmail) { return sEmail.trim().toLowerCase(); });
-                var iAdded = this._addRecipientsByEmails(aEmails);
-                MessageToast.show("Импорт завершен. Добавлено: " + iAdded);
+                // Use CsvParser utility for robust parsing
+                var aRecipients = CsvParser.parse(sText);
+                
+                if (aRecipients.length === 0) {
+                    MessageBox.warning("Не найдено действительных email адресов в CSV файле");
+                    oFileUploader.clear();
+                    return;
+                }
+                
+                var iAdded = this._addRecipientsByList(aRecipients);
+                MessageToast.show("Импорт завершен. Добавлено получателей: " + iAdded + " из " + aRecipients.length);
             }.bind(this);
             oReader.onerror = function () {
                 MessageBox.error("Не удалось прочитать CSV файл");
+                oFileUploader.clear();
             };
             oReader.readAsText(oFile, "utf-8");
             oFileUploader.clear();
+        },
+
+        _addRecipientsByList: function (aNewRecipients) {
+            var oModel = this.getView().getModel("appData");
+            var aRecipients = oModel.getProperty("/recipients") || [];
+            var oExisting = {};
+            
+            aRecipients.forEach(function (oRecipient) {
+                if (oRecipient.email) {
+                    oExisting[oRecipient.email.toLowerCase()] = true;
+                }
+            });
+
+            var iAdded = 0;
+            aNewRecipients.forEach(function (oNewRecipient) {
+                var sEmail = (oNewRecipient.email || "").trim().toLowerCase();
+                if (sEmail && SecurityUtils.isValidEmail(sEmail) && !oExisting[sEmail]) {
+                    aRecipients.push({
+                        email: sEmail,
+                        fullName: oNewRecipient.name || "",
+                        role: oNewRecipient.department || ""
+                    });
+                    oExisting[sEmail] = true;
+                    iAdded++;
+                }
+            });
+            oModel.setProperty("/recipients", aRecipients);
+            return iAdded;
         },
 
         _addRecipientsByEmails: function (aEmails) {
@@ -826,13 +869,14 @@ items: aAreaItems
 
             var iAdded = 0;
             aEmails.forEach(function (sEmail) {
-                if (!oExisting[sEmail]) {
+                var sTrimmed = sEmail.trim().toLowerCase();
+                if (SecurityUtils.isValidEmail(sTrimmed) && !oExisting[sTrimmed]) {
                     aRecipients.push({
-                        email: sEmail,
+                        email: sTrimmed,
                         fullName: "",
                         role: ""
                     });
-                    oExisting[sEmail] = true;
+                    oExisting[sTrimmed] = true;
                     iAdded++;
                 }
             });
@@ -924,24 +968,109 @@ items: aAreaItems
                 return;
             }
 
+            // Показываем расширенный preflight dialog
+            this._showPreflightDialog({
+                isTest: isTest,
+                subject: sSubject,
+                recipientCount: aRecipients.length,
+                totalAttachmentSize: aAttachments.reduce(function(sum, o) { return sum + (o.fileSize || 0); }, 0),
+                unsafeLinksCount: this._countUnsafeLinks(oModel.getProperty("/documentLinks") || []),
+                htmlIssues: this._checkHtmlIssues(sContent),
+                isValid: true
+            });
+        },
+
+        _countUnsafeLinks: function(aLinks) {
             var that = this;
-            
-            // Подтверждение отправки
-            var sConfirmText = isTest 
-                ? this.getResourceBundle().getText("confirmTestSend")
-                : this.getResourceBundle().getText("confirmMassSend").replace("{0}", aRecipients.length);
-            
-            MessageBox.confirm(
-                sConfirmText,
-                {
-                    styleClass: "sapUiSizeCompact",
-                    onClose: function (sAction) {
-                        if (sAction === MessageBox.Action.OK) {
-                            that._executeSend(isTest, sSubject, sContent, aRecipients, aAttachments);
-                        }
-                    }
+            return (aLinks || []).filter(function(oLink) {
+                if (!oLink.url) return true;
+                if (!/^https:\/\//i.test(oLink.url)) return true;
+                try {
+                    var oUrl = new URL(oLink.url);
+                    return !that._isAllowedInternalHost(oUrl.hostname);
+                } catch (e) {
+                    return true;
                 }
-            );
+            }).length;
+        },
+
+        _checkHtmlIssues: function(sHtml) {
+            var iIssues = 0;
+            if (!sHtml) return 0;
+            // Проверка на незакрытые теги
+            var aOpenTags = sHtml.match(/<([a-z]+)(?:\s[^>]*)?(?<!\/)>/gi) || [];
+            var aCloseTags = sHtml.match(/<\/([a-z]+)\s*>/gi) || [];
+            if (aOpenTags.length !== aCloseTags.length) iIssues++;
+            // Проверка на script tags
+            if (/<script/i.test(sHtml)) iIssues++;
+            // Проверка на inline event handlers
+            if (/on(click|load|error|mouseover)/i.test(sHtml)) iIssues++;
+            return iIssues;
+        },
+
+        _showPreflightDialog: function(oData) {
+            var that = this;
+            var oResourceBundle = this.getResourceBundle();
+            
+            var bIsValid = oData.recipientCount > 0 && 
+                           oData.totalAttachmentSize <= AppConstants.MAX_TOTAL_ATTACHMENTS_SIZE_BYTES &&
+                           oData.unsafeLinksCount === 0 &&
+                           oData.htmlIssues === 0;
+
+            var oDialog = new sap.m.Dialog({
+                title: oResourceBundle.getText("preflightTitle"),
+                icon: bIsValid ? "sap-icon://message-success" : "sap-icon://alert",
+                type: bIsValid ? sap.m.DialogType.Message : sap.m.DialogType.Alert,
+                content: [
+                    new sap.m.VBox({
+                        items: [
+                            new sap.m.ObjectStatus({
+                                title: oResourceBundle.getText("preflightRecipientsCount").replace("{0}", oData.recipientCount.toString()),
+                                state: oData.recipientCount > 0 ? sap.ui.core.ValueState.Success : sap.ui.core.ValueState.Error
+                            }),
+                            new sap.m.ObjectStatus({
+                                title: oResourceBundle.getText("preflightAttachmentsSize"),
+                                text: this._formatFileSize(oData.totalAttachmentSize),
+                                state: oData.totalAttachmentSize > AppConstants.MAX_TOTAL_ATTACHMENTS_SIZE_BYTES ? sap.ui.core.ValueState.Error : sap.ui.core.ValueState.Success
+                            }),
+                            new sap.m.ObjectStatus({
+                                title: oResourceBundle.getText("preflightUnsafeLinks"),
+                                text: oData.unsafeLinksCount.toString(),
+                                state: oData.unsafeLinksCount > 0 ? sap.ui.core.ValueState.Warning : sap.ui.core.ValueState.Success
+                            }),
+                            new sap.m.ObjectStatus({
+                                title: oResourceBundle.getText("preflightHtmlIssues"),
+                                text: oData.htmlIssues.toString(),
+                                state: oData.htmlIssues > 0 ? sap.ui.core.ValueState.Warning : sap.ui.core.ValueState.Success
+                            })
+                        ],
+                        marginClass: "sapUiSmallMargin"
+                    })
+                ],
+                beginButton: new sap.m.Button({
+                    text: oData.isTest ? oResourceBundle.getText("sendTestButton") : oResourceBundle.getText("confirmSendButton"),
+                    type: sap.m.ButtonType.Accept,
+                    enabled: bIsValid,
+                    press: function() {
+                        oDialog.close();
+                        that._executeSend(oData.isTest, oData.subject, 
+                            that.getView().getModel("appData").getProperty("/templateContent"),
+                            that.getView().getModel("appData").getProperty("/recipients"),
+                            that.getView().getModel("appData").getProperty("/attachments")
+                        );
+                    }
+                }),
+                endButton: new sap.m.Button({
+                    text: oResourceBundle.getText("cancelButton"),
+                    press: function() { oDialog.close(); }
+                }),
+                afterClose: function() {
+                    oDialog.destroy();
+                }
+            });
+            
+            this._oPreflightDialog = oDialog;
+            oDialog.open();
         },
 
 
@@ -960,78 +1089,68 @@ items: aAreaItems
         _executeSend: function (isTest, sSubject, sContent, aRecipients, aAttachments) {
             var oModel = this.getView().getModel("appData");
             oModel.setProperty("/busy", true);
-            
-            // Подготовка данных для бэкенда
-            var bSensitive = !!oModel.getProperty("/isSensitive");
-            var sEncodedBody = bSensitive ? this._encodeSensitiveValue(this._sanitizeHtml(sContent)) : this._sanitizeHtml(sContent);
-            var aPayloadRecipients = aRecipients.map(function (o) {
-                var sEmail = o.email || "";
-                return bSensitive ? this._encodeSensitiveValue(sEmail) : sEmail;
-            }.bind(this));
 
-            var oPayload = {
-                Subject: sSubject || "(Без темы)",
-                HtmlBody: sEncodedBody,
-                Sender: sap.ui.getCore().getUser(),
-                IsSensitive: bSensitive,
-                Recipients: aPayloadRecipients,
-                Attachments: aAttachments,
-                DocumentLinks: oModel.getProperty("/documentLinks") || []
+            // Подготовка данных для отправки через сервис
+            var bSensitive = !!oModel.getProperty("/isSensitive");
+            var oEmailData = {
+                subject: sSubject || "(Без темы)",
+                content: bSensitive ? this._encodeSensitiveValue(SecurityUtils.sanitizeHtml(sContent)) : SecurityUtils.sanitizeHtml(sContent),
+                isSensitive: bSensitive,
+                recipients: aRecipients.map(function (o) {
+                    var sEmail = o.email || "";
+                    return {
+                        email: bSensitive ? this._encodeSensitiveValue(sEmail) : sEmail,
+                        name: o.fullName || "",
+                        department: o.role || ""
+                    };
+                }.bind(this)),
+                attachments: aAttachments,
+                documentLinks: oModel.getProperty("/documentLinks") || []
             };
-            
-            // Вызов OData сервиса для отправки
-            var oODataModel = this.getOwnerComponent().getModel();
+
+            // Использование EmailService для отправки
             var that = this;
             
-            oODataModel.create("/MailSends", oPayload, {
-                success: function() {
+            this._oEmailService.sendEmail(oEmailData)
+                .then(function (oResult) {
                     oModel.setProperty("/busy", false);
-                    
+
                     var sMessage = isTest
                         ? that.getResourceBundle().getText("testSendSuccess")
-                        : that.getResourceBundle().getText("massSendSuccess").replace("{0}", aRecipients.length);
-                    
+                        : that.getResourceBundle().getText("massSendSuccess").replace("{0}", oResult.recipientCount);
+
                     MessageBox.success(sMessage, {
                         title: that.getResourceBundle().getText("sendComplete")
                     });
-                    
-                    
-                    // Очистка формы после успешной отправки
+
+                    // Очистка формы после успешной массовой отправки
                     if (!isTest) {
                         that._clearForm();
                     }
-                },
-                error: function(oError) {
+                })
+                .catch(function (oError) {
                     oModel.setProperty("/busy", false);
-                    var sErrorMsg = that.getResourceBundle().getText("sendError");
                     
-                    try {
-                        var oErrorResponse = JSON.parse(oError.responseText);
-                        if (oErrorResponse.error && oErrorResponse.error.message) {
-                            sErrorMsg = oErrorResponse.error.message.value;
-                        }
-                    } catch (e) {
-                        // Используем стандартное сообщение
-                    }
-                    
+                    var sErrorMsg = oError.message || that.getResourceBundle().getText("sendError");
+
                     MessageBox.error(sErrorMsg, {
-                        title: that.getResourceBundle().getText("sendFailed")
+                        title: that.getResourceBundle().getText("sendFailed"),
+                        details: oError.technicalDetails ? JSON.stringify(oError.technicalDetails) : undefined
                     });
-                }
-            });
+                });
         },
         
         _clearForm: function() {
             var oModel = this.getView().getModel("appData");
             oModel.setProperty("/subject", "");
-            oModel.setProperty("/templateContent", DEFAULT_EDITOR_HTML);
+            oModel.setProperty("/templateContent", AppConstants.DEFAULT_EDITOR_HTML);
             oModel.setProperty("/recipients", []);
             oModel.setProperty("/attachments", []);
             oModel.setProperty("/documentLinks", []);
             oModel.setProperty("/hasLoadedTemplate", false);
             
             // Очистка редактора
-            this._setEditorContent(DEFAULT_EDITOR_HTML);
+            this._setEditorContent(AppConstants.DEFAULT_EDITOR_HTML);
             
             MessageToast.show(this.getResourceBundle().getText("formCleared"));
         },
@@ -1144,12 +1263,7 @@ items: aAreaItems
         },
 
         _sanitizeHtml: function (sHtml) {
-            var sValue = String(sHtml || "");
-            sValue = sValue.replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, "");
-            sValue = sValue.replace(/<iframe[\s\S]*?>[\s\S]*?<\/iframe>/gi, "");
-            sValue = sValue.replace(/\son\w+\s*=\s*(["']).*?\1/gi, "");
-            sValue = sValue.replace(/\s(href|src)\s*=\s*(["'])\s*javascript:[^"']*\2/gi, "");
-            return sValue;
+            return SecurityUtils.sanitizeHtml(sHtml);
         },
 
         _normalizeHttpsUrl: function (sValue) {
@@ -1182,17 +1296,17 @@ items: aAreaItems
             var aAttachments = aCurrentAttachments || [];
             var iCurrentSize = aAttachments.reduce(function (sum, oItem) { return sum + (oItem.fileSize || 0); }, 0);
 
-            if (oFile.size > MAX_ATTACHMENT_SIZE_BYTES) {
+            if (oFile.size > AppConstants.MAX_ATTACHMENT_SIZE_BYTES) {
                 MessageBox.warning("Файл слишком большой: " + oFile.name + ". Максимум 10 MB на файл.");
                 return false;
             }
 
-            if (iCurrentSize + oFile.size > MAX_TOTAL_ATTACHMENTS_SIZE_BYTES) {
+            if (iCurrentSize + oFile.size > AppConstants.MAX_TOTAL_ATTACHMENTS_SIZE_BYTES) {
                 MessageBox.warning("Превышен общий лимит вложений 20 MB.");
                 return false;
             }
 
-            if (oFile.type && ALLOWED_ATTACHMENT_MIME.indexOf(oFile.type) === -1) {
+            if (oFile.type && AppConstants.ALLOWED_ATTACHMENT_MIME.indexOf(oFile.type) === -1) {
                 MessageBox.warning("Недопустимый тип файла: " + oFile.name);
                 return false;
             }
@@ -1232,14 +1346,14 @@ items: aAreaItems
             if (iDuplicates > 0) {
                 return { ok: false, message: "Найдены дубликаты получателей (" + iDuplicates + "). Удалите повторы." };
             }
-            if (iTotalSize > MAX_TOTAL_ATTACHMENTS_SIZE_BYTES) {
+            if (iTotalSize > AppConstants.MAX_TOTAL_ATTACHMENTS_SIZE_BYTES) {
                 return { ok: false, message: "Превышен лимит вложений 20 MB." };
             }
             if (bBadLinks) {
                 return { ok: false, message: "Хост ссылки не разрешен. Обратитесь в поддержку." };
             }
             var iChars = String(sContent || "").replace(/<[^>]*>/g, "").length;
-            if (iChars > MAX_TEMPLATE_CHARS) {
+            if (iChars > AppConstants.MAX_TEMPLATE_CHARS) {
                 return { ok: false, message: "Слишком длинный текст письма. Максимум 50 000 символов." };
             }
             if (this._sanitizeHtml(sContent) !== sContent) {
