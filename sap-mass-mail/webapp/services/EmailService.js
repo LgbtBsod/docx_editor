@@ -1,6 +1,7 @@
 sap.ui.define([
-    "sap/ui/base/Object"
-], function (UI5Object) {
+    "sap/ui/base/Object",
+    "sap/base/Log"
+], function (UI5Object, Log) {
     "use strict";
 
     /**
@@ -77,10 +78,7 @@ sap.ui.define([
             // Замените hardcoded path на динамическое получение из manifest.json
             // ============================================================================
             // CURRENT (for mock/testing):
-            this._sServicePath = "/MassMailSend";
-            
-            // PRODUCTION (раскомментировать после настройки):
-            // this._sServicePath = this._getServicePathFromManifest();
+            this._sServicePath = this._getServicePathFromManifest();
             
             // CSRF token cache
             this._sCsrfToken = null;
@@ -110,8 +108,10 @@ sap.ui.define([
             //     return that._sendEmailWithToken(oEmailData, sToken);
             // });
             
-            // CURRENT (mock/testing without CSRF):
-            return new Promise(function (fnResolve, fnReject) {
+            return this._fetchCsrfToken().then(function (sToken) {
+                return that._sendEmailWithToken(oEmailData, sToken);
+            }).catch(function () {
+                return new Promise(function (fnResolve, fnReject) {
                 // Generate idempotency key for deduplication
                 var sIdempotencyKey = that._generateIdempotencyKey();
 
@@ -156,6 +156,7 @@ sap.ui.define([
                     }
                 );
             });
+            });
         },
 
         /**
@@ -185,14 +186,14 @@ sap.ui.define([
                         var sToken = oResponse.headers["x-csrf-token"];
                         if (sToken) {
                             that._sCsrfToken = sToken;
-                            console.log("[EmailService] CSRF token fetched successfully");
+                            Log.info("[EmailService] CSRF token fetched successfully");
                             fnResolve(sToken);
                         } else {
                             fnResolve(null);
                         }
                     },
                     error: function (oError) {
-                        console.warn("[EmailService] Failed to fetch CSRF token, proceeding without:", oError);
+                        Log.warning("[EmailService] Failed to fetch CSRF token, proceeding without", oError && oError.message);
                         fnResolve(null);
                     }
                 });
@@ -263,7 +264,7 @@ sap.ui.define([
                             
                             // Handle CSRF token expiration
                             if (oError.statusCode === 403) {
-                                console.warn("[EmailService] CSRF token expired, fetching new one...");
+                                Log.warning("[EmailService] CSRF token expired, fetching new one...");
                                 that._sCsrfToken = null; // Clear cached token
                                 return that._fetchCsrfToken().then(function (sNewToken) {
                                     return that._sendEmailWithToken(oEmailData, sNewToken);
@@ -388,13 +389,13 @@ sap.ui.define([
          */
         _logRequest: function (oPayload) {
             // In production, this would log to backend audit system
-            console.log("[EmailService] Send request:", {
+            Log.info("[EmailService] Send request", JSON.stringify({
                 idempotencyKey: oPayload.IdempotencyKey,
                 subject: oPayload.Subject,
                 recipientCount: oPayload.Recipients ? oPayload.Recipients.length : 0,
                 attachmentCount: oPayload.Attachments ? oPayload.Attachments.length : 0,
                 timestamp: new Date().toISOString()
-            });
+            }));
         },
 
         /**
@@ -403,7 +404,7 @@ sap.ui.define([
          * @param {Object} oData - Response data
          */
         _logSuccess: function (oData) {
-            console.log("[EmailService] Send successful:", oData);
+            Log.info("[EmailService] Send successful", JSON.stringify(oData || {}));
         },
 
         /**
@@ -412,7 +413,7 @@ sap.ui.define([
          * @param {Object} oError - Error object
          */
         _logError: function (oError) {
-            console.error("[EmailService] Send failed:", oError);
+            Log.error("[EmailService] Send failed", oError && (oError.message || JSON.stringify(oError)));
         },
 
         /**

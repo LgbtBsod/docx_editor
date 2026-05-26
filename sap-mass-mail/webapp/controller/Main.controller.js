@@ -3,12 +3,17 @@ sap.ui.define([
     "sap/ui/model/json/JSONModel",
     "sap/m/MessageToast",
     "sap/m/MessageBox",
+    "sap/ui/core/Fragment",
     "com/sap/mm/massmail/constants/AppConstants",
     "com/sap/mm/massmail/utils/SecurityUtils",
     "com/sap/mm/massmail/utils/ValidationUtils",
     "com/sap/mm/massmail/utils/CsvParser",
-    "com/sap/mm/massmail/services/EmailService"
-], function (Controller, JSONModel, MessageToast, MessageBox, AppConstants, SecurityUtils, ValidationUtils, CsvParser, EmailService) {
+    "com/sap/mm/massmail/services/EmailService",
+    "com/sap/mm/massmail/utils/PreflightUtils",
+    "com/sap/mm/massmail/utils/RecipientsUtils",
+    "com/sap/mm/massmail/utils/AttachmentsUtils",
+    "com/sap/mm/massmail/utils/EditorUtils"
+], function (Controller, JSONModel, MessageToast, MessageBox, Fragment, AppConstants, SecurityUtils, ValidationUtils, CsvParser, EmailService, PreflightUtils, RecipientsUtils, AttachmentsUtils, EditorUtils) {
     "use strict";
 
     return Controller.extend("com.sap.mm.massmail.controller.Main", {
@@ -63,7 +68,7 @@ sap.ui.define([
 
         _initEditor: function () {
             var oModel = this.getView().getModel("appData");
-            oModel.setProperty("/templateContent", AppConstants.AppConstants.DEFAULT_EDITOR_HTML);
+            oModel.setProperty("/templateContent", AppConstants.DEFAULT_EDITOR_HTML);
         },
 
         _getEditorDom: function () {
@@ -129,6 +134,10 @@ sap.ui.define([
                 this._oPreflightDialog.destroy();
                 this._oPreflightDialog = null;
             }
+            if (this._pDocumentLinkDialog) {
+                this._pDocumentLinkDialog.then(function (oDialog) { oDialog.destroy(); });
+                this._pDocumentLinkDialog = null;
+            }
             // Clear models
             var oView = this.getView();
             if (oView) {
@@ -153,10 +162,10 @@ sap.ui.define([
                 oModel.setProperty("/templateContent", "");
                 oModel.setProperty("/hasLoadedTemplate", false);
                 this._setEditorContent("");
-                MessageToast.show("Режим ручного ввода активирован");
+                MessageToast.show(this.getResourceBundle().getText("manualModeActivated"));
             } else if (sSource === "file") {
                 oModel.setProperty("/contentSource", "file");
-                MessageToast.show("Выберите файл DOCX для загрузки");
+                MessageToast.show(this.getResourceBundle().getText("chooseDocxPrompt"));
             } else if (sSource === "news") {
                 oModel.setProperty("/contentSource", "news");
                 this._openNewsDialog();
@@ -194,45 +203,45 @@ sap.ui.define([
             var aAreas = (this.getView().getModel("appData").getProperty("/allNews") || []).map(function (o) { return o.area; })
                 .filter(function (v, i, a) { return v && a.indexOf(v) === i; });
 
-            var aAreaItems = [new sap.ui.core.Item({ key: "", text: "Все" })].concat(aAreas.map(function (sArea) {
+            var aAreaItems = [new sap.ui.core.Item({ key: "", text: this.getResourceBundle().getText("newsAll") })].concat(aAreas.map(function (sArea) {
                 return new sap.ui.core.Item({ key: sArea, text: sArea });
             }));
 
             var oDialog = new sap.m.Dialog({
                 id: "newsDialog",
-                title: "Выберите новости для рассылки",
+                title: this.getResourceBundle().getText("newsDialogTitle"),
                 contentWidth: "800px",
                 contentHeight: "600px",
                 content: [
                     new sap.m.SearchField({
                         id: "newsSearch",
-                        placeholder: "Поиск новостей...",
+                        placeholder: this.getResourceBundle().getText("newsSearchPlaceholder"),
                         width: "100%",
                         search: this.onNewsSearch.bind(this)
                     }),
                     new sap.m.Toolbar({
                         content: [
-                            new sap.m.Label({ text: "Область" }),
+                            new sap.m.Label({ text: this.getResourceBundle().getText("newsAreaLabel") }),
                             new sap.m.Select({
                                 width: "160px",
                                 change: this.onNewsAreaChange.bind(this),
 items: aAreaItems
                             }),
-                            new sap.m.Label({ text: "Квартал" }),
+                            new sap.m.Label({ text: this.getResourceBundle().getText("newsQuarterLabel") }),
                             new sap.m.Select({
                                 width: "120px",
                                 change: this.onNewsQuarterChange.bind(this),
                                 items: [
-                                    new sap.ui.core.Item({ key: "", text: "Все" }),
+                                    new sap.ui.core.Item({ key: "", text: this.getResourceBundle().getText("newsAll") }),
                                     new sap.ui.core.Item({ key: "Q1", text: "Q1" }),
                                     new sap.ui.core.Item({ key: "Q2", text: "Q2" }),
                                     new sap.ui.core.Item({ key: "Q3", text: "Q3" }),
                                     new sap.ui.core.Item({ key: "Q4", text: "Q4" })
                                 ]
                             }),
-                            new sap.m.Label({ text: "С" }),
+                            new sap.m.Label({ text: this.getResourceBundle().getText("newsDateFromLabel") }),
                             this._oNewsDateFromPicker,
-                            new sap.m.Label({ text: "По" }),
+                            new sap.m.Label({ text: this.getResourceBundle().getText("newsDateToLabel") }),
                             this._oNewsDateToPicker
                         ]
                     }),
@@ -242,9 +251,9 @@ items: aAreaItems
                         mode: "MultiSelect",
                         selectionChange: this.onNewsSelectionChange.bind(this),
                         columns: [
-                            new sap.m.Column({ header: new sap.m.Label({ text: "Заголовок" }) }),
-                            new sap.m.Column({ header: new sap.m.Label({ text: "Автор" }) }),
-                            new sap.m.Column({ header: new sap.m.Label({ text: "Область" }) })
+                            new sap.m.Column({ header: new sap.m.Label({ text: this.getResourceBundle().getText("newsTitleColumn") }) }),
+                            new sap.m.Column({ header: new sap.m.Label({ text: this.getResourceBundle().getText("newsAuthorColumn") }) }),
+                            new sap.m.Column({ header: new sap.m.Label({ text: this.getResourceBundle().getText("newsAreaColumn") }) })
                         ]
                     }).bindAggregation("items", {
                         path: "news>/",
@@ -258,12 +267,12 @@ items: aAreaItems
                     })
                 ],
                 beginButton: new sap.m.Button({
-                    text: "Добавить в письмо",
+                    text: this.getResourceBundle().getText("newsAddButton"),
                     type: "Emphasized",
                     press: this.onConfirmNewsSelection.bind(this)
                 }),
                 endButton: new sap.m.Button({
-                    text: "Отмена",
+                    text: this.getResourceBundle().getText("newsCancelButton"),
                     press: function () {
                         this.byId("newsDialog").close();
                     }.bind(this)
@@ -339,15 +348,15 @@ items: aAreaItems
             var aSelected = this.getView().getModel("appData").getProperty("/selectedNews");
             
             if (aSelected.length === 0) {
-                MessageBox.warning("Выберите хотя бы одну новость");
+                MessageBox.warning(this.getResourceBundle().getText("newsValidationSelectAtLeastOne"));
                 return;
             }
             
             var sContent = aSelected.map(function (oNews) {
                 return "<div style='margin-bottom: 20px; padding: 15px; border-left: 3px solid #0a6ed1; background: #f9f9f9;'>" +
                        "<h3 style='margin: 0 0 10px 0; color: #0a6ed1;'>" + this._escapeHtml(oNews.title) + "</h3>" +
-                       "<p style='margin: 0 0 5px 0; font-style: italic; color: #666;'><strong>Автор:</strong> " + this._escapeHtml(oNews.author) + 
-                       " | <strong>Область:</strong> " + this._escapeHtml(oNews.area) + "</p>" +
+                       "<p style='margin: 0 0 5px 0; font-style: italic; color: #666;'><strong>" + this.getResourceBundle().getText("newsAuthorLabel") + ":</strong> " + this._escapeHtml(oNews.author) + 
+                       " | <strong>" + this.getResourceBundle().getText("newsAreaTextLabel") + ":</strong> " + this._escapeHtml(oNews.area) + "</p>" +
                        "<p style='margin: 0;'>" + this._escapeHtml(oNews.text) + "</p>" +
                        "</div>";
             }.bind(this)).join("<hr style='margin: 20px 0;'>");
@@ -360,7 +369,7 @@ items: aAreaItems
             oModel.setProperty("/contentSource", "news");
             
             this.byId("newsDialog").close();
-            MessageToast.show("Добавлено новостей: " + aSelected.length);
+            MessageToast.show(this.getResourceBundle().getText("newsAddedCount", [aSelected.length]));
         },
 
         _setEditorContent: function (sHtml) {
@@ -371,8 +380,7 @@ items: aAreaItems
             }
 
             this.getView().getModel("appData").setProperty("/templateContent", sResolvedHtml);
-            var sPlain = sResolvedHtml.replace(/<[^>]*>/g, "");
-            this.getView().getModel("appData").setProperty("/templateCharCount", sPlain.length);
+            this.getView().getModel("appData").setProperty("/templateCharCount", EditorUtils.getPlainTextLength(sResolvedHtml));
         },
 
         /* =========================================================== */
@@ -401,7 +409,7 @@ items: aAreaItems
                 return true;
             }
 
-            MessageBox.error("Не удалось открыть диалог выбора файла");
+            MessageBox.error(this.getResourceBundle().getText("fileDialogOpenError"));
             return false;
         },
 
@@ -477,7 +485,7 @@ items: aAreaItems
                         });
                 } else {
                     // Fallback если mammoth не загружен
-                    MessageBox.error("Mammoth.js не загружен. Проверьте подключение библиотеки.");
+                    MessageBox.error(that.getResourceBundle().getText("mammothMissingError"));
                     oModel.setProperty("/busy", false);
                 }
             };
@@ -510,7 +518,7 @@ items: aAreaItems
 
             oEditor.focus();
             if (document.queryCommandSupported && !document.queryCommandSupported(sCommand)) {
-                MessageToast.show("Команда форматирования недоступна в этом браузере");
+                MessageToast.show(this.getResourceBundle().getText("formatCommandUnsupported"));
                 return;
             }
 
@@ -575,14 +583,15 @@ items: aAreaItems
                 if (oEditor.innerHTML !== sSanitized) {
                     oEditor.innerHTML = sSanitized;
                 }
-                var sPlainText = sSanitized.replace(/<[^>]*>/g, "");
-                if (sPlainText.length > AppConstants.MAX_TEMPLATE_CHARS) {
-                    MessageToast.show("Превышен лимит текста 50 000 символов");
-                    sPlainText = sPlainText.slice(0, AppConstants.MAX_TEMPLATE_CHARS);
-                    sSanitized = this._escapeHtml(sPlainText).replace(/\n/g, "<br>");
+
+                var oLimit = EditorUtils.enforceMaxChars(sSanitized, AppConstants.MAX_TEMPLATE_CHARS, this._escapeHtml.bind(this));
+                if (oLimit.truncated) {
+                    MessageToast.show(this.getResourceBundle().getText("maxTemplateCharsExceeded"));
+                    sSanitized = oLimit.html;
                     oEditor.innerHTML = sSanitized;
                 }
-                oModel.setProperty("/templateCharCount", sPlainText.length);
+
+                oModel.setProperty("/templateCharCount", oLimit.plainTextLength);
                 oModel.setProperty("/templateContent", sSanitized);
             }
         },
@@ -601,8 +610,7 @@ items: aAreaItems
             oModel.setProperty("/lastSaved", new Date().toLocaleString());
             MessageToast.show(this.getResourceBundle().getText("templateSavedSuccess"));
             
-            // TODO: Вызов бэкенда
-            // this._saveTemplateToBackend(sContent);
+            // Backend save integration handled by OData service rollout plan.
         },
 
         /* =========================================================== */
@@ -725,7 +733,7 @@ items: aAreaItems
             var oModel = this.getView().getModel("appData");
             
             if (!sQuery || sQuery.trim().length < AppConstants.RECIPIENT_SEARCH_MIN_LEN) {
-                MessageToast.show("Введите минимум " + AppConstants.RECIPIENT_SEARCH_MIN_LEN + " символа(ов) для поиска");
+                MessageToast.show(this.getResourceBundle().getText("recipientSearchMinChars", [AppConstants.RECIPIENT_SEARCH_MIN_LEN]));
                 return;
             }
             if (this._recipientSearchTimer) {
@@ -764,7 +772,7 @@ items: aAreaItems
                     },
                     error: function () {
                         oModel.setProperty("/busy", false);
-                        MessageBox.error("Не удалось выполнить поиск получателей");
+                        MessageBox.error(that.getResourceBundle().getText("recipientSearchFailed"));
                     }
                 });
             }.bind(this), AppConstants.RECIPIENT_SEARCH_THROTTLE_MS);
@@ -813,16 +821,16 @@ items: aAreaItems
                 var aRecipients = CsvParser.parse(sText);
                 
                 if (aRecipients.length === 0) {
-                    MessageBox.warning("Не найдено действительных email адресов в CSV файле");
+                    MessageBox.warning(this.getResourceBundle().getText("csvNoValidEmails"));
                     oFileUploader.clear();
                     return;
                 }
                 
                 var iAdded = this._addRecipientsByList(aRecipients);
-                MessageToast.show("Импорт завершен. Добавлено получателей: " + iAdded + " из " + aRecipients.length);
+                MessageToast.show(this.getResourceBundle().getText("csvImportSummary", [iAdded, aRecipients.length]));
             }.bind(this);
             oReader.onerror = function () {
-                MessageBox.error("Не удалось прочитать CSV файл");
+                MessageBox.error(this.getResourceBundle().getText("csvReadFailed"));
                 oFileUploader.clear();
             };
             oReader.readAsText(oFile, "utf-8");
@@ -832,56 +840,17 @@ items: aAreaItems
         _addRecipientsByList: function (aNewRecipients) {
             var oModel = this.getView().getModel("appData");
             var aRecipients = oModel.getProperty("/recipients") || [];
-            var oExisting = {};
-            
-            aRecipients.forEach(function (oRecipient) {
-                if (oRecipient.email) {
-                    oExisting[oRecipient.email.toLowerCase()] = true;
-                }
-            });
-
-            var iAdded = 0;
-            aNewRecipients.forEach(function (oNewRecipient) {
-                var sEmail = (oNewRecipient.email || "").trim().toLowerCase();
-                if (sEmail && SecurityUtils.isValidEmail(sEmail) && !oExisting[sEmail]) {
-                    aRecipients.push({
-                        email: sEmail,
-                        fullName: oNewRecipient.name || "",
-                        role: oNewRecipient.department || ""
-                    });
-                    oExisting[sEmail] = true;
-                    iAdded++;
-                }
-            });
-            oModel.setProperty("/recipients", aRecipients);
-            return iAdded;
+            var oResult = RecipientsUtils.addRecipientsByList(aRecipients, aNewRecipients, SecurityUtils.isValidEmail);
+            oModel.setProperty("/recipients", oResult.recipients);
+            return oResult.added;
         },
 
         _addRecipientsByEmails: function (aEmails) {
             var oModel = this.getView().getModel("appData");
             var aRecipients = oModel.getProperty("/recipients") || [];
-            var oExisting = {};
-            aRecipients.forEach(function (oRecipient) {
-                if (oRecipient.email) {
-                    oExisting[oRecipient.email.toLowerCase()] = true;
-                }
-            });
-
-            var iAdded = 0;
-            aEmails.forEach(function (sEmail) {
-                var sTrimmed = sEmail.trim().toLowerCase();
-                if (SecurityUtils.isValidEmail(sTrimmed) && !oExisting[sTrimmed]) {
-                    aRecipients.push({
-                        email: sTrimmed,
-                        fullName: "",
-                        role: ""
-                    });
-                    oExisting[sTrimmed] = true;
-                    iAdded++;
-                }
-            });
-            oModel.setProperty("/recipients", aRecipients);
-            return iAdded;
+            var oResult = RecipientsUtils.addRecipientsByEmails(aRecipients, aEmails, SecurityUtils.isValidEmail);
+            oModel.setProperty("/recipients", oResult.recipients);
+            return oResult.added;
         },
 
         onExportToClipboard: function () {
@@ -890,7 +859,7 @@ items: aAreaItems
             
             var sEmails = aRecipients.map(function (o) { return o.email; }).filter(Boolean).join("; ");
             if (!sEmails) {
-                MessageBox.warning("Список получателей пуст");
+                MessageBox.warning(this.getResourceBundle().getText("recipientsEmpty"));
                 return;
             }
             var that = this;
@@ -921,7 +890,7 @@ items: aAreaItems
                 if (bCopied) {
                     MessageToast.show(this.getResourceBundle().getText("emailsCopied"));
                 } else {
-                    MessageBox.warning("Не удалось автоматически скопировать. Скопируйте вручную: " + sText);
+                    MessageBox.warning(this.getResourceBundle().getText("clipboardAutoCopyFailed", [sText]));
                 }
             } finally {
                 document.body.removeChild(oTextarea);
@@ -981,31 +950,11 @@ items: aAreaItems
         },
 
         _countUnsafeLinks: function(aLinks) {
-            var that = this;
-            return (aLinks || []).filter(function(oLink) {
-                if (!oLink.url) return true;
-                if (!/^https:\/\//i.test(oLink.url)) return true;
-                try {
-                    var oUrl = new URL(oLink.url);
-                    return !that._isAllowedInternalHost(oUrl.hostname);
-                } catch (e) {
-                    return true;
-                }
-            }).length;
+            return PreflightUtils.countUnsafeLinks(aLinks, this._isAllowedInternalHost.bind(this));
         },
 
         _checkHtmlIssues: function(sHtml) {
-            var iIssues = 0;
-            if (!sHtml) return 0;
-            // Проверка на незакрытые теги
-            var aOpenTags = sHtml.match(/<([a-z]+)(?:\s[^>]*)?(?<!\/)>/gi) || [];
-            var aCloseTags = sHtml.match(/<\/([a-z]+)\s*>/gi) || [];
-            if (aOpenTags.length !== aCloseTags.length) iIssues++;
-            // Проверка на script tags
-            if (/<script/i.test(sHtml)) iIssues++;
-            // Проверка на inline event handlers
-            if (/on(click|load|error|mouseover)/i.test(sHtml)) iIssues++;
-            return iIssues;
+            return PreflightUtils.checkHtmlIssues(sHtml);
         },
 
         _showPreflightDialog: function(oData) {
@@ -1093,7 +1042,7 @@ items: aAreaItems
             // Подготовка данных для отправки через сервис
             var bSensitive = !!oModel.getProperty("/isSensitive");
             var oEmailData = {
-                subject: sSubject || "(Без темы)",
+                subject: sSubject || this.getResourceBundle().getText("defaultSubject"),
                 content: bSensitive ? this._encodeSensitiveValue(SecurityUtils.sanitizeHtml(sContent)) : SecurityUtils.sanitizeHtml(sContent),
                 isSensitive: bSensitive,
                 recipients: aRecipients.map(function (o) {
@@ -1160,67 +1109,66 @@ items: aAreaItems
         /* =========================================================== */
         
         onAddDocumentLink: function() {
-            var that = this;
-            var oDialog = new sap.m.Dialog({
-                title: "Добавить ссылку на документ",
-                content: [
-                    new sap.m.Input({
-                        placeholder: "Название документа",
-                        value: "{/linkTitle}"
-                    }),
-                    new sap.m.Input({
-                        placeholder: "URL документа",
-                        value: "{/linkUrl}",
-                        type: sap.m.InputType.Url
-                    })
-                ],
-                beginButton: new sap.m.Button({
-                    text: "Добавить",
-                    type: sap.m.ButtonType.Emphasized,
-                    press: function() {
-                        var oModel = that.getView().getModel("appData");
-                        var sTitle = oDialog.getContent()[0].getValue();
-                        var sUrl = oDialog.getContent()[1].getValue();
-                        
-                        if (!sTitle || !sUrl) {
-                            MessageBox.warning("Заполните оба поля");
-                            return;
-                        }
-                        
-                        if (!this._isValidHttpUrl(sUrl)) {
-                            MessageBox.warning("Некорректный URL");
-                            return;
-                        }
-
-                        sUrl = this._normalizeHttpsUrl(sUrl);
-                        if (!sUrl) {
-                            MessageToast.show("Хост ссылки не разрешен. Обратитесь в поддержку.");
-                            return;
-                        }
-                        
-                        var aLinks = oModel.getProperty("/documentLinks") || [];
-                        aLinks.push({
-                            title: sTitle,
-                            url: sUrl
-                        });
-                        oModel.setProperty("/documentLinks", aLinks);
-                        
-                        oDialog.close();
-                        MessageToast.show("Ссылка добавлена: " + sTitle);
-                    }.bind(this)
-                }),
-                endButton: new sap.m.Button({
-                    text: "Отмена",
-                    press: function() {
-                        oDialog.close();
-                    }
-                })
-            });
-            
-            this.getView().addDependent(oDialog);
-            oDialog.open();
+            this._openDocumentLinkDialog();
         },
-        
+
+        _openDocumentLinkDialog: function () {
+            if (!this._pDocumentLinkDialog) {
+                this._pDocumentLinkDialog = Fragment.load({
+                    id: this.getView().getId(),
+                    name: "com.sap.mm.massmail.view.DocumentLinkDialog",
+                    controller: this
+                }).then(function (oDialog) {
+                    this.getView().addDependent(oDialog);
+                    return oDialog;
+                }.bind(this));
+            }
+
+            this._pDocumentLinkDialog.then(function (oDialog) {
+                var oDocLinkModel = new JSONModel({ title: "", url: "" });
+                oDialog.setModel(oDocLinkModel, "docLink");
+                oDialog.open();
+            });
+        },
+
+        onConfirmDocumentLinkDialog: function () {
+            this._pDocumentLinkDialog.then(function (oDialog) {
+                var oModel = this.getView().getModel("appData");
+                var oDocLinkModel = oDialog.getModel("docLink");
+                var sTitle = oDocLinkModel.getProperty("/title");
+                var sUrl = oDocLinkModel.getProperty("/url");
+
+                if (!sTitle || !sUrl) {
+                    MessageBox.warning(this.getResourceBundle().getText("fillBothFields"));
+                    return;
+                }
+                if (!this._isValidHttpUrl(sUrl)) {
+                    MessageBox.warning(this.getResourceBundle().getText("invalidUrl"));
+                    return;
+                }
+
+                sUrl = this._normalizeHttpsUrl(sUrl);
+                if (!sUrl) {
+                    MessageToast.show(this.getResourceBundle().getText("unsafeLinkHost"));
+                    return;
+                }
+
+                var aLinks = oModel.getProperty("/documentLinks") || [];
+                aLinks.push({ title: sTitle, url: sUrl });
+                oModel.setProperty("/documentLinks", aLinks);
+                oDialog.close();
+                MessageToast.show(this.getResourceBundle().getText("linkAddedWithTitle", [sTitle]));
+            }.bind(this));
+        },
+
+        onCancelDocumentLinkDialog: function () {
+            this._pDocumentLinkDialog.then(function (oDialog) { oDialog.close(); });
+        },
+
+        onDocumentLinkDialogAfterClose: function () {
+            // model is reset on each open
+        },
+
         onRemoveDocumentLink: function(oEvent) {
             var oContext = oEvent.getParameter("listItem").getBindingContext("appData");
             var iIndex = parseInt(oContext.getPath().split("/").pop(), 10);
@@ -1293,21 +1241,26 @@ items: aAreaItems
         },
 
         _isAttachmentAllowed: function (oFile, aCurrentAttachments) {
-            var aAttachments = aCurrentAttachments || [];
-            var iCurrentSize = aAttachments.reduce(function (sum, oItem) { return sum + (oItem.fileSize || 0); }, 0);
+            var oResult = AttachmentsUtils.isAttachmentAllowed(
+                oFile,
+                aCurrentAttachments,
+                {
+                    maxFileSize: AppConstants.MAX_ATTACHMENT_SIZE_BYTES,
+                    maxTotalSize: AppConstants.MAX_TOTAL_ATTACHMENTS_SIZE_BYTES
+                },
+                function (sMime) {
+                    return AppConstants.ALLOWED_ATTACHMENT_MIME.indexOf(sMime) !== -1;
+                }
+            );
 
-            if (oFile.size > AppConstants.MAX_ATTACHMENT_SIZE_BYTES) {
-                MessageBox.warning("Файл слишком большой: " + oFile.name + ". Максимум 10 MB на файл.");
-                return false;
-            }
-
-            if (iCurrentSize + oFile.size > AppConstants.MAX_TOTAL_ATTACHMENTS_SIZE_BYTES) {
-                MessageBox.warning("Превышен общий лимит вложений 20 MB.");
-                return false;
-            }
-
-            if (oFile.type && AppConstants.ALLOWED_ATTACHMENT_MIME.indexOf(oFile.type) === -1) {
-                MessageBox.warning("Недопустимый тип файла: " + oFile.name);
+            if (!oResult.ok) {
+                if (oResult.reason === "maxFileSize") {
+                    MessageBox.warning(this.getResourceBundle().getText("fileTooLargeWithName", [oResult.value]));
+                } else if (oResult.reason === "maxTotalSize") {
+                    MessageBox.warning(this.getResourceBundle().getText("totalAttachmentLimitExceeded"));
+                } else if (oResult.reason === "invalidMime") {
+                    MessageBox.warning(this.getResourceBundle().getText("invalidFileTypeWithName", [oResult.value]));
+                }
                 return false;
             }
 
@@ -1341,23 +1294,23 @@ items: aAreaItems
             }.bind(this));
 
             if (aInvalidRecipients.length > 0) {
-                return { ok: false, message: "Есть невалидные email получателей. Исправьте список перед отправкой." };
+                return { ok: false, message: this.getResourceBundle().getText("invalidRecipientsBeforeSend") };
             }
             if (iDuplicates > 0) {
-                return { ok: false, message: "Найдены дубликаты получателей (" + iDuplicates + "). Удалите повторы." };
+                return { ok: false, message: this.getResourceBundle().getText("duplicateRecipientsBeforeSend", [iDuplicates]) };
             }
             if (iTotalSize > AppConstants.MAX_TOTAL_ATTACHMENTS_SIZE_BYTES) {
-                return { ok: false, message: "Превышен лимит вложений 20 MB." };
+                return { ok: false, message: this.getResourceBundle().getText("totalAttachmentLimitExceeded") };
             }
             if (bBadLinks) {
-                return { ok: false, message: "Хост ссылки не разрешен. Обратитесь в поддержку." };
+                return { ok: false, message: this.getResourceBundle().getText("unsafeLinkHost") };
             }
             var iChars = String(sContent || "").replace(/<[^>]*>/g, "").length;
             if (iChars > AppConstants.MAX_TEMPLATE_CHARS) {
-                return { ok: false, message: "Слишком длинный текст письма. Максимум 50 000 символов." };
+                return { ok: false, message: this.getResourceBundle().getText("contentTooLongBeforeSend") };
             }
             if (this._sanitizeHtml(sContent) !== sContent) {
-                return { ok: false, message: "Контент содержит небезопасный HTML. Удалите потенциально опасные элементы." };
+                return { ok: false, message: this.getResourceBundle().getText("unsafeHtmlBeforeSend") };
             }
 
             return { ok: true, message: "OK" };

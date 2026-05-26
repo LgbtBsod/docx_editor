@@ -1,0 +1,31 @@
+SAP PRODUCTION SETTINGS CHECKLIST (TXT)
+
+1) ODATA SERVICE
+- Service: ZMM_MASSMAIL_SRV
+- Activate in /IWFND/MAINT_SERVICE
+- Verify entity set: MassMailSend
+
+2) CSRF
+- Enable CSRF token handling on Gateway
+- Allow token fetch via metadata GET with X-CSRF-Token: Fetch
+
+3) AUTHORIZATION
+- Roles: MM_MAIL_VIEW, MM_MAIL_SEND, MM_MAIL_ADMIN
+- Auth object: Z_MM_MAIL (03,16,02)
+
+4) CORS/TLS
+- Maintain allowed origins in /IWFND/CORS
+- Enforce HTTPS only endpoints
+
+5) SIZE LIMITS
+- Single attachment max: 10 MB
+- Total attachments max: 20 MB
+- Recipient count max in one request: per backend policy
+
+6) MONITORING
+- SOST for outbound emails
+- /IWFND/ERROR_LOG for gateway errors
+- SLG1 for application logs
+
+7) RETENTION
+- Set retention policy for send history and technical logs
