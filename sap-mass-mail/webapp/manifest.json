@@ -51,8 +51,8 @@
     },
     "deviceTypes": {
       "desktop": true,
-      "tablet": true,
-      "phone": true
+      "tablet": false,
+      "phone": false
     },
     "supportedThemes": [
       "sap_fiori_3",

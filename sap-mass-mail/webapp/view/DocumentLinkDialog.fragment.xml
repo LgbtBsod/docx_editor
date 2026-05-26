@@ -1,0 +1,16 @@
+<core:FragmentDefinition xmlns="sap.m" xmlns:core="sap.ui.core">
+    <Dialog id="documentLinkDialog" title="{i18n>docLinkDialogTitle}" afterClose="onDocumentLinkDialogAfterClose">
+        <content>
+            <VBox class="sapUiSmallMargin">
+                <Input id="docLinkTitleInput" placeholder="{i18n>docLinkTitlePlaceholder}" value="{docLink>/title}"/>
+                <Input id="docLinkUrlInput" placeholder="{i18n>docLinkUrlPlaceholder}" value="{docLink>/url}" type="Url" class="sapUiSmallMarginTop"/>
+            </VBox>
+        </content>
+        <beginButton>
+            <Button text="{i18n>docLinkAddButton}" type="Emphasized" press="onConfirmDocumentLinkDialog"/>
+        </beginButton>
+        <endButton>
+            <Button text="{i18n>newsCancelButton}" press="onCancelDocumentLinkDialog"/>
+        </endButton>
+    </Dialog>
+</core:FragmentDefinition>

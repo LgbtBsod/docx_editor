@@ -43,12 +43,12 @@
                             <!-- Переключатель источников контента -->
                             <m:SegmentedButton id="contentSourceSelector" 
                                                selectionChange="onContentSourceChange"
-                                               class="sapUiSmallMarginBottom"
+                                               class="sapUiSmallMarginBottom AppSegmented"
                                                width="100%">
                                 <m:items>
-                                    <m:SegmentedButtonItem key="manual" text="Ручной ввод" icon="sap-icon://write-new"/>
-                                    <m:SegmentedButtonItem key="file" text="Загрузить файл" icon="sap-icon://upload-to-cloud"/>
-                                    <m:SegmentedButtonItem key="news" text="Выбрать новости" icon="sap-icon://news"/>
+                                    <m:SegmentedButtonItem key="manual" text="{i18n>contentSourceManual}" icon="sap-icon://write-new"/>
+                                    <m:SegmentedButtonItem key="file" text="{i18n>contentSourceFile}" icon="sap-icon://upload-to-cloud"/>
+                                    <m:SegmentedButtonItem key="news" text="{i18n>contentSourceNews}" icon="sap-icon://news"/>
                                 </m:items>
                             </m:SegmentedButton>
                             
@@ -94,9 +94,9 @@
                                          decorative="true"
                                          width="48px" 
                                          height="48px"/>
-                                <m:Text text="Вставьте текст из буфера обмена (Ctrl+V)" 
+                                <m:Text text="{i18n>manualHintPrimary}" 
                                         class="sapUiTinyMarginTopBottom"/>
-                                <m:Text text="или начните вводить вручную" 
+                                <m:Text text="{i18n>manualHintSecondary}" 
                                         class="sapUiTinyMarginTop"
                                         wrapping="false"/>
                             </m:VBox>
@@ -112,15 +112,15 @@
                                          decorative="true"
                                          width="48px" 
                                          height="48px"/>
-                                <m:Text text="Нажмите «Выбрать новости»" 
+                                <m:Text text="{i18n>newsHintPrimary}" 
                                         class="sapUiTinyMarginTopBottom"/>
-                                <m:Text text="для добавления новостей в письмо" 
+                                <m:Text text="{i18n>newsHintSecondary}" 
                                         class="sapUiTinyMarginTop"
                                         wrapping="false"/>
                             </m:VBox>
                             
                             <!-- Тулбар редактора -->
-                            <m:OverflowToolbar design="Transparent" class="sapUiTinyMarginBottom">
+                            <m:OverflowToolbar design="Transparent" class="sapUiTinyMarginBottom AppToolbar">
                                 <m:Button icon="sap-icon://bold" press="onFormatBold" tooltip="{i18n>tooltipBold}"/>
                                 <m:Button icon="sap-icon://italic" press="onFormatItalic" tooltip="{i18n>tooltipItalic}"/>
                                 <m:Button icon="sap-icon://underline" press="onFormatUnderline" tooltip="{i18n>tooltipUnderline}"/>
@@ -147,7 +147,7 @@
                             
                             <!-- Rich Text Editor (основная область редактирования) -->
                             <m:VBox fitContainer="true" class="FullHeight">
-                                <core:HTML id="richTextEditor" content="&lt;div id=&quot;editorContent&quot; contenteditable=&quot;true&quot; class=&quot;RichTextEditor FullHeight&quot;&gt;&lt;/div&gt;"/>
+                                <core:HTML id="richTextEditor" content="&lt;div id=&quot;editorContent&quot; contenteditable=&quot;true&quot; role=&quot;textbox&quot; aria-multiline=&quot;true&quot; aria-label=&quot;{i18n&gt;editorAriaLabel}&quot; class=&quot;RichTextEditor FullHeight&quot;&gt;&lt;/div&gt;"/>
                             </m:VBox>
                             
                             <m:HBox justifyContent="End" class="sapUiTinyMarginTopBottom EditorCounterWrap">
@@ -198,7 +198,7 @@
                             <m:Panel headerText="{i18n>attachmentsSection}" 
                                      expanded="true"
                                      expandable="true"
-                                     class="sapUiSmallMarginBottom">
+                                     class="sapUiSmallMarginBottom AppPanel">
                                 <m:List id="attachmentsList" 
                                         noDataText="{i18n>noAttachments}"
                                         mode="Delete"
@@ -215,7 +215,7 @@
                             <m:Panel headerText="{i18n>recipientsSection}" 
                                      expanded="true"
                                      expandable="true"
-                                     class="sapUiSmallMarginBottom">
+                                     class="sapUiSmallMarginBottom AppPanel">
                                 
                                 <!-- Вставка из буфера -->
                                 <m:TextArea 
@@ -230,7 +230,6 @@
                                     id="recipientSearch"
                                     search="onSearchRecipients"
                                     placeholder="{i18n>searchByNameOrEmail}"
-                                    class="sapUiSmallMarginBottom"
                                     width="100%"/>
                                 
                                 <!-- Кнопки управления -->
@@ -283,19 +282,19 @@
                             </m:Panel>
                             
                             <!-- Ссылки на документы -->
-                            <m:Panel headerText="Ссылки на документы" 
+                            <m:Panel headerText="{i18n>documentLinksSection}" 
                                      expanded="true"
                                      expandable="true"
-                                     class="sapUiSmallMarginBottom">
+                                     class="sapUiSmallMarginBottom AppPanel">
                                 <m:VBox class="sapUiSmallMargin">
-                                    <m:Button text="Добавить ссылку" 
+                                    <m:Button text="{i18n>btnAddDocumentLink}" 
                                               icon="sap-icon://add" 
                                               press="onAddDocumentLink"
                                               class="sapUiTinyMarginBottom"/>
                                     
                                     <m:List id="documentLinksList" 
                                             items="{appData>/documentLinks}"
-                                            noDataText="Нет добавленных ссылок"
+                                            noDataText="{i18n>noDocumentLinks}"
                                             mode="Delete"
                                             delete="onRemoveDocumentLink">
                                         <m:StandardListItem 
@@ -310,7 +309,8 @@
                             <!-- Предпросмотр письма -->
                             <m:Panel headerText="{i18n>previewSection}" 
                                      expanded="false"
-                                     expandable="true">
+                                     expandable="true"
+                                     class="AppPanel">
                                 <m:VBox class="sapUiSmallMargin">
                                     <m:Label text="{i18n>lblSubject}" labelFor="subjectInput"/>
                                     <m:Input id="subjectInput" 

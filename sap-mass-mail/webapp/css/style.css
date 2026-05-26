@@ -32,7 +32,8 @@
 }
 
 /* SegmentedButton - современный стиль */
-.sapMSegB {
+/* SegmentedButton - scoped style */
+.AppSegmented {
     border-radius: var(--sap-border-radius);
     overflow: hidden;
     box-shadow: var(--sap-shadow);
@@ -140,10 +141,6 @@
         height: auto;
     }
     
-    #responsiveSplitter {
-        flex-direction: column;
-    }
-    
     .RichTextEditor {
         min-height: 200px;
     }
@@ -196,20 +193,22 @@
 }
 
 /* Toolbar styling */
-.sapMOverflowToolbar {
+/* Toolbar styling (scoped) */
+.AppToolbar {
     background-color: #fafafa;
     border-bottom: 1px solid #e0e0e0;
     border-radius: var(--sap-border-radius) var(--sap-border-radius) 0 0;
 }
 
 /* Panel заголовки */
-.sapMPanelHeader {
-    background-color: #fafafa;
-    border-radius: var(--sap-border-radius) var(--sap-border-radius) 0 0;
+/* Panel styling (scoped wrapper) */
+.AppPanel {
+    border-radius: var(--sap-border-radius);
 }
 
 /* SearchField стили */
-.sapMSF {
+/* SearchField styling (scoped) */
+.AppSearchField {
     max-width: 100%;
     border-radius: var(--sap-border-radius);
 }
