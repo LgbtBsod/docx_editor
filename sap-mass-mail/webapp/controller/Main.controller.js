@@ -59,6 +59,7 @@ sap.ui.define([
             this._onEditorPaste = this.onEditorPaste.bind(this);
             this._recipientSearchTimer = null;
             this._aDropZoneHandlers = [];
+            this._iBindDropZonesTimer = null;
             this._initEditor();
             this._loadAllowedHosts();
         },
@@ -128,6 +129,10 @@ sap.ui.define([
                 clearTimeout(this._recipientSearchTimer);
                 this._recipientSearchTimer = null;
             }
+            if (this._iBindDropZonesTimer) {
+                clearTimeout(this._iBindDropZonesTimer);
+                this._iBindDropZonesTimer = null;
+            }
             // Cleanup any pending dialogs
             if (this._oPreflightDialog) {
                 this._oPreflightDialog.destroy();
@@ -154,19 +159,29 @@ sap.ui.define([
 
         _bindDropZones: function () {
             this._unbindDropZones();
-            this._bindDropZone("templateDropZone", function (aFiles) {
+            this._bindDropZone("templateDropZone", "templateUploader", function (aFiles) {
                 if (aFiles.length > 0) {
                     this._processTemplateFile(aFiles[0]);
                 }
             }.bind(this));
-            this._bindDropZone("attachmentDropZone", function (aFiles) {
+            this._bindDropZone("attachmentDropZone", "attachmentUploader", function (aFiles) {
                 if (aFiles.length > 0) {
                     this._processAttachments(aFiles);
                 }
             }.bind(this));
         },
 
-        _bindDropZone: function (sControlId, fnDrop) {
+        _scheduleDropZoneRebind: function () {
+            if (this._iBindDropZonesTimer) {
+                clearTimeout(this._iBindDropZonesTimer);
+            }
+            this._iBindDropZonesTimer = setTimeout(function () {
+                this._iBindDropZonesTimer = null;
+                this._bindDropZones();
+            }.bind(this), 50);
+        },
+
+        _bindDropZone: function (sControlId, sUploaderId, fnDrop) {
             var oControl = this.byId(sControlId);
             var oDomRef = oControl && oControl.getDomRef();
             if (!oDomRef) {
@@ -183,25 +198,36 @@ sap.ui.define([
             };
             var fnDragLeave = function (oEvent) {
                 fnPrevent(oEvent);
-                oControl.removeStyleClass("DropZoneActive");
+                if (!oDomRef.contains(oEvent.relatedTarget)) {
+                    oControl.removeStyleClass("DropZoneActive");
+                }
             };
             var fnDropHandler = function (oEvent) {
                 fnPrevent(oEvent);
                 oControl.removeStyleClass("DropZoneActive");
-                var aFiles = Array.prototype.slice.call((oEvent.dataTransfer && oEvent.dataTransfer.files) || []);
+                var oDataTransfer = oEvent.dataTransfer || (oEvent.originalEvent && oEvent.originalEvent.dataTransfer);
+                var aFiles = Array.prototype.slice.call((oDataTransfer && oDataTransfer.files) || []);
                 fnDrop(aFiles);
             };
+            var fnClickHandler = function (oEvent) {
+                if (oEvent.target && oEvent.target.closest && oEvent.target.closest(".sapMLnk")) {
+                    return;
+                }
+                this._openUploaderFileDialog(sUploaderId);
+            }.bind(this);
 
             oDomRef.addEventListener("dragover", fnPrevent);
             oDomRef.addEventListener("dragenter", fnDragEnter);
             oDomRef.addEventListener("dragleave", fnDragLeave);
             oDomRef.addEventListener("drop", fnDropHandler);
+            oDomRef.addEventListener("click", fnClickHandler);
             this._aDropZoneHandlers.push({
                 domRef: oDomRef,
                 prevent: fnPrevent,
                 dragEnter: fnDragEnter,
                 dragLeave: fnDragLeave,
-                drop: fnDropHandler
+                drop: fnDropHandler,
+                click: fnClickHandler
             });
         },
 
@@ -211,6 +237,7 @@ sap.ui.define([
                 oHandler.domRef.removeEventListener("dragenter", oHandler.dragEnter);
                 oHandler.domRef.removeEventListener("dragleave", oHandler.dragLeave);
                 oHandler.domRef.removeEventListener("drop", oHandler.drop);
+                oHandler.domRef.removeEventListener("click", oHandler.click);
             });
             this._aDropZoneHandlers = [];
         },
@@ -231,6 +258,7 @@ sap.ui.define([
             } else if (sSource === "file") {
                 oModel.setProperty("/contentSource", "file");
                 MessageToast.show(this.getResourceBundle().getText("chooseDocxPrompt"));
+                this._scheduleDropZoneRebind();
             } else if (sSource === "news") {
                 oModel.setProperty("/contentSource", "news");
                 this._openNewsDialog();
@@ -455,6 +483,10 @@ items: aAreaItems
             this._openUploaderFileDialog("templateUploader");
         },
 
+        onSelectAttachments: function () {
+            this._openUploaderFileDialog("attachmentUploader");
+        },
+
         _openUploaderFileDialog: function (sUploaderId) {
             var oUploader = this.byId(sUploaderId);
             if (!oUploader) {
@@ -465,6 +497,11 @@ items: aAreaItems
             var oFileInput = this._findUploaderFileInput(oUploader);
             if (oFileInput) {
                 oFileInput.click();
+                return true;
+            }
+
+            if (oUploader.openFileDialog) {
+                oUploader.openFileDialog();
                 return true;
             }
 
@@ -480,15 +517,35 @@ items: aAreaItems
 
             var oContainer = oUploader.getDomRef && oUploader.getDomRef();
             if (oContainer) {
-                return oContainer.querySelector("input[type='file']");
+                var oInput = oContainer.querySelector("input[type='file']");
+                if (oInput) {
+                    return oInput;
+                }
+            }
+
+            if (oUploader.$) {
+                var oJqInput = oUploader.$().find("input[type='file']");
+                if (oJqInput && oJqInput.length) {
+                    return oJqInput[0];
+                }
             }
 
             return null;
         },
 
+        _getFilesFromUploadEvent: function (oEvent) {
+            var aFiles = oEvent.getParameter("files");
+            if (aFiles && aFiles.length) {
+                return aFiles;
+            }
+
+            var oFileInput = this._findUploaderFileInput(oEvent.getSource());
+            return (oFileInput && oFileInput.files) || [];
+        },
+
         onTemplateUploaded: function (oEvent) {
             var oFileUploader = oEvent.getSource();
-            var oFile = oEvent.getParameter("files") && oEvent.getParameter("files")[0];
+            var oFile = this._getFilesFromUploadEvent(oEvent)[0];
             
             if (!oFile) {
                 return;
@@ -518,36 +575,37 @@ items: aAreaItems
         },
 
         _processTemplateFile: function (oFile) {
-            var that = this;
             var oModel = this.getView().getModel("appData");
-            
-            // Показываем индикатор загрузки
+            var sFileName = (oFile && oFile.name) || "";
+            var bIsOfficeTemplate = /\.(docx|doc)$/i.test(sFileName);
+            var bIsMarkdownTemplate = this._isMarkdownTemplate(sFileName);
+
+            if (!oFile || (!bIsOfficeTemplate && !bIsMarkdownTemplate)) {
+                MessageBox.warning(this.getResourceBundle().getText("invalidTemplateFileType"));
+                return;
+            }
+
             oModel.setProperty("/busy", true);
 
-            // Используем Mammoth.js для конвертации DOCX в HTML
+            if (bIsMarkdownTemplate) {
+                this._processMarkdownTemplate(oFile);
+                return;
+            }
+
+            this._processOfficeTemplate(oFile);
+        },
+
+        _processOfficeTemplate: function (oFile) {
+            var that = this;
+            var oModel = this.getView().getModel("appData");
             var reader = new FileReader();
             reader.onload = function (oLoadEvent) {
                 var arrayBuffer = oLoadEvent.target.result;
                 
-                // Конвертация через mammoth
                 if (typeof mammoth !== "undefined") {
                     mammoth.convertToHtml({arrayBuffer: arrayBuffer})
                         .then(function (result) {
-                            var html = that._sanitizeHtml(result.value);
-                            var messages = result.messages;
-                            
-                            // Устанавливаем HTML в редактор
-                            var oEditor = that._getEditorDom();
-                            if (oEditor) {
-                                oEditor.innerHTML = html;
-                            }
-                            
-                            // Обновляем модель
-                            oModel.setProperty("/templateContent", html);
-                            oModel.setProperty("/templateName", oFile.name);
-                            oModel.setProperty("/hasLoadedTemplate", true);
-                            oModel.setProperty("/lastSaved", new Date().toLocaleString());
-                            
+                            that._finishTemplateLoad(oFile.name, result.value);
                             MessageToast.show(that.getResourceBundle().getText("templateLoadedSuccess"));
                         })
                         .catch(function (err) {
@@ -557,7 +615,6 @@ items: aAreaItems
                             oModel.setProperty("/busy", false);
                         });
                 } else {
-                    // Fallback если mammoth не загружен
                     MessageBox.error(that.getResourceBundle().getText("mammothMissingError"));
                     oModel.setProperty("/busy", false);
                 }
@@ -567,8 +624,91 @@ items: aAreaItems
                 MessageBox.error(that.getResourceBundle().getText("fileReadError"));
                 oModel.setProperty("/busy", false);
             };
-            
+
             reader.readAsArrayBuffer(oFile);
+        },
+
+        _processMarkdownTemplate: function (oFile) {
+            var that = this;
+            var oModel = this.getView().getModel("appData");
+            var reader = new FileReader();
+            reader.onload = function (oLoadEvent) {
+                var sMarkdown = oLoadEvent.target.result || "";
+                var sHtml = that._convertMarkdownToHtml(sMarkdown);
+                that._finishTemplateLoad(oFile.name, sHtml);
+                oModel.setProperty("/busy", false);
+                MessageToast.show(that.getResourceBundle().getText("templateLoadedSuccess"));
+            };
+            reader.onerror = function () {
+                MessageBox.error(that.getResourceBundle().getText("fileReadError"));
+                oModel.setProperty("/busy", false);
+            };
+            reader.readAsText(oFile, "utf-8");
+        },
+
+        _finishTemplateLoad: function (sFileName, sHtml) {
+            var oModel = this.getView().getModel("appData");
+            var sSanitizedHtml = this._sanitizeHtml(sHtml);
+            this._setEditorContent(sSanitizedHtml);
+            oModel.setProperty("/templateName", sFileName);
+            oModel.setProperty("/hasLoadedTemplate", true);
+            oModel.setProperty("/contentSource", AppConstants.CONTENT_SOURCE.FILE);
+            oModel.setProperty("/lastSaved", new Date().toLocaleString());
+        },
+
+        _isMarkdownTemplate: function (sFileName) {
+            return /\.(md|markdown|txt)$/i.test(sFileName || "");
+        },
+
+        _convertMarkdownToHtml: function (sMarkdown) {
+            var aLines = String(sMarkdown || "").replace(/\r\n/g, "\n").split("\n");
+            var aHtml = [];
+            var bInList = false;
+            var fnCloseList = function () {
+                if (bInList) {
+                    aHtml.push("</ul>");
+                    bInList = false;
+                }
+            };
+
+            aLines.forEach(function (sLine) {
+                var sTrimmed = sLine.trim();
+                if (!sTrimmed) {
+                    fnCloseList();
+                    return;
+                }
+
+                var aHeadingMatch = sTrimmed.match(/^(#{1,3})\s+(.+)$/);
+                if (aHeadingMatch) {
+                    fnCloseList();
+                    var iLevel = aHeadingMatch[1].length;
+                    aHtml.push("<h" + iLevel + ">" + this._applyInlineMarkdown(aHeadingMatch[2]) + "</h" + iLevel + ">");
+                    return;
+                }
+
+                var aListMatch = sTrimmed.match(/^[-*]\s+(.+)$/);
+                if (aListMatch) {
+                    if (!bInList) {
+                        aHtml.push("<ul>");
+                        bInList = true;
+                    }
+                    aHtml.push("<li>" + this._applyInlineMarkdown(aListMatch[1]) + "</li>");
+                    return;
+                }
+
+                fnCloseList();
+                aHtml.push("<p>" + this._applyInlineMarkdown(sTrimmed) + "</p>");
+            }.bind(this));
+
+            fnCloseList();
+            return aHtml.join("");
+        },
+
+        _applyInlineMarkdown: function (sValue) {
+            return this._escapeHtml(sValue)
+                .replace(/`([^`]+)`/g, "<code>$1</code>")
+                .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+                .replace(/\*([^*]+)\*/g, "<em>$1</em>");
         },
 
         onTemplateDrop: function (oEvent) {
@@ -700,7 +840,7 @@ items: aAreaItems
 
         onAttachmentUploaded: function (oEvent) {
             var oFileUploader = oEvent.getSource();
-            var files = oEvent.getParameter("files") || [];
+            var files = this._getFilesFromUploadEvent(oEvent);
             
             if (files && files.length > 0) {
                 this._processAttachments(files);
@@ -711,7 +851,7 @@ items: aAreaItems
 
         _processAttachments: function (files) {
             var oModel = this.getView().getModel("appData");
-            var aAttachments = oModel.getProperty("/attachments");
+            var aAttachments = oModel.getProperty("/attachments") || [];
             
             for (var i = 0; i < files.length; i++) {
                 var oFile = files[i];
@@ -733,7 +873,7 @@ items: aAreaItems
                             content: sBase64
                         });
                         
-                        oModel.setProperty("/attachments", aAttachments);
+                        oModel.setProperty("/attachments", aAttachments.slice());
                         MessageToast.show(this.getResourceBundle().getText("attachmentAdded") + ": " + file.name);
                     };
                 }.bind(this))(oFile);
@@ -882,7 +1022,7 @@ items: aAreaItems
 
         onCsvUploaded: function (oEvent) {
             var oFileUploader = oEvent.getSource();
-            var oFile = oEvent.getParameter("files") && oEvent.getParameter("files")[0];
+            var oFile = this._getFilesFromUploadEvent(oEvent)[0];
             if (!oFile) {
                 return;
             }
