@@ -73,12 +73,7 @@ sap.ui.define([
         constructor: function (oODataModel) {
             this._oODataModel = oODataModel;
             
-            // ============================================================================
-            // ⚠️ PRODUCTION CONFIGURATION:
-            // Замените hardcoded path на динамическое получение из manifest.json
-            // ============================================================================
-            // CURRENT (for mock/testing):
-            this._sServicePath = this._getServicePathFromManifest();
+            this._sServicePath = this._getServicePath();
             
             // CSRF token cache
             this._sCsrfToken = null;
@@ -101,62 +96,13 @@ sap.ui.define([
                 return Promise.reject(new Error("OData model not initialized"));
             }
 
-            // ========================================================================
-            // ⚠️ PRODUCTION: Раскомментировать для получения CSRF токена
-            // ========================================================================
-            // return this._fetchCsrfToken().then(function(sToken) {
-            //     return that._sendEmailWithToken(oEmailData, sToken);
-            // });
-            
             return this._fetchCsrfToken().then(function (sToken) {
                 return that._sendEmailWithToken(oEmailData, sToken);
-            }).catch(function () {
-                return new Promise(function (fnResolve, fnReject) {
-                // Generate idempotency key for deduplication
-                var sIdempotencyKey = that._generateIdempotencyKey();
-
-                // Prepare payload
-                var oPayload = that._preparePayload(oEmailData, sIdempotencyKey);
-
-                // Log request for audit trail
-                that._logRequest(oPayload);
-
-                // ====================================================================
-                // ⚠️ PRODUCTION: Добавить заголовки безопасности
-                // ====================================================================
-                // var mHeaders = {
-                //     "X-CSRF-Token": sToken,
-                //     "Idempotency-Key": sIdempotencyKey,
-                //     "X-Requested-With": "XMLHttpRequest"
-                // };
-                
-                // Send via OData
-                that._oODataModel.create(
-                    that._sServicePath,
-                    oPayload,
-                    {
-                        // ============================================================
-                        // ⚠️ PRODUCTION: Добавить headers и batch settings
-                        // ============================================================
-                        // headers: mHeaders,
-                        // batchGroupId: "$auto",
-                        success: function (oData) {
-                            that._logSuccess(oData);
-                            fnResolve({
-                                success: true,
-                                messageId: oData.MessageId || sIdempotencyKey,
-                                timestamp: new Date().toISOString(),
-                                recipientCount: oEmailData.recipients ? oEmailData.recipients.length : 0
-                            });
-                        },
-                        error: function (oError) {
-                            that._logError(oError);
-                            fnReject(that._handleError(oError));
-                        }
-                    }
-                );
             });
-            });
+        },
+
+        _getServicePath: function () {
+            return "/MailSends";
         },
 
         /**
@@ -175,44 +121,27 @@ sap.ui.define([
                 return Promise.resolve(this._sCsrfToken);
             }
             
-            return new Promise(function (fnResolve, fnReject) {
-                // Method 1: Using OData model metadata request
-                that._oODataModel.callFunction("/", {
-                    method: "GET",
-                    headers: {
-                        "X-CSRF-Token": "Fetch"
+            return new Promise(function (fnResolve) {
+                if (!that._oODataModel.refreshSecurityToken) {
+                    Log.warning("[EmailService] OData model does not expose refreshSecurityToken; sending without cached CSRF token");
+                    fnResolve(null);
+                    return;
+                }
+
+                that._oODataModel.refreshSecurityToken(
+                    function (oData, oResponse) {
+                        var mHeaders = (oResponse && oResponse.headers) || {};
+                        var sToken = mHeaders["x-csrf-token"] || mHeaders["X-CSRF-Token"] || null;
+                        that._sCsrfToken = sToken;
+                        Log.info("[EmailService] CSRF token refreshed");
+                        fnResolve(sToken);
                     },
-                    success: function (oData, oResponse) {
-                        var sToken = oResponse.headers["x-csrf-token"];
-                        if (sToken) {
-                            that._sCsrfToken = sToken;
-                            Log.info("[EmailService] CSRF token fetched successfully");
-                            fnResolve(sToken);
-                        } else {
-                            fnResolve(null);
-                        }
-                    },
-                    error: function (oError) {
-                        Log.warning("[EmailService] Failed to fetch CSRF token, proceeding without", oError && oError.message);
+                    function (oError) {
+                        Log.warning("[EmailService] Failed to refresh CSRF token; sending without cached token", oError && oError.message);
                         fnResolve(null);
-                    }
-                });
-                
-                // Method 2 (alternative): Direct AJAX call
-                // jQuery.ajax({
-                //     url: that._oODataModel.sServiceUrl + "/$metadata",
-                //     type: "GET",
-                //     headers: { "X-CSRF-Token": "Fetch" },
-                //     success: function (data, textStatus, jqXHR) {
-                //         var sToken = jqXHR.getResponseHeader("x-csrf-token");
-                //         that._sCsrfToken = sToken;
-                //         fnResolve(sToken);
-                //     },
-                //     error: function (jqXHR) {
-                //         console.warn("[EmailService] CSRF fetch failed");
-                //         fnResolve(null);
-                //     }
-                // });
+                    },
+                    false
+                );
             });
         },
 
@@ -226,7 +155,7 @@ sap.ui.define([
          * @param {string} sToken - CSRF token
          * @returns {Promise} Send result
          */
-        _sendEmailWithToken: function (oEmailData, sToken) {
+        _sendEmailWithToken: function (oEmailData, sToken, bRetried) {
             var that = this;
             
             return new Promise(function (fnResolve, fnReject) {
@@ -263,11 +192,11 @@ sap.ui.define([
                             that._logError(oError);
                             
                             // Handle CSRF token expiration
-                            if (oError.statusCode === 403) {
+                            if (oError.statusCode === 403 && !bRetried) {
                                 Log.warning("[EmailService] CSRF token expired, fetching new one...");
                                 that._sCsrfToken = null; // Clear cached token
                                 return that._fetchCsrfToken().then(function (sNewToken) {
-                                    return that._sendEmailWithToken(oEmailData, sNewToken);
+                                    return that._sendEmailWithToken(oEmailData, sNewToken, true);
                                 }).then(fnResolve).catch(fnReject);
                             }
                             
@@ -325,7 +254,8 @@ sap.ui.define([
             var oPayload = {
                 IdempotencyKey: sIdempotencyKey,
                 Subject: oEmailData.subject || "",
-                Content: oEmailData.content || "",
+                HtmlBody: oEmailData.content || "",
+                Sender: oEmailData.sender || "",
                 IsSensitive: oEmailData.isSensitive || false,
                 Recipients: (oEmailData.recipients || []).map(function (oRecipient) {
                     return {
@@ -336,8 +266,8 @@ sap.ui.define([
                 }),
                 Attachments: (oEmailData.attachments || []).map(function (oFile) {
                     return {
-                        FileName: oFile.name || "unknown",
-                        ContentType: oFile.type || "application/octet-stream",
+                        FileName: oFile.fileName || oFile.name || "unknown",
+                        ContentType: oFile.mimeType || oFile.type || "application/octet-stream",
                         Content: oFile.content || "" // Base64 encoded
                     };
                 })

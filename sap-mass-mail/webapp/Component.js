@@ -1,8 +1,9 @@
 sap.ui.define([
     "sap/ui/core/UIComponent",
     "sap/ui/Device",
+    "sap/ui/model/json/JSONModel",
     "com/sap/mm/massmail/model/models"
-], function (UIComponent, Device, models) {
+], function (UIComponent, Device, JSONModel, models) {
     "use strict";
 
     return UIComponent.extend("com.sap.mm.massmail.Component", {
@@ -17,11 +18,8 @@ sap.ui.define([
             // установка модели устройств
             this.setModel(models.createDeviceModel(), "device");
 
-            // включение режима busy
-            this.getRouter().initialize();
-            
             // глобальная модель для данных приложения
-            this.setModel(new sap.ui.model.json.JSONModel({
+            this.setModel(new JSONModel({
                 busy: false,
                 templateContent: "",
                 templateName: "",
