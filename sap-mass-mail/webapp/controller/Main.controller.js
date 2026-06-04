@@ -43,16 +43,15 @@ sap.ui.define([
                 templateCharCount: 0
             });
             this.getView().setModel(oViewModel, "appData");
-            
+
             // Initialize services
             this._oEmailService = new EmailService(this.getOwnerComponent().getModel());
             this._oNewsService = new NewsService();
 
             var oNewsModel = new JSONModel(this._oNewsService.getInitialNews());
             this.getView().setModel(oNewsModel, "news");
-            this.getView().getModel("appData").setProperty("/allNews", oNewsModel.getData());
-            
-            
+            oViewModel.setProperty("/allNews", oNewsModel.getData());
+
             // Инициализация редактора
             this._boundEditor = null;
             this._onEditorInput = this._updateTemplateContent.bind(this);
@@ -65,9 +64,16 @@ sap.ui.define([
             this._loadAllowedHosts();
         },
 
+        _getAppModel: function () {
+            return this.getView().getModel("appData");
+        },
+
+        _setAppDataProperty: function (sPath, vValue) {
+            this._getAppModel().setProperty(sPath, vValue);
+        },
+
         _initEditor: function () {
-            var oModel = this.getView().getModel("appData");
-            oModel.setProperty("/templateContent", AppConstants.DEFAULT_EDITOR_HTML);
+            this._getAppModel().setProperty("/templateContent", AppConstants.DEFAULT_EDITOR_HTML);
         },
 
         _getEditorDom: function () {
@@ -76,6 +82,11 @@ sap.ui.define([
             return oContainer ? oContainer.querySelector("#editorContent") : null;
         },
 
+        _scheduleTemplateUpdate: function () {
+            setTimeout(function () {
+                this._updateTemplateContent();
+            }.bind(this), 100);
+        },
 
         _loadAllowedHosts: function () {
             var oModel = this.getOwnerComponent().getModel();
@@ -88,7 +99,7 @@ sap.ui.define([
                     var aHosts = (oData.results || []).map(function (oItem) {
                         return (oItem.HostName || "").toLowerCase();
                     }).filter(Boolean);
-                    this.getView().getModel("appData").setProperty("/allowedLinkHosts", aHosts);
+                    this._setAppDataProperty("/allowedLinkHosts", aHosts);
                 }.bind(this)
             });
         },
@@ -112,7 +123,7 @@ sap.ui.define([
                 this._boundEditor = oEditor;
             }
 
-            var sContent = this.getView().getModel("appData").getProperty("/templateContent") || AppConstants.DEFAULT_EDITOR_HTML;
+            var sContent = this._getAppModel().getProperty("/templateContent") || AppConstants.DEFAULT_EDITOR_HTML;
             if (oEditor.innerHTML !== sContent) {
                 oEditor.innerHTML = sContent;
             }
@@ -252,10 +263,10 @@ sap.ui.define([
         _getDroppedFiles: function (oEvent) {
             var oBrowserEvent = oEvent && (oEvent.originalEvent || oEvent);
             var oDataTransfer = oBrowserEvent && oBrowserEvent.dataTransfer;
-            var aFiles = Array.prototype.slice.call((oDataTransfer && oDataTransfer.files) || []);
+            var aFiles = Array.from((oDataTransfer && oDataTransfer.files) || []);
 
             if (!aFiles.length && oDataTransfer && oDataTransfer.items) {
-                Array.prototype.forEach.call(oDataTransfer.items, function (oItem) {
+                Array.from(oDataTransfer.items).forEach(function (oItem) {
                     if (oItem.kind === "file") {
                         var oFile = oItem.getAsFile();
                         if (oFile) {
@@ -461,16 +472,11 @@ items: aAreaItems
 
         onNewsSelectionChange: function (oEvent) {
             var aSelected = oEvent.getParameter("listItems");
-            var oNewsModel = this.getView().getModel("news");
-            var aAllNews = oNewsModel.getData();
-            
             var aSelectedData = aSelected.map(function (oItem) {
-                var sPath = oItem.getBindingContext("news").getPath();
-                var iIndex = parseInt(sPath.split("/").pop(), 10);
-                return aAllNews[iIndex];
+                return oItem.getBindingContext("news").getObject();
             });
-            
-            this.getView().getModel("appData").setProperty("/selectedNews", aSelectedData);
+
+            this._setAppDataProperty("/selectedNews", aSelectedData);
         },
 
         onConfirmNewsSelection: function () {
@@ -701,35 +707,36 @@ items: aAreaItems
         },
 
         _processOfficeTemplate: function (oFile) {
-            var that = this;
-            var oModel = this.getView().getModel("appData");
+            var oModel = this._getAppModel();
             var reader = new FileReader();
+
             reader.onload = function (oLoadEvent) {
                 var arrayBuffer = oLoadEvent.target.result;
-                
-                var oMammoth = that._getMammoth();
-                if (oMammoth) {
-                    oMammoth.convertToHtml({arrayBuffer: arrayBuffer})
-                        .then(function (result) {
-                            that._finishTemplateLoad(oFile.name, result.value);
-                            MessageToast.show(that.getResourceBundle().getText("templateLoadedSuccess"));
-                        })
-                        .catch(function (err) {
-                            MessageBox.error(that.getResourceBundle().getText("templateLoadError") + ": " + err.message);
-                        })
-                        .finally(function () {
-                            oModel.setProperty("/busy", false);
-                        });
-                } else {
-                    MessageBox.error(that.getResourceBundle().getText("mammothMissingError"));
+                var oMammoth = this._getMammoth();
+
+                if (!oMammoth) {
+                    MessageBox.error(this.getResourceBundle().getText("mammothMissingError"));
                     oModel.setProperty("/busy", false);
+                    return;
                 }
-            };
-            
+
+                oMammoth.convertToHtml({ arrayBuffer: arrayBuffer })
+                    .then(function (result) {
+                        this._finishTemplateLoad(oFile.name, result.value);
+                        MessageToast.show(this.getResourceBundle().getText("templateLoadedSuccess"));
+                    }.bind(this))
+                    .catch(function (err) {
+                        MessageBox.error(this.getResourceBundle().getText("templateLoadError") + ": " + err.message);
+                    }.bind(this))
+                    .finally(function () {
+                        oModel.setProperty("/busy", false);
+                    });
+            }.bind(this);
+
             reader.onerror = function () {
-                MessageBox.error(that.getResourceBundle().getText("fileReadError"));
+                MessageBox.error(this.getResourceBundle().getText("fileReadError"));
                 oModel.setProperty("/busy", false);
-            };
+            }.bind(this);
 
             reader.readAsArrayBuffer(oFile);
         },
@@ -760,10 +767,10 @@ items: aAreaItems
             var oModel = this.getView().getModel("appData");
             var sSanitizedHtml = this._sanitizeHtml(sHtml);
             this._setEditorContent(sSanitizedHtml);
-            oModel.setProperty("/templateName", sFileName);
-            oModel.setProperty("/hasLoadedTemplate", true);
-            oModel.setProperty("/contentSource", AppConstants.CONTENT_SOURCE.FILE);
-            oModel.setProperty("/lastSaved", new Date().toLocaleString());
+            this._setAppDataProperty("/templateName", sFileName);
+            this._setAppDataProperty("/hasLoadedTemplate", true);
+            this._setAppDataProperty("/contentSource", AppConstants.CONTENT_SOURCE.FILE);
+            this._setAppDataProperty("/lastSaved", new Date().toLocaleString());
         },
 
         _isMarkdownTemplate: function (sFileName) {
@@ -888,16 +895,12 @@ items: aAreaItems
 
         onPasteFromClipboard: function () {
             // Вставка из буфера обрабатывается браузером автоматически
-            setTimeout(function () {
-                this._updateTemplateContent();
-            }.bind(this), 100);
+            this._scheduleTemplateUpdate();
         },
 
-        onEditorPaste: function (oEvent) {
+        onEditorPaste: function () {
             // Обработка вставки в редактор
-            setTimeout(function () {
-                this._updateTemplateContent();
-            }.bind(this), 100);
+            this._scheduleTemplateUpdate();
         },
 
         _updateTemplateContent: function () {
@@ -1055,27 +1058,28 @@ items: aAreaItems
         },
 
         onSearchRecipients: function (oEvent) {
-            var sQuery = oEvent.getParameter("query");
-            var that = this;
-            var oModel = this.getView().getModel("appData");
-            
-            if (!sQuery || sQuery.trim().length < AppConstants.RECIPIENT_SEARCH_MIN_LEN) {
+            var sQuery = (oEvent.getParameter("query") || "").trim();
+            var oModel = this._getAppModel();
+
+            if (sQuery.length < AppConstants.RECIPIENT_SEARCH_MIN_LEN) {
                 MessageToast.show(this.getResourceBundle().getText("recipientSearchMinChars", [AppConstants.RECIPIENT_SEARCH_MIN_LEN]));
                 return;
             }
+
             if (this._recipientSearchTimer) {
                 clearTimeout(this._recipientSearchTimer);
             }
+
             this._recipientSearchTimer = setTimeout(function () {
                 oModel.setProperty("/busy", true);
                 var oODataModel = this.getOwnerComponent().getModel();
                 oODataModel.read("/Recipients", {
                     urlParameters: {
                         "$top": AppConstants.RECIPIENT_SEARCH_MAX_RESULTS,
-                        "$search": sQuery.trim()
+                        "$search": sQuery
                     },
                     success: function (oData) {
-                        var aRecipients = oModel.getProperty("/recipients");
+                        var aRecipients = oModel.getProperty("/recipients") || [];
                         var oKnown = {};
                         aRecipients.forEach(function (oRecipient) {
                             oKnown[(oRecipient.email || "").toLowerCase()] = true;
@@ -1095,11 +1099,11 @@ items: aAreaItems
                         });
                         oModel.setProperty("/recipients", aRecipients);
                         oModel.setProperty("/busy", false);
-                        MessageToast.show(that.getResourceBundle().getText("searchComplete"));
-                    },
+                        MessageToast.show(this.getResourceBundle().getText("searchComplete"));
+                    }.bind(this),
                     error: function () {
                         oModel.setProperty("/busy", false);
-                        MessageBox.error(that.getResourceBundle().getText("recipientSearchFailed"));
+                        MessageBox.error(this.getResourceBundle().getText("recipientSearchFailed"));
                     }
                 });
             }.bind(this), AppConstants.RECIPIENT_SEARCH_THROTTLE_MS);
