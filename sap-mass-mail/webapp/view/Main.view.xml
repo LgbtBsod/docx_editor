@@ -3,6 +3,7 @@
     xmlns:m="sap.m"
     xmlns:l="sap.ui.layout"
     xmlns:f="sap.f"
+    xmlns:u="sap.ui.unified"
     xmlns:core="sap.ui.core">
     
     <f:DynamicPage id="dynamicPage" toggleHeaderOnTitleClick="false">
@@ -53,13 +54,11 @@
                             </m:SegmentedButton>
                             
                             <!-- Зона загрузки DOCX (видима только при выборе "Загрузить файл") -->
-                            <m:VBox class="DropZone sapUiSmallMarginBottom" 
+                            <m:VBox id="templateDropZone"
+                                    class="DropZone sapUiSmallMarginBottom" 
                                     height="120px"
                                     alignItems="Center" 
                                     justifyContent="Center"
-                                    drop="onTemplateDrop" 
-                                    dragEnter="onDragEnter"
-                                    dragLeave="onDragLeave"
                                     visible="{= ${appData>/contentSource} === 'file' }">
                                 <m:Image src="sap-icon://attachment-html" 
                                          densityAware="false" 
@@ -74,13 +73,6 @@
                                 <m:Link text="{i18n>selectFile}" 
                                         press="onSelectTemplateFile"
                                         class="sapUiTinyMarginTop"/>
-                                <m:FileUploader id="templateUploader" 
-                                                change="onTemplateUploaded"
-                                                fileType="docx,doc"
-                                                mimeType="application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/msword"
-                                                style="Transparent"
-                                                visible="false"
-                                                multiple="false"/>
                             </m:VBox>
                             
                             <!-- Подсказка для ручного ввода -->
@@ -160,6 +152,13 @@
                             <m:Label text="{i18n>lastSaved}: {appData>/lastSaved}" 
                                      class="sapUiTinyMarginTop"
                                      visible="{= !!${appData>/lastSaved} }"/>
+                            <u:FileUploader id="templateUploader"
+                                            class="HiddenFileUploader"
+                                            change="onTemplateUploaded"
+                                            fileType="docx,doc"
+                                            mimeType="application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/msword"
+                                            style="Transparent"
+                                            multiple="false"/>
                         </l:VerticalLayout>
                     </l:SplitPane>
                 </l:PaneContainer>
@@ -170,13 +169,11 @@
                         <l:VerticalLayout class="FullHeight" width="100%">
                             
                             <!-- Зона загрузки вложений -->
-                            <m:VBox class="DropZone sapUiSmallMarginBottom" 
+                            <m:VBox id="attachmentDropZone"
+                                    class="DropZone sapUiSmallMarginBottom" 
                                     height="100px"
                                     alignItems="Center" 
-                                    justifyContent="Center"
-                                    drop="onAttachmentDrop" 
-                                    dragEnter="onDragEnter"
-                                    dragLeave="onDragLeave">
+                                    justifyContent="Center">
                                 <m:Image src="sap-icon://attachment" 
                                          densityAware="false" 
                                          decorative="true"
@@ -187,10 +184,10 @@
                                 <m:Text text="{i18n>multipleFilesAllowed}" 
                                         class="sapUiTinyMarginTop"
                                         wrapping="false"/>
-                                <m:FileUploader id="attachmentUploader" 
+                                <u:FileUploader id="attachmentUploader"
+                                                class="HiddenFileUploader"
                                                 change="onAttachmentUploaded"
                                                 style="Transparent"
-                                                visible="false"
                                                 multiple="true"/>
                             </m:VBox>
                             
@@ -237,8 +234,8 @@
                                     <m:Button text="{i18n>btnImportCSV}" 
                                               icon="sap-icon://upload-to-cloud" 
                                               press="onImportCSV"/>
-                                    <m:FileUploader id="csvUploader"
-                                                    visible="false"
+                                    <u:FileUploader id="csvUploader"
+                                                    class="HiddenFileUploader"
                                                     multiple="false"
                                                     style="Transparent"
                                                     fileType="csv,txt"

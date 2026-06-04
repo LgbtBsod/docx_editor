@@ -18,6 +18,50 @@ CLASS zcl_zmm_massmail_dpc_ext DEFINITION
       c_max_attachment_size      TYPE i VALUE 10485760,
       c_max_total_attachment_size TYPE i VALUE 20971520.
 
+    TYPES: BEGIN OF ty_send_recipient_dto,
+             email      TYPE ad_smtpadr,
+             name       TYPE string,
+             department TYPE string,
+           END OF ty_send_recipient_dto,
+           tt_send_recipient_dto TYPE STANDARD TABLE OF ty_send_recipient_dto WITH EMPTY KEY,
+
+           BEGIN OF ty_send_attachment_dto,
+             filename    TYPE string,
+             contenttype TYPE string,
+             content     TYPE string,
+           END OF ty_send_attachment_dto,
+           tt_send_attachment_dto TYPE STANDARD TABLE OF ty_send_attachment_dto WITH EMPTY KEY,
+
+           BEGIN OF ty_document_link_dto,
+             url   TYPE string,
+             title TYPE string,
+           END OF ty_document_link_dto,
+           tt_document_link_dto TYPE STANDARD TABLE OF ty_document_link_dto WITH EMPTY KEY,
+
+           BEGIN OF ty_mail_send_request,
+             idempotencykey TYPE string,
+             subject        TYPE so_obj_des,
+             htmlbody       TYPE string,
+             sender         TYPE syuname,
+             issensitive    TYPE abap_bool,
+             recipients     TYPE tt_send_recipient_dto,
+             attachments    TYPE tt_send_attachment_dto,
+             documentlinks  TYPE tt_document_link_dto,
+           END OF ty_mail_send_request,
+
+           BEGIN OF ty_mail_send_response,
+             sendid         TYPE string,
+             success        TYPE abap_bool,
+             sentcount      TYPE i,
+             failedcount    TYPE i,
+             errorlog       TYPE string,
+           END OF ty_mail_send_response.
+
+    METHODS handle_mail_send_create
+      IMPORTING io_data_provider TYPE REF TO /iwbep/if_mgw_entry_provider
+      CHANGING  cr_entity        TYPE REF TO data
+      RAISING   /iwbep/cx_mgw_busi_exception.
+
     METHODS check_view_authority
       RAISING /iwbep/cx_mgw_busi_exception.
 
@@ -119,17 +163,11 @@ CLASS zcl_zmm_massmail_dpc_ext IMPLEMENTATION.
           iv_details    = iv_entity_set_name
         ).
 
-        super->/iwbep/if_mgw_appl_srv_runtime~create_entity(
+        handle_mail_send_create(
           EXPORTING
-            iv_entity_name          = iv_entity_name
-            iv_entity_set_name      = iv_entity_set_name
-            iv_source_name          = iv_source_name
-            io_data_provider        = io_data_provider
-            it_key_tab              = it_key_tab
-            it_navigation_path      = it_navigation_path
-            io_tech_request_context = io_tech_request_context
-          IMPORTING
-            er_entity               = er_entity
+            io_data_provider = io_data_provider
+          CHANGING
+            cr_entity        = er_entity
         ).
       WHEN OTHERS.
         super->/iwbep/if_mgw_appl_srv_runtime~create_entity(
@@ -145,6 +183,72 @@ CLASS zcl_zmm_massmail_dpc_ext IMPLEMENTATION.
             er_entity                = er_entity
         ).
     ENDCASE.
+  ENDMETHOD.
+
+
+  METHOD handle_mail_send_create.
+    DATA ls_request TYPE ty_mail_send_request.
+    DATA ls_response TYPE ty_mail_send_response.
+    DATA lt_recipients TYPE STANDARD TABLE OF ad_smtpadr WITH EMPTY KEY.
+    DATA lt_attachments TYPE zcl_mm_massmail_service=>tt_attachments.
+    DATA lt_document_links TYPE zcl_mm_massmail_service=>tt_doc_links.
+    DATA lo_service TYPE REF TO zcl_mm_massmail_service.
+
+    io_data_provider->read_entry_data( IMPORTING es_data = ls_request ).
+
+    IF ls_request-subject IS INITIAL OR ls_request-htmlbody IS INITIAL.
+      raise_bad_request( iv_message = 'Subject and HtmlBody are required for MailSends' ).
+    ENDIF.
+
+    IF ls_request-recipients IS INITIAL.
+      raise_bad_request( iv_message = 'At least one recipient is required for MailSends' ).
+    ENDIF.
+
+    IF lines( ls_request-recipients ) > c_max_recipients_per_send.
+      raise_bad_request( iv_message = |Recipient limit exceeded. Maximum is { c_max_recipients_per_send }| ).
+    ENDIF.
+
+    LOOP AT ls_request-recipients INTO DATA(ls_recipient).
+      APPEND ls_recipient-email TO lt_recipients.
+    ENDLOOP.
+
+    LOOP AT ls_request-documentlinks INTO DATA(ls_document_link).
+      APPEND VALUE zcl_mm_massmail_service=>ty_doc_link(
+        url   = ls_document_link-url
+        title = ls_document_link-title
+      ) TO lt_document_links.
+    ENDLOOP.
+
+    LOOP AT ls_request-attachments INTO DATA(ls_attachment_dto).
+      APPEND VALUE zcl_mm_massmail_service=>ty_attachment(
+        file_name = CONV so_obj_des( ls_attachment_dto-filename )
+        file_type = CONV so_obj_tp( ls_attachment_dto-contenttype )
+      ) TO lt_attachments.
+    ENDLOOP.
+
+    lo_service = NEW zcl_mm_massmail_service( ).
+    DATA(ls_result) = lo_service->send_mass_mail(
+      iv_subject        = ls_request-subject
+      iv_html_body      = ls_request-htmlbody
+      it_recipients     = lt_recipients
+      it_attachments    = lt_attachments
+      it_document_links = lt_document_links
+    ).
+
+    ls_response = VALUE #(
+      sendid      = ls_request-idempotencykey
+      success     = ls_result-success
+      sentcount   = ls_result-sent_count
+      failedcount = ls_result-failed_count
+      errorlog    = ls_result-error_log
+    ).
+
+    copy_data_to_ref(
+      EXPORTING
+        is_data = ls_response
+      CHANGING
+        cr_data = cr_entity
+    ).
   ENDMETHOD.
 
 

@@ -71,7 +71,8 @@
         "sap.ui.layout": {},
         "sap.ui.table": {},
         "sap.f": {},
-        "sap.suite.ui.generic.template": {}
+        "sap.suite.ui.generic.template": {},
+        "sap.ui.unified": {}
       }
     },
     "contentDensities": {
@@ -83,7 +84,11 @@
         "type": "sap.ui.model.resource.ResourceModel",
         "settings": {
           "bundleName": "com.sap.mm.massmail.i18n.i18n",
-          "supportedLocales": ["en", "ru", "de"],
+          "supportedLocales": [
+            "en",
+            "ru",
+            "de"
+          ],
           "fallbackLocale": "en"
         }
       },
@@ -111,45 +116,6 @@
           "uri": "libs/mammoth.browser.min.js"
         }
       ]
-    },
-    "routing": {
-      "config": {
-        "routerClass": "sap.m.routing.Router",
-        "viewType": "XML",
-        "async": true,
-        "viewPath": "com.sap.mm.massmail.view",
-        "controlAggregation": "pages",
-        "controlId": "app",
-        "clearControlAggregation": false,
-        "transition": "slide",
-        "bypassed": {
-          "target": "notFound"
-        }
-      },
-      "routes": [
-        {
-          "name": "RouteMain",
-          "pattern": ":?query:",
-          "target": ["TargetMain"]
-        }
-      ],
-      "targets": {
-        "TargetMain": {
-          "viewType": "XML",
-          "transition": "slide",
-          "clearControlAggregation": false,
-          "viewId": "Main",
-          "viewName": "Main",
-          "level": 0
-        },
-        "notFound": {
-          "viewType": "XML",
-          "transition": "slide",
-          "clearControlAggregation": false,
-          "viewId": "NotFound",
-          "viewName": "NotFound"
-        }
-      }
     },
     "rootView": {
       "viewName": "com.sap.mm.massmail.view.Main",

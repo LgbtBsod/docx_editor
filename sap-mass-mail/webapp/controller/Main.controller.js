@@ -9,11 +9,12 @@ sap.ui.define([
     "com/sap/mm/massmail/utils/ValidationUtils",
     "com/sap/mm/massmail/utils/CsvParser",
     "com/sap/mm/massmail/services/EmailService",
+    "com/sap/mm/massmail/services/NewsService",
     "com/sap/mm/massmail/utils/PreflightUtils",
     "com/sap/mm/massmail/utils/RecipientsUtils",
     "com/sap/mm/massmail/utils/AttachmentsUtils",
     "com/sap/mm/massmail/utils/EditorUtils"
-], function (Controller, JSONModel, MessageToast, MessageBox, Fragment, AppConstants, SecurityUtils, ValidationUtils, CsvParser, EmailService, PreflightUtils, RecipientsUtils, AttachmentsUtils, EditorUtils) {
+], function (Controller, JSONModel, MessageToast, MessageBox, Fragment, AppConstants, SecurityUtils, ValidationUtils, CsvParser, EmailService, NewsService, PreflightUtils, RecipientsUtils, AttachmentsUtils, EditorUtils) {
     "use strict";
 
     return Controller.extend("com.sap.mm.massmail.controller.Main", {
@@ -43,25 +44,21 @@ sap.ui.define([
             });
             this.getView().setModel(oViewModel, "appData");
             
-            // Моковая модель новостей (в реальности будет OData)
-            var oNewsModel = new JSONModel([
-                { id: "1", title: "Изменения в графике отпусков", author: "HR Департамент", area: "Кадры", publishedAt: "2026-01-15", text: "Уважаемые коллеги, напоминаем о необходимости подачи заявлений на отпуск не позднее чем за 2 недели до планируемой даты." },
-                { id: "2", title: "Обновление системы безопасности", author: "IT Отдел", area: "Информационная безопасность", publishedAt: "2026-02-20", text: "В связи с обновлением политик безопасности, просим всех сотрудников сменить пароли до конца месяца." },
-                { id: "3", title: "Корпоративное мероприятие", author: "Совет директоров", area: "События", publishedAt: "2026-03-18", text: "Приглашаем всех сотрудников на ежегодный пикник компании, который состоится в следующие выходные." },
-                { id: "4", title: "Новые правила командирования", author: "Финансовый отдел", area: "Финансы", publishedAt: "2026-04-10", text: "Изменился лимит суточных расходов при командировках. Подробности в прикрепленном документе." },
-                { id: "5", title: "Обучение и развитие", author: "L&D Отдел", area: "Обучение", publishedAt: "2026-05-01", text: "Открыта регистрация на курсы повышения квалификации. Количество мест ограничено." }
-            ]);
+            // Initialize services
+            this._oEmailService = new EmailService(this.getOwnerComponent().getModel());
+            this._oNewsService = new NewsService();
+
+            var oNewsModel = new JSONModel(this._oNewsService.getInitialNews());
             this.getView().setModel(oNewsModel, "news");
             this.getView().getModel("appData").setProperty("/allNews", oNewsModel.getData());
             
-            // Initialize services
-            this._oEmailService = new EmailService(this.getOwnerComponent().getModel());
             
             // Инициализация редактора
             this._boundEditor = null;
             this._onEditorInput = this._updateTemplateContent.bind(this);
             this._onEditorPaste = this.onEditorPaste.bind(this);
             this._recipientSearchTimer = null;
+            this._aDropZoneHandlers = [];
             this._initEditor();
             this._loadAllowedHosts();
         },
@@ -95,6 +92,8 @@ sap.ui.define([
         },
 
         onAfterRendering: function () {
+            this._bindDropZones();
+
             var oEditor = this._getEditorDom();
             if (!oEditor) {
                 return;
@@ -138,6 +137,7 @@ sap.ui.define([
                 this._pDocumentLinkDialog.then(function (oDialog) { oDialog.destroy(); });
                 this._pDocumentLinkDialog = null;
             }
+            this._unbindDropZones();
             // Clear models
             var oView = this.getView();
             if (oView) {
@@ -148,6 +148,71 @@ sap.ui.define([
 
         getResourceBundle: function () {
             return this.getOwnerComponent().getModel("i18n").getResourceBundle();
+        },
+
+
+
+        _bindDropZones: function () {
+            this._unbindDropZones();
+            this._bindDropZone("templateDropZone", function (aFiles) {
+                if (aFiles.length > 0) {
+                    this._processTemplateFile(aFiles[0]);
+                }
+            }.bind(this));
+            this._bindDropZone("attachmentDropZone", function (aFiles) {
+                if (aFiles.length > 0) {
+                    this._processAttachments(aFiles);
+                }
+            }.bind(this));
+        },
+
+        _bindDropZone: function (sControlId, fnDrop) {
+            var oControl = this.byId(sControlId);
+            var oDomRef = oControl && oControl.getDomRef();
+            if (!oDomRef) {
+                return;
+            }
+
+            var fnPrevent = function (oEvent) {
+                oEvent.preventDefault();
+                oEvent.stopPropagation();
+            };
+            var fnDragEnter = function (oEvent) {
+                fnPrevent(oEvent);
+                oControl.addStyleClass("DropZoneActive");
+            };
+            var fnDragLeave = function (oEvent) {
+                fnPrevent(oEvent);
+                oControl.removeStyleClass("DropZoneActive");
+            };
+            var fnDropHandler = function (oEvent) {
+                fnPrevent(oEvent);
+                oControl.removeStyleClass("DropZoneActive");
+                var aFiles = Array.prototype.slice.call((oEvent.dataTransfer && oEvent.dataTransfer.files) || []);
+                fnDrop(aFiles);
+            };
+
+            oDomRef.addEventListener("dragover", fnPrevent);
+            oDomRef.addEventListener("dragenter", fnDragEnter);
+            oDomRef.addEventListener("dragleave", fnDragLeave);
+            oDomRef.addEventListener("drop", fnDropHandler);
+            this._aDropZoneHandlers.push({
+                domRef: oDomRef,
+                prevent: fnPrevent,
+                dragEnter: fnDragEnter,
+                dragLeave: fnDragLeave,
+                drop: fnDropHandler
+            });
+        },
+
+        _unbindDropZones: function () {
+            (this._aDropZoneHandlers || []).forEach(function (oHandler) {
+                oHandler.domRef.removeEventListener("dragover", oHandler.prevent);
+                oHandler.domRef.removeEventListener("dragenter", oHandler.dragEnter);
+                oHandler.domRef.removeEventListener("dragleave", oHandler.dragLeave);
+                oHandler.domRef.removeEventListener("drop", oHandler.drop);
+            });
+            this._aDropZoneHandlers = [];
         },
 
         /* =========================================================== */
@@ -200,8 +265,7 @@ sap.ui.define([
             this._oNewsDateFromPicker = new sap.m.DatePicker({ width: "130px", change: this.onNewsDateRangeChange.bind(this) });
             this._oNewsDateToPicker = new sap.m.DatePicker({ width: "130px", change: this.onNewsDateRangeChange.bind(this) });
 
-            var aAreas = (this.getView().getModel("appData").getProperty("/allNews") || []).map(function (o) { return o.area; })
-                .filter(function (v, i, a) { return v && a.indexOf(v) === i; });
+            var aAreas = this._oNewsService.getUniqueAreas(this.getView().getModel("appData").getProperty("/allNews") || []);
 
             var aAreaItems = [new sap.ui.core.Item({ key: "", text: this.getResourceBundle().getText("newsAll") })].concat(aAreas.map(function (sArea) {
                 return new sap.ui.core.Item({ key: sArea, text: sArea });
@@ -394,16 +458,11 @@ items: aAreaItems
         _openUploaderFileDialog: function (sUploaderId) {
             var oUploader = this.byId(sUploaderId);
             if (!oUploader) {
+                MessageBox.error(this.getResourceBundle().getText("fileDialogOpenError"));
                 return false;
             }
 
-            var oDomRef = oUploader.getFocusDomRef && oUploader.getFocusDomRef();
-            var oFileInput = oDomRef && oDomRef.tagName === "INPUT" ? oDomRef : null;
-            if (!oFileInput && oUploader.getDomRef) {
-                var oContainer = oUploader.getDomRef();
-                oFileInput = oContainer ? oContainer.querySelector("input[type='file']") : null;
-            }
-
+            var oFileInput = this._findUploaderFileInput(oUploader);
             if (oFileInput) {
                 oFileInput.click();
                 return true;
@@ -411,6 +470,20 @@ items: aAreaItems
 
             MessageBox.error(this.getResourceBundle().getText("fileDialogOpenError"));
             return false;
+        },
+
+        _findUploaderFileInput: function (oUploader) {
+            var oDomRef = oUploader.getFocusDomRef && oUploader.getFocusDomRef();
+            if (oDomRef && oDomRef.tagName === "INPUT" && oDomRef.type === "file") {
+                return oDomRef;
+            }
+
+            var oContainer = oUploader.getDomRef && oUploader.getDomRef();
+            if (oContainer) {
+                return oContainer.querySelector("input[type='file']");
+            }
+
+            return null;
         },
 
         onTemplateUploaded: function (oEvent) {
@@ -500,7 +573,7 @@ items: aAreaItems
 
         onTemplateDrop: function (oEvent) {
             oEvent.preventDefault();
-            var files = oEvent.getParameter("files");
+            var files = oEvent.getParameter ? oEvent.getParameter("files") : (oEvent.dataTransfer && oEvent.dataTransfer.files);
             if (files && files.length > 0) {
                 this._processTemplateFile(files[0]);
             }
@@ -619,7 +692,7 @@ items: aAreaItems
 
         onAttachmentDrop: function (oEvent) {
             oEvent.preventDefault();
-            var files = oEvent.getParameter("files");
+            var files = oEvent.getParameter ? oEvent.getParameter("files") : (oEvent.dataTransfer && oEvent.dataTransfer.files);
             if (files && files.length > 0) {
                 this._processAttachments(files);
             }
@@ -1323,7 +1396,7 @@ items: aAreaItems
 
         onDragEnter: function (oEvent) {
             oEvent.preventDefault();
-            var oTarget = oEvent.getParameter("target");
+            var oTarget = oEvent.getParameter && oEvent.getParameter("target");
             if (oTarget && oTarget.addStyleClass) {
                 oTarget.addStyleClass("DropZoneActive");
             }
@@ -1331,7 +1404,7 @@ items: aAreaItems
 
         onDragLeave: function (oEvent) {
             oEvent.preventDefault();
-            var oTarget = oEvent.getParameter("target");
+            var oTarget = oEvent.getParameter && oEvent.getParameter("target");
             if (oTarget && oTarget.removeStyleClass) {
                 oTarget.removeStyleClass("DropZoneActive");
             }

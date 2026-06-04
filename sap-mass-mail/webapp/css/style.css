@@ -213,9 +213,19 @@
     border-radius: var(--sap-border-radius);
 }
 
-/* FileUploader скрытый */
-.sapMFileUploader > input[type="file"] {
-    display: none;
+/* FileUploader скрытый, но оставлен в DOM для программного открытия диалога */
+.HiddenFileUploader {
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    overflow: hidden !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+}
+
+.HiddenFileUploader input[type="file"] {
+    width: 1px !important;
+    height: 1px !important;
 }
 
 /* Animation for drop zones */
