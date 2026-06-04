@@ -113,8 +113,8 @@
                                         <u:FileUploader id="templateUploader"
                                                         class="HiddenFileUploader"
                                                         change="onTemplateUploaded"
-                                                        fileType="docx,doc,md,markdown,txt"
-                                                        mimeType="application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/msword,text/markdown,text/plain"
+                                                        fileType="docx,md,markdown,txt"
+                                                        mimeType="application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/markdown,text/plain"
                                                         style="Transparent"
                                                         sameFilenameAllowed="true"
                                                         multiple="false"/>

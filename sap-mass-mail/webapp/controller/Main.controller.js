@@ -60,6 +60,7 @@ sap.ui.define([
             this._recipientSearchTimer = null;
             this._aDropZoneHandlers = [];
             this._iBindDropZonesTimer = null;
+            this._mNativeFileInputs = {};
             this._initEditor();
             this._loadAllowedHosts();
         },
@@ -133,6 +134,13 @@ sap.ui.define([
                 clearTimeout(this._iBindDropZonesTimer);
                 this._iBindDropZonesTimer = null;
             }
+            Object.keys(this._mNativeFileInputs || {}).forEach(function (sKey) {
+                var oInput = this._mNativeFileInputs[sKey];
+                if (oInput && oInput.parentNode) {
+                    oInput.parentNode.removeChild(oInput);
+                }
+            }.bind(this));
+            this._mNativeFileInputs = {};
             // Cleanup any pending dialogs
             if (this._oPreflightDialog) {
                 this._oPreflightDialog.destroy();
@@ -161,7 +169,7 @@ sap.ui.define([
             this._unbindDropZones();
             this._bindDropZone("templateDropZone", "templateUploader", function (aFiles) {
                 if (aFiles.length > 0) {
-                    this._processTemplateFile(aFiles[0]);
+                    this._confirmAndProcessTemplateFile(aFiles[0]);
                 }
             }.bind(this));
             this._bindDropZone("attachmentDropZone", "attachmentUploader", function (aFiles) {
@@ -189,8 +197,16 @@ sap.ui.define([
             }
 
             var fnPrevent = function (oEvent) {
-                oEvent.preventDefault();
-                oEvent.stopPropagation();
+                var oBrowserEvent = oEvent && (oEvent.originalEvent || oEvent);
+                if (oBrowserEvent.preventDefault) {
+                    oBrowserEvent.preventDefault();
+                }
+                if (oBrowserEvent.stopPropagation) {
+                    oBrowserEvent.stopPropagation();
+                }
+                if (oBrowserEvent.dataTransfer) {
+                    oBrowserEvent.dataTransfer.dropEffect = "copy";
+                }
             };
             var fnDragEnter = function (oEvent) {
                 fnPrevent(oEvent);
@@ -198,17 +214,19 @@ sap.ui.define([
             };
             var fnDragLeave = function (oEvent) {
                 fnPrevent(oEvent);
-                if (!oDomRef.contains(oEvent.relatedTarget)) {
+                var oRelatedTarget = oEvent && (oEvent.relatedTarget || (oEvent.originalEvent && oEvent.originalEvent.relatedTarget));
+                if (!oRelatedTarget || !oDomRef.contains(oRelatedTarget)) {
                     oControl.removeStyleClass("DropZoneActive");
                 }
             };
             var fnDropHandler = function (oEvent) {
                 fnPrevent(oEvent);
                 oControl.removeStyleClass("DropZoneActive");
-                var oDataTransfer = oEvent.dataTransfer || (oEvent.originalEvent && oEvent.originalEvent.dataTransfer);
-                var aFiles = Array.prototype.slice.call((oDataTransfer && oDataTransfer.files) || []);
-                fnDrop(aFiles);
-            };
+                var aFiles = this._getDroppedFiles(oEvent);
+                if (aFiles.length) {
+                    fnDrop(aFiles);
+                }
+            }.bind(this);
             var fnClickHandler = function (oEvent) {
                 if (oEvent.target && oEvent.target.closest && oEvent.target.closest(".sapMLnk")) {
                     return;
@@ -229,6 +247,25 @@ sap.ui.define([
                 drop: fnDropHandler,
                 click: fnClickHandler
             });
+        },
+
+        _getDroppedFiles: function (oEvent) {
+            var oBrowserEvent = oEvent && (oEvent.originalEvent || oEvent);
+            var oDataTransfer = oBrowserEvent && oBrowserEvent.dataTransfer;
+            var aFiles = Array.prototype.slice.call((oDataTransfer && oDataTransfer.files) || []);
+
+            if (!aFiles.length && oDataTransfer && oDataTransfer.items) {
+                Array.prototype.forEach.call(oDataTransfer.items, function (oItem) {
+                    if (oItem.kind === "file") {
+                        var oFile = oItem.getAsFile();
+                        if (oFile) {
+                            aFiles.push(oFile);
+                        }
+                    }
+                });
+            }
+
+            return aFiles;
         },
 
         _unbindDropZones: function () {
@@ -488,6 +525,13 @@ items: aAreaItems
         },
 
         _openUploaderFileDialog: function (sUploaderId) {
+            var oNativeFileInput = this._getNativeFileInput(sUploaderId);
+            if (oNativeFileInput) {
+                oNativeFileInput.value = "";
+                oNativeFileInput.click();
+                return true;
+            }
+
             var oUploader = this.byId(sUploaderId);
             if (!oUploader) {
                 MessageBox.error(this.getResourceBundle().getText("fileDialogOpenError"));
@@ -507,6 +551,60 @@ items: aAreaItems
 
             MessageBox.error(this.getResourceBundle().getText("fileDialogOpenError"));
             return false;
+        },
+
+        _getNativeFileInput: function (sUploaderId) {
+            this._mNativeFileInputs = this._mNativeFileInputs || {};
+            if (this._mNativeFileInputs[sUploaderId]) {
+                return this._mNativeFileInputs[sUploaderId];
+            }
+
+            var oConfig = this._getNativeUploadConfig(sUploaderId);
+            if (!oConfig) {
+                return null;
+            }
+
+            var oInput = document.createElement("input");
+            oInput.type = "file";
+            oInput.accept = oConfig.accept;
+            oInput.multiple = oConfig.multiple;
+            oInput.className = "NativeFileInput";
+            oInput.setAttribute("aria-hidden", "true");
+            oInput.addEventListener("change", function () {
+                var aFiles = Array.prototype.slice.call(oInput.files || []);
+                if (aFiles.length) {
+                    oConfig.process(aFiles);
+                }
+                oInput.value = "";
+            });
+            document.body.appendChild(oInput);
+            this._mNativeFileInputs[sUploaderId] = oInput;
+            return oInput;
+        },
+
+        _getNativeUploadConfig: function (sUploaderId) {
+            var mConfigs = {
+                templateUploader: {
+                    accept: ".docx,.md,.markdown,.txt,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/markdown,text/plain",
+                    multiple: false,
+                    process: function (aFiles) {
+                        this._confirmAndProcessTemplateFile(aFiles[0]);
+                    }.bind(this)
+                },
+                attachmentUploader: {
+                    accept: AppConstants.ALLOWED_ATTACHMENT_MIME.join(","),
+                    multiple: true,
+                    process: this._processAttachments.bind(this)
+                },
+                csvUploader: {
+                    accept: ".csv,.txt,text/csv,text/plain,application/vnd.ms-excel",
+                    multiple: false,
+                    process: function (aFiles) {
+                        this._processCsvFile(aFiles[0]);
+                    }.bind(this)
+                }
+            };
+            return mConfigs[sUploaderId] || null;
         },
 
         _findUploaderFileInput: function (oUploader) {
@@ -551,7 +649,12 @@ items: aAreaItems
                 return;
             }
 
-            // Проверка: если уже есть загруженный шаблон, спросить подтверждение
+            this._confirmAndProcessTemplateFile(oFile, function () {
+                oFileUploader.clear();
+            });
+        },
+
+        _confirmAndProcessTemplateFile: function (oFile, fnAfterClose) {
             var oModel = this.getView().getModel("appData");
             if (oModel.getProperty("/hasLoadedTemplate")) {
                 MessageBox.confirm(
@@ -561,23 +664,25 @@ items: aAreaItems
                         onClose: function (sAction) {
                             if (sAction === MessageBox.Action.OK) {
                                 this._processTemplateFile(oFile);
-                            } else {
-                                oFileUploader.clear();
+                            }
+                            if (fnAfterClose) {
+                                fnAfterClose();
                             }
                         }.bind(this)
                     }
                 );
             } else {
                 this._processTemplateFile(oFile);
+                if (fnAfterClose) {
+                    fnAfterClose();
+                }
             }
-            
-            oFileUploader.clear();
         },
 
         _processTemplateFile: function (oFile) {
             var oModel = this.getView().getModel("appData");
             var sFileName = (oFile && oFile.name) || "";
-            var bIsOfficeTemplate = /\.(docx|doc)$/i.test(sFileName);
+            var bIsOfficeTemplate = /\.docx$/i.test(sFileName);
             var bIsMarkdownTemplate = this._isMarkdownTemplate(sFileName);
 
             if (!oFile || (!bIsOfficeTemplate && !bIsMarkdownTemplate)) {
@@ -602,8 +707,9 @@ items: aAreaItems
             reader.onload = function (oLoadEvent) {
                 var arrayBuffer = oLoadEvent.target.result;
                 
-                if (typeof mammoth !== "undefined") {
-                    mammoth.convertToHtml({arrayBuffer: arrayBuffer})
+                var oMammoth = that._getMammoth();
+                if (oMammoth) {
+                    oMammoth.convertToHtml({arrayBuffer: arrayBuffer})
                         .then(function (result) {
                             that._finishTemplateLoad(oFile.name, result.value);
                             MessageToast.show(that.getResourceBundle().getText("templateLoadedSuccess"));
@@ -626,6 +732,10 @@ items: aAreaItems
             };
 
             reader.readAsArrayBuffer(oFile);
+        },
+
+        _getMammoth: function () {
+            return window.mammoth || (typeof mammoth !== "undefined" ? mammoth : null);
         },
 
         _processMarkdownTemplate: function (oFile) {
@@ -712,10 +822,12 @@ items: aAreaItems
         },
 
         onTemplateDrop: function (oEvent) {
-            oEvent.preventDefault();
-            var files = oEvent.getParameter ? oEvent.getParameter("files") : (oEvent.dataTransfer && oEvent.dataTransfer.files);
-            if (files && files.length > 0) {
-                this._processTemplateFile(files[0]);
+            if (oEvent.preventDefault) {
+                oEvent.preventDefault();
+            }
+            var aFiles = this._getDroppedFiles(oEvent);
+            if (aFiles.length > 0) {
+                this._confirmAndProcessTemplateFile(aFiles[0]);
             }
         },
 
@@ -831,10 +943,12 @@ items: aAreaItems
         /* =========================================================== */
 
         onAttachmentDrop: function (oEvent) {
-            oEvent.preventDefault();
-            var files = oEvent.getParameter ? oEvent.getParameter("files") : (oEvent.dataTransfer && oEvent.dataTransfer.files);
-            if (files && files.length > 0) {
-                this._processAttachments(files);
+            if (oEvent.preventDefault) {
+                oEvent.preventDefault();
+            }
+            var aFiles = this._getDroppedFiles(oEvent);
+            if (aFiles.length > 0) {
+                this._processAttachments(aFiles);
             }
         },
 
@@ -1027,6 +1141,12 @@ items: aAreaItems
                 return;
             }
 
+            this._processCsvFile(oFile, function () {
+                oFileUploader.clear();
+            });
+        },
+
+        _processCsvFile: function (oFile, fnAfterStart) {
             var oReader = new FileReader();
             oReader.onload = function (e) {
                 var sText = e.target.result || "";
@@ -1035,7 +1155,6 @@ items: aAreaItems
                 
                 if (aRecipients.length === 0) {
                     MessageBox.warning(this.getResourceBundle().getText("csvNoValidEmails"));
-                    oFileUploader.clear();
                     return;
                 }
                 
@@ -1044,10 +1163,11 @@ items: aAreaItems
             }.bind(this);
             oReader.onerror = function () {
                 MessageBox.error(this.getResourceBundle().getText("csvReadFailed"));
-                oFileUploader.clear();
-            };
+            }.bind(this);
             oReader.readAsText(oFile, "utf-8");
-            oFileUploader.clear();
+            if (fnAfterStart) {
+                fnAfterStart();
+            }
         },
 
         _addRecipientsByList: function (aNewRecipients) {

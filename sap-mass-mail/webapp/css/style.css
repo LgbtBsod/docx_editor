@@ -407,3 +407,13 @@
         border-bottom: 1px solid #e5eaf0;
     }
 }
+
+/* Native fallback file inputs used to reliably open browser file dialogs. */
+.NativeFileInput {
+    position: fixed !important;
+    left: -10000px !important;
+    top: -10000px !important;
+    width: 1px !important;
+    height: 1px !important;
+    opacity: 0 !important;
+}
