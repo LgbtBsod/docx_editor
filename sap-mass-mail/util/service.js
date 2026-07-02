@@ -2,15 +2,13 @@ sap.ui.define([
   "sap/ui/model/Filter",
   "sap/ui/model/FilterOperator",
   "sap/base/Log",
-  "emailbuilder/util/config"
-], (Filter, FilterOperator, Log, Config) => {
+  "emailbuilder/util/config",
+  "emailbuilder/util/constants"
+], (Filter, FilterOperator, Log, Config, Constants) => {
   "use strict";
 
-  /**
-   * Server-side page size cap applied to every collection read.
-   */
-  const DEFAULT_TOP = 100;
-  const MAX_COLLECTION_SIZE = 5000;
+  const DEFAULT_RETRY_WAIT_MS = 1000;
+  const MAX_RETRIES = 3;
 
   function extractResults(oData) {
     if (!oData) { return []; }
@@ -46,24 +44,45 @@ sap.ui.define([
     return oModel.metadataLoaded().then(() => "/" + oModel.createKey(sSet, oKeys));
   }
 
-  function read(oComponent, sPath, aFilters, iTop) {
+  /**
+   * FIXED: OData read with exponential backoff retry.
+   * Improves resilience to transient network failures.
+   */
+  function readWithRetry(oComponent, sPath, aFilters, iTop, iRetry) {
+    iRetry = iRetry || 0;
+
     return new Promise((resolve, reject) => {
       const oModel = getModel(oComponent);
       if (!oModel) {
         reject(new Error("OData model not available"));
         return;
       }
+
       const mParams = {
         success: (oData) => resolve(oData),
-        error: (oError) => reject(parseError(oError))
+        error: (oError) => {
+          if (iRetry < MAX_RETRIES) {
+            setTimeout(() => {
+              readWithRetry(oComponent, sPath, aFilters, iTop, iRetry + 1)
+                .then(resolve)
+                .catch(reject);
+            }, DEFAULT_RETRY_WAIT_MS * (iRetry + 1));
+          } else {
+            reject(parseError(oError));
+          }
+        }
       };
+
       if (aFilters && aFilters.length > 0) {
         mParams.filters = aFilters;
       }
       if (iTop !== 0) {
-        const iEffectiveTop = iTop || DEFAULT_TOP;
-        mParams.urlParameters = { "$top": String(Math.min(iEffectiveTop, MAX_COLLECTION_SIZE)) };
+        const iEffectiveTop = iTop || Constants.PERFORMANCE.DEFAULT_TOP;
+        mParams.urlParameters = {
+          "$top": String(Math.min(iEffectiveTop, Constants.PERFORMANCE.MAX_COLLECTION_SIZE))
+        };
       }
+
       try {
         oModel.read(sPath, mParams);
       } catch (e) {
@@ -164,7 +183,8 @@ sap.ui.define([
     const aFilters = sMailingId
       ? [new Filter("MailingId", FilterOperator.EQ, sMailingId)]
       : [];
-    return read(oComponent, "/MailingStatusSet", aFilters, DEFAULT_TOP).then(extractResults);
+    return readWithRetry(oComponent, "/MailingStatusSet", aFilters, Constants.PERFORMANCE.DEFAULT_TOP)
+      .then(extractResults);
   }
 
   /**
@@ -177,7 +197,7 @@ sap.ui.define([
    */
   function getMailingContent(oComponent, sId) {
     return entityPath(oComponent, "MailContentSet", { Key: sId })
-      .then((sPath) => read(oComponent, sPath, null, 0))
+      .then((sPath) => readWithRetry(oComponent, sPath, null, 0))
       .then(extractEntity);
   }
 
@@ -197,8 +217,8 @@ sap.ui.define([
         Content: oEntry.Content || ""
       }))
       .catch((err) => {
-        const sMsg = `Unable to load mailing ${sId} for copy`;
-        Log.error("[emailbuilder] " + sMsg + ": " + err.message);
+        const sMsg = `Unable to load mailing ${sId}`;
+        Log.error("[emailbuilder] " + sMsg);
         return Promise.reject(new Error(sMsg));
       });
   }
@@ -210,7 +230,8 @@ sap.ui.define([
    * @returns {Promise<Array>} allowed host entries
    */
   function getAllowedHosts(oComponent) {
-    return read(oComponent, "/AllowedHostSet", null, DEFAULT_TOP).then(extractResults);
+    return readWithRetry(oComponent, "/AllowedHostSet", null, Constants.PERFORMANCE.DEFAULT_TOP)
+      .then(extractResults);
   }
 
   return {

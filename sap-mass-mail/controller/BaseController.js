@@ -92,8 +92,31 @@ sap.ui.define([
       if (oDialog) { oDialog.close(); }
     },
 
-    onExit() {
+    /**
+     * Safely destroys a dialog and all its content.
+     * FIXED: Memory leak prevention.
+     * @param {sap.m.Dialog} [oDialog] dialog to destroy
+     * @private
+     */
+    _destroyDialog(oDialog) {
+      if (!oDialog) { return; }
+      if (oDialog instanceof Dialog && !oDialog.isDestroyed()) {
+        oDialog.destroyContent();
+        oDialog.destroy();
+      }
+    },
+
+    /**
+     * Cleanup hook for derived controllers to override.
+     * Called before super().onExit().
+     * @protected
+     */
+    onExitCleanup() {
       this._oCachedBundle = null;
+    },
+
+    onExit() {
+      this.onExitCleanup();
     }
   });
 });

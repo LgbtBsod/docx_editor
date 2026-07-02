@@ -1,15 +1,31 @@
 sap.ui.define([
-  "sap/base/Log"
-], (Log) => {
+  "sap/base/Log",
+  "emailbuilder/util/constants"
+], (Log, Constants) => {
   "use strict";
 
-  /**
-   * localStorage-backed draft manager for the Email Builder.
-   * Stores a single named draft under `STORAGE_KEY` with a schema version
-   * so future changes can detect and discard incompatible entries.
-   */
-  const STORAGE_KEY = "eb_draft_v1";
   const SCHEMA_VERSION = 1;
+
+  /**
+   * Генерирует уникальный ключ для draft, изолированный по пользователю.
+   * FIXED: Защита от утечки данных между пользователями при multi-user сценарии.
+   * @param {string} [sUserId] опциональный userId
+   * @returns {string} storage key
+   * @private
+   */
+  function getStorageKey(sUserId) {
+    if (!sUserId) {
+      try {
+        const oUser = sap.ushell && sap.ushell.Container
+          ? sap.ushell.Container.getUser()
+          : null;
+        sUserId = oUser && oUser.getId ? oUser.getId() : "anonymous";
+      } catch (e) {
+        sUserId = "anonymous";
+      }
+    }
+    return `${Constants.STORAGE.DRAFT_KEY_PREFIX}_${sUserId}`;
+  }
 
   /**
    * Validates the basic shape of a draft object loaded from storage.
@@ -34,14 +50,15 @@ sap.ui.define([
    * Safely reads a string from localStorage. Returns null on any error or
    * when the key is absent.
    *
+   * @param {string} [sUserId] user ID for key isolation
    * @returns {string|null} raw stored JSON or null
    * @private
    */
-  function readRaw() {
+  function readRaw(sUserId) {
     try {
-      return localStorage.getItem(STORAGE_KEY);
+      const sKey = getStorageKey(sUserId);
+      return localStorage.getItem(sKey);
     } catch (e) {
-      // Safari private mode / disabled storage can throw on getItem
       Log.warning("[emailbuilder] localStorage.getItem failed: " + e.message);
       return null;
     }
@@ -50,22 +67,24 @@ sap.ui.define([
   /**
    * Loads the stored draft, validating shape and schema version.
    *
+   * @param {string} [sUserId] user ID for key isolation
    * @returns {object|null} draft object or null when absent/invalid
    */
-  function load() {
-    const sRaw = readRaw();
+  function load(sUserId) {
+    const sRaw = readRaw(sUserId);
     if (!sRaw) { return null; }
+
     try {
       const oDraft = JSON.parse(sRaw);
       if (!isValidDraft(oDraft)) {
-        Log.warning("[emailbuilder] Draft schema mismatch; discarding stored draft.");
-        try { localStorage.removeItem(STORAGE_KEY); } catch (e) { /* ignore */ }
+        Log.warning("[emailbuilder] Draft schema mismatch; discarding.");
+        try { localStorage.removeItem(getStorageKey(sUserId)); } catch (e) { /* ignore */ }
         return null;
       }
       return oDraft;
     } catch (e) {
       Log.warning("[emailbuilder] Failed to parse draft: " + e.message);
-      try { localStorage.removeItem(STORAGE_KEY); } catch (e2) { /* ignore */ }
+      try { localStorage.removeItem(getStorageKey(sUserId)); } catch (e2) { /* ignore */ }
       return null;
     }
   }
@@ -74,11 +93,13 @@ sap.ui.define([
    * Persists the given draft object to localStorage.
    *
    * @param {object} oDraft draft payload
+   * @param {string} [sUserId] user ID for key isolation
    * @returns {void}
    * @throws {Error} when storage write fails (e.g. quota exceeded)
    */
-  function save(oDraft) {
+  function save(oDraft, sUserId) {
     if (!oDraft) { return; }
+
     const oData = {
       schemaVersion: SCHEMA_VERSION,
       localId:     oDraft.localId || "",
@@ -89,18 +110,21 @@ sap.ui.define([
       sources:     Array.isArray(oDraft.sources) ? oDraft.sources : [],
       savedAt:     new Date().toISOString()
     };
+
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(oData));
+      const sKey = getStorageKey(sUserId);
+      localStorage.setItem(sKey, JSON.stringify(oData));
     } catch (e) {
       if (e.name === "QuotaExceededError" || e.name === "NS_ERROR_DOM_QUOTA_REACHED") {
-        Log.warning("[emailbuilder] localStorage quota exceeded, attempting to clear old data");
+        Log.warning("[emailbuilder] localStorage quota exceeded");
         try {
-          localStorage.removeItem(STORAGE_KEY);
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(oData));
-          Log.info("[emailbuilder] Draft saved after clearing old storage");
+          const sKey = getStorageKey(sUserId);
+          localStorage.removeItem(sKey);
+          localStorage.setItem(sKey, JSON.stringify(oData));
+          Log.info("[emailbuilder] Draft saved after cleanup");
         } catch (e2) {
-          Log.error("[emailbuilder] Failed to save draft even after clearing: " + e2.message);
-          throw new Error("Draft storage unavailable. Changes will be lost on page refresh.");
+          Log.error("[emailbuilder] Failed to save draft: " + e2.message);
+          throw new Error("Draft storage unavailable");
         }
       } else {
         Log.error("[emailbuilder] Failed to save draft: " + e.message);
@@ -112,23 +136,24 @@ sap.ui.define([
   /**
    * Removes the stored draft (if any).
    *
+   * @param {string} [sUserId] user ID for key isolation
    * @returns {void}
    */
-  function clear() {
+  function clear(sUserId) {
     try {
-      localStorage.removeItem(STORAGE_KEY);
+      const sKey = getStorageKey(sUserId);
+      localStorage.removeItem(sKey);
     } catch (e) {
       Log.warning("[emailbuilder] Failed to clear draft: " + e.message);
     }
   }
 
-  const DraftManager = {
+  return {
     SCHEMA_VERSION: SCHEMA_VERSION,
-    STORAGE_KEY: STORAGE_KEY,
     load: load,
     save: save,
-    clear: clear
+    clear: clear,
+    getStorageKey: getStorageKey
   };
-
-  return DraftManager;
 });
+

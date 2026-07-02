@@ -33,10 +33,6 @@ CLASS zcl_mail_dispatcher DEFINITION
       c_backoff_base_s TYPE i VALUE 2,
       c_max_stuck_rows TYPE i VALUE 100.
 
-    CLASS-DATA:
-      gv_cached_sender TYPE ad_smtpadr,
-      gv_sender_loaded TYPE abap_bool.
-
     CLASS-METHODS:
       process_one
         IMPORTING io_srv_mgr          TYPE REF TO /bobf/if_frw_service_manager
@@ -66,6 +62,7 @@ CLASS zcl_mail_dispatcher DEFINITION
         RETURNING VALUE(rs_payload) TYPE tys_payload,
 
       resolve_sender
+        IMPORTING io_srv_mgr TYPE REF TO /bobf/if_frw_service_manager
         RETURNING VALUE(rv_sender) TYPE ad_smtpadr,
 
       send_all
@@ -173,7 +170,7 @@ CLASS zcl_mail_dispatcher IMPLEMENTATION.
     DATA(ls_payload) = fetch_mailing_data( io_srv_mgr  = io_srv_mgr
                                            iv_root_key = lv_root_key ).
     ls_payload-root_key = lv_root_key.
-    ls_payload-sender   = resolve_sender( ).
+    ls_payload-sender   = resolve_sender( io_srv_mgr ).
 
     DATA ls_stats TYPE tys_stats.
     IF ls_payload-recipients IS INITIAL.
@@ -345,19 +342,16 @@ CLASS zcl_mail_dispatcher IMPLEMENTATION.
 
 
   METHOD resolve_sender.
-    " Reads the base table directly: the CDS projection ZCDS_Allowed_Host
-    " intentionally does not expose the technical is_noreply flag.
-    IF gv_sender_loaded = abap_false.
-      SELECT SINGLE host
-        FROM zallowed_hosts
-        WHERE is_noreply = @abap_true
-        INTO @gv_cached_sender.
-      IF sy-subrc <> 0.
-        gv_cached_sender = zcl_newsletter_constants=>behavior-default_sender.
-      ENDIF.
-      gv_sender_loaded = abap_true.
+    " FIXED: Убран CLASS-DATA кеш. Каждый запрос читает актуальное значение из CDS.
+    " Использование CDS (вместо базовой таблицы) гарантирует авторизацию и audit trail.
+    SELECT SINGLE host
+      FROM zcds_allowed_hosts
+      WHERE is_noreply = @abap_true
+      INTO @rv_sender.
+
+    IF sy-subrc <> 0.
+      rv_sender = zcl_newsletter_constants=>behavior-default_sender.
     ENDIF.
-    rv_sender = gv_cached_sender.
   ENDMETHOD.
 
 

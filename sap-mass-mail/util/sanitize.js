@@ -1,31 +1,8 @@
 sap.ui.define([
-  "sap/base/Log"
-], (Log) => {
+  "sap/base/Log",
+  "emailbuilder/util/constants"
+], (Log, Constants) => {
   "use strict";
-
-  /**
-   * List of allowed HTML tags for email content.
-   */
-  const ALLOWED_TAGS = [
-    "p", "br", "hr", "div", "span", "a", "img",
-    "h1", "h2", "h3", "h4", "h5", "h6",
-    "ul", "ol", "li",
-    "table", "thead", "tbody", "tr", "td", "th",
-    "strong", "b", "em", "i", "u", "s", "sub", "sup", "small",
-    "blockquote", "pre", "code",
-    "font", "center"
-  ];
-
-  const ALLOWED_ATTR = [
-    "style", "class", "align", "dir",
-    "href", "title", "target", "rel",
-    "src", "alt", "width", "height",
-    "colspan", "rowspan", "scope",
-    "cellpadding", "cellspacing", "border", "bgcolor",
-    "color", "size", "face"
-  ];
-
-  const ALLOWED_PROTOCOLS = ["http", "https", "mailto", "tel", "cid"];
 
   /**
    * Context of the current sanitize run. DOMPurify hooks are global and
@@ -49,8 +26,10 @@ sap.ui.define([
   function isAllowedProtocol(sUrl) {
     if (!sUrl) { return false; }
     const sLower = sUrl.toLowerCase().trim();
-    if (sLower.indexOf(":") < 0) { return true; } // relative
-    return ALLOWED_PROTOCOLS.some((sProto) => sLower.indexOf(sProto + ":") === 0);
+    if (sLower.indexOf(":") < 0) { return true; }
+    return Constants.SECURITY.ALLOWED_PROTOCOLS.some(
+      (sProto) => sLower.indexOf(sProto + ":") === 0
+    );
   }
 
   /**
@@ -110,8 +89,8 @@ sap.ui.define([
 
   function buildBaseConfig() {
     return {
-      ALLOWED_TAGS: ALLOWED_TAGS.slice(),
-      ALLOWED_ATTR: ALLOWED_ATTR.slice(),
+      ALLOWED_TAGS: Constants.SECURITY.ALLOWED_HTML_TAGS.slice(),
+      ALLOWED_ATTR: Constants.SECURITY.ALLOWED_ATTR.slice(),
       ALLOW_DATA_ATTR: false,
       FORBID_TAGS: ["script", "style", "iframe", "object", "embed", "form",
         "input", "textarea", "select", "button"],
@@ -172,7 +151,7 @@ sap.ui.define([
     forImport: forImport,
     forEmail: forEmail,
     isHostAllowed: isHostAllowed,
-    isAllowedProtocol: isAllowedProtocol,
-    ALLOWED_TAGS: ALLOWED_TAGS
+    isAllowedProtocol: isAllowedProtocol
   };
 });
+

@@ -33,6 +33,7 @@ sap.ui.define([
         this._oRecipDialog.open();
         return;
       }
+
       const sViewId = this.getView().getId();
       Fragment.load({
         id: sViewId,
@@ -42,19 +43,31 @@ sap.ui.define([
         this._oRecipDialog = oDialog;
         this._oRecipTable = Fragment.byId(sViewId, "recipientTable");
         this.getView().addDependent(oDialog);
+
         const oModel = new JSONModel({
           selectedMode: "name",
-          nameSearchValue: "", roleSearchValue: "",
-          authObject: "", authField: "", authValue: ""
+          nameSearchValue: "",
+          roleSearchValue: "",
+          authObject: "",
+          authField: "",
+          authValue: ""
         });
+        oModel.setSizeLimit(1000);
         oDialog.setModel(oModel, "dialog");
+
         this._setRecipientDialogDefaultTab();
-        oDialog.attachAfterOpen(() => {
-          if (oModel.getProperty("/selectedMode") !== "added") { this._searchRecipients(); }
-        });
+
+        // FIXED: Store handler reference for cleanup
+        this._oRecipDialogOpenHandler = () => {
+          if (oModel.getProperty("/selectedMode") !== "added") {
+            this._searchRecipients();
+          }
+        };
+        oDialog.attachAfterOpen(this._oRecipDialogOpenHandler);
+
         oDialog.open();
       }).catch((err) => {
-        Log.error("[emailbuilder] Failed to load RecipientSearch fragment: " + err.message);
+        Log.error("[emailbuilder] Failed to load RecipientSearch fragment");
       });
     },
 
@@ -77,7 +90,11 @@ sap.ui.define([
 
     onOpenNewsDialog() {
       this._ensureDefaultModel();
-      if (this._oNewsDialog) { this._oNewsDialog.open(); return; }
+      if (this._oNewsDialog) {
+        this._oNewsDialog.open();
+        return;
+      }
+
       const sViewId = this.getView().getId();
       Fragment.load({
         id: sViewId,
@@ -87,17 +104,26 @@ sap.ui.define([
         this._oNewsDialog = oDialog;
         this._oNewsTable = Fragment.byId(sViewId, "newsTable");
         this.getView().addDependent(oDialog);
-        oDialog.setModel(new JSONModel({ year: "", quarter: "all", area: "" }), "dialog");
-        oDialog.attachAfterOpen(() => this._searchNews());
+
+        const oModel = new JSONModel({ year: "", quarter: "all", area: "" });
+        oModel.setSizeLimit(1000);
+        oDialog.setModel(oModel, "dialog");
+
+        this._oNewsDialogOpenHandler = () => this._searchNews();
+        oDialog.attachAfterOpen(this._oNewsDialogOpenHandler);
+
         oDialog.open();
       }).catch((err) => {
-        Log.error("[emailbuilder] Failed to load NewsSearch fragment: " + err.message);
+        Log.error("[emailbuilder] Failed to load NewsSearch fragment");
       });
     },
 
     onOpenMailingsDialog() {
       this._ensureDefaultModel();
-      if (this._oMailingsDialog) { this._oMailingsDialog.open(); return; }
+      if (this._oMailingsDialog) {
+        this._oMailingsDialog.open();
+        return;
+      }
       const sViewId = this.getView().getId();
       Fragment.load({
         id: sViewId,

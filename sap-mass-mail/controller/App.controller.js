@@ -10,15 +10,14 @@ sap.ui.define([
   "emailbuilder/util/emailComposer",
   "emailbuilder/model/formatter",
   "emailbuilder/controller/DialogMixin",
-  "emailbuilder/controller/SourcesMixin"
+  "emailbuilder/controller/SourcesMixin",
+  "emailbuilder/util/constants"
 ], (
   BaseController, MessageToast, MessageBox, Log,
   Service, DraftManager, Editor, DnDManager, EmailComposer, Formatter,
-  DialogMixin, SourcesMixin
+  DialogMixin, SourcesMixin, Constants
 ) => {
   "use strict";
-
-  const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
   return BaseController.extend("emailbuilder.controller.App",
     Object.assign({}, DialogMixin, SourcesMixin, {
@@ -32,11 +31,6 @@ sap.ui.define([
       ["state", "config", "hud", "i18n"].forEach((sName) => {
         oView.setModel(oComp.getModel(sName), sName);
       });
-      // The default (unnamed) OData model is created asynchronously and is not
-      // yet available here at onInit, so it cannot be set on the view now.
-      // Dialog tables (/RecipientSet, /NewsSet, /MailHistorySet) need it on the
-      // view to inherit through addDependent — _ensureDefaultModel() (BaseController)
-      // attaches it lazily at dialog-open time, when the model is guaranteed ready.
 
       Formatter.setResourceBundle(oComp.getModel("i18n").getResourceBundle());
 
@@ -46,6 +40,19 @@ sap.ui.define([
       this._oEditor = new Editor(oView, "editorContainer");
       this._oDnD    = new DnDManager();
       this._bFirstRenderDone = false;
+      this._sUserId = null;
+
+      // FIXED: Capture userId for draft isolation
+      try {
+        if (sap.ushell && sap.ushell.Container) {
+          const oUser = sap.ushell.Container.getUser();
+          if (oUser && oUser.getId) {
+            this._sUserId = oUser.getId();
+          }
+        }
+      } catch (e) {
+        Log.warning("[emailbuilder] Could not determine user ID");
+      }
 
       this._loadAllowedHosts();
     },
@@ -72,15 +79,23 @@ sap.ui.define([
     },
 
     onExit() {
+      // FIXED: Explicit cleanup with isDestroyed check
       [this._oRecipDialog, this._oNewsDialog, this._oMailingsDialog,
        this._oPdfModeDialog, this._oHistoryViewDialog]
-        .forEach((oDialog) => { if (oDialog) { oDialog.destroy(); } });
+        .forEach((oDialog) => {
+          if (oDialog && !oDialog.isDestroyed()) {
+            oDialog.destroyContent();
+            oDialog.destroy();
+          }
+        });
+
       this._oRecipDialog = this._oNewsDialog = this._oMailingsDialog =
         this._oPdfModeDialog = this._oHistoryViewDialog = null;
 
       if (this._oDnD)    { this._oDnD.destroy();    this._oDnD = null; }
       if (this._oEditor) { this._oEditor.destroy(); this._oEditor = null; }
       this._oState = this._oConfig = this._oHud = null;
+      this._sUserId = null;
 
       BaseController.prototype.onExit.apply(this, arguments);
     },
@@ -109,8 +124,17 @@ sap.ui.define([
     onTestSend()  { this._handleSend(true);  },
     onSaveDraft() { this._saveDraft(); },
 
+    /**
+     * Validates email addresses against unified Constants.VALIDATION.EMAIL_PATTERN.
+     * FIXED: DRY — single source of truth for email validation.
+     * @param {object[]} aRecipients array of recipient objects with email property
+     * @returns {object} { valid: boolean, message: string }
+     * @private
+     */
     _validateEmails(aRecipients) {
-      const aInvalid = aRecipients.filter((r) => !EMAIL_REGEX.test(r.email));
+      const aInvalid = aRecipients.filter(
+        (r) => !Constants.VALIDATION.EMAIL_PATTERN.test(r.email)
+      );
       if (aInvalid.length > 0) {
         const sEmails = aInvalid.map((r) => r.email).join(", ");
         return { valid: false, message: this._t("ERR_INVALID_EMAILS", [sEmails]) };
@@ -140,10 +164,14 @@ sap.ui.define([
       const sSubject = this._oState.getProperty("/viewingSubject") ||
                        (bIsTest ? this._t("TEST_SUBJECT_DEFAULT") : "");
 
+      const oComponent = this.getOwnerComponent();
+
+      // FIXED: emailComposer now gets component for i18n (removed hardcoded Russian text)
       const sEmailHtml = EmailComposer.compose(
         this._oEditor.getValue() || "",
         this._oConfig.getProperty("/allowedHosts") || [],
-        sSubject
+        sSubject,
+        oComponent
       );
 
       const oPayload = {
@@ -154,7 +182,7 @@ sap.ui.define([
         Attachments:  this._oState.getProperty("/attachments") || []
       };
 
-      Service.sendMailing(this.getOwnerComponent(), oPayload, bIsTest)
+      Service.sendMailing(oComponent, oPayload, bIsTest)
         .then((data) => {
           // MSG_SENT carries a {0} placeholder for the LocalId
           MessageBox.success(this._t(data.messageKey, [data.localId]), {
@@ -183,7 +211,7 @@ sap.ui.define([
       this._oEditor.setValue("");
       this.getOwnerComponent().resetState();
       this._oHud.setData({ statuses: [], total: 0 });
-      DraftManager.clear();
+      DraftManager.clear(this._sUserId);  // FIXED: User-isolated cleanup
     },
 
     onClearTemplate() {
@@ -201,7 +229,7 @@ sap.ui.define([
     // === DRAFT ===
 
     _restoreDraft() {
-      const oDraft = DraftManager.load();
+      const oDraft = DraftManager.load(this._sUserId);  // FIXED: User-isolated load
       if (!oDraft) { return; }
 
       this._oState.setProperty("/localId", oDraft.localId);
@@ -224,7 +252,7 @@ sap.ui.define([
           recipients:  this._oState.getProperty("/recipients")  || [],
           attachments: this._oState.getProperty("/attachments") || [],
           sources:     this._oState.getProperty("/sources")     || []
-        });
+        }, this._sUserId);  // FIXED: User-isolated save
         MessageToast.show(this._t("DRAFT_SAVED"));
       } catch (e) {
         Log.error("[emailbuilder] Draft save failed: " + e.message);

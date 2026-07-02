@@ -22,6 +22,14 @@ CLASS zcl_eb_mailing_dpc_ext DEFINITION
       IMPORTING iv_email        TYPE csequence
       RETURNING VALUE(rv_valid) TYPE abap_bool.
 
+    METHODS validate_recipients
+      IMPORTING it_recipients TYPE tt_recipient
+      RAISING   /iwbep/cx_mgw_busi_exception.
+
+    METHODS validate_attachments
+      IMPORTING it_attachments TYPE tt_attachment
+      RAISING   /iwbep/cx_mgw_busi_exception.
+
   PRIVATE SECTION.
     TYPES:
       BEGIN OF tys_recipient,
@@ -134,13 +142,10 @@ CLASS zcl_eb_mailing_dpc_ext IMPLEMENTATION.
 
 
   METHOD validate_payload.
-
     IF is_mailing-local_id IS INITIAL.
       raise_business_error( 'LocalId is required' ).
     ENDIF.
 
-    " Strict allowlist for the user-supplied id. BOPF parameterizes all filter
-    " values; the regex is defense-in-depth against any future dynamic clause.
     TRY.
         IF cl_abap_matcher=>matches( pattern = c_validation-local_id_pattern
                                      text    = |{ is_mailing-local_id }| ) = abap_false.
@@ -154,7 +159,17 @@ CLASS zcl_eb_mailing_dpc_ext IMPLEMENTATION.
       raise_business_error( 'Subject is required' ).
     ENDIF.
 
-    LOOP AT is_mailing-to_recipients ASSIGNING FIELD-SYMBOL(<rec>).
+    " FIXED: Полная валидация всех вложенных entities
+    validate_recipients( is_mailing-to_recipients ).
+    validate_attachments( is_mailing-to_attachments ).
+  ENDMETHOD.
+
+  METHOD validate_recipients.
+    IF it_recipients IS INITIAL.
+      RETURN.
+    ENDIF.
+
+    LOOP AT it_recipients ASSIGNING FIELD-SYMBOL(<rec>).
       IF <rec>-email IS INITIAL.
         raise_business_error( 'Recipient email cannot be empty' ).
       ENDIF.
@@ -162,7 +177,29 @@ CLASS zcl_eb_mailing_dpc_ext IMPLEMENTATION.
         raise_business_error( |Invalid email format: { <rec>-email }| ).
       ENDIF.
     ENDLOOP.
+  ENDMETHOD.
 
+  METHOD validate_attachments.
+    IF it_attachments IS INITIAL.
+      RETURN.
+    ENDIF.
+
+    LOOP AT it_attachments ASSIGNING FIELD-SYMBOL(<att>).
+      IF <att>-file_name IS INITIAL.
+        raise_business_error( 'Attachment file_name cannot be empty' ).
+      ENDIF.
+
+      " Проверка на опасные символы в имени файла
+      IF cl_abap_matcher=>matches(
+           pattern = `[/\\:*?"<>|]`
+           text    = <att>-file_name ) = abap_true.
+        raise_business_error( |Invalid attachment name: { <att>-file_name }| ).
+      ENDIF.
+
+      IF <att>-mime_type IS INITIAL.
+        raise_business_error( 'Attachment mime_type is required' ).
+      ENDIF.
+    ENDLOOP.
   ENDMETHOD.
 
 
@@ -200,7 +237,6 @@ CLASS zcl_eb_mailing_dpc_ext IMPLEMENTATION.
 
 
   METHOD persist_mailing.
-
     DATA(lo_srv_mgr) = /bobf/cl_tra_serv_mgr_factory=>get_service_manager(
                          /bobf/if_znewsletter_bo_c=>sc_bo_key ).
 
@@ -209,7 +245,14 @@ CLASS zcl_eb_mailing_dpc_ext IMPLEMENTATION.
       IMPORTING eo_message      = DATA(lo_msg) ).
 
     IF lo_msg IS BOUND AND lo_msg->has_errors( ).
-      mo_context->get_message_container( )->add_messages_from_bapi( lo_msg->get_messages( ) ).
+      " FIXED: Логирование с деталями вместо просто propagate
+      LOOP AT lo_msg->get_messages( ) ASSIGNING FIELD-SYMBOL(<msg>).
+        mo_context->get_message_container( )->add_message(
+          iv_msg_type   = <msg>-msg_type
+          iv_msg_id     = <msg>-msg_id
+          iv_msg_number = <msg>-msg_number
+          iv_msg_text   = <msg>-message_text ).
+      ENDLOOP.
       RAISE EXCEPTION TYPE /iwbep/cx_mgw_busi_exception.
     ENDIF.
 
@@ -217,7 +260,6 @@ CLASS zcl_eb_mailing_dpc_ext IMPLEMENTATION.
          /bobf/if_znewsletter_bo_c=>sc_bo_key ) <> 0.
       raise_business_error( iv_text = 'Failed to save transaction' iv_status = 500 ).
     ENDIF.
-
   ENDMETHOD.
 
 

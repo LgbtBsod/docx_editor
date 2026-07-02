@@ -70,9 +70,10 @@ sap.ui.define([
     },
 
     destroy() {
+      // FIXED: Explicit cleanup of all created models
       ["state", "config", "hud"].forEach((sModelName) => {
         const oModel = this.getModel(sModelName);
-        if (oModel) {
+        if (oModel && !oModel.isDestroyed()) {
           oModel.destroy();
           this.setModel(null, sModelName);
         }
