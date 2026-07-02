@@ -1,9 +1,4 @@
 
-*.pdf
-*.docx
-*.htm
-*.jpg
-
 ```
 # Logs and temp files
 *.log
@@ -19,6 +14,14 @@
 *.swp
 *.swo
 *.tmp
+
+
+*.pdf
+*.docx
+*.htm
+*.jpg
+
+
 
 # Dependencies
 node_modules/
