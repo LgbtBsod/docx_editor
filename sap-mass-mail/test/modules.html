@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Email Builder — module tests</title>
+  <script src="ui5-shim.js"></script>
+  <script src="../lib/dompurify/purify.min.js"></script>
+</head>
+<body>
+<div id="out"></div>
+<script>
+(function () {
+  "use strict";
+
+  const RESULTS = [];
+  function t(name, fn) {
+    return Promise.resolve().then(fn).then(
+      () => RESULTS.push({ name: name, ok: true }),
+      (e) => RESULTS.push({ name: name, ok: false, err: String(e && e.message || e) })
+    );
+  }
+  function assert(cond, msg) { if (!cond) { throw new Error(msg); } }
+
+  const MODS = [
+    ["emailbuilder/util/fileTypes",     "../util/fileTypes.js"],
+    ["emailbuilder/util/config",        "../util/config.js"],
+    ["emailbuilder/util/libLoader",     "../util/libLoader.js"],
+    ["emailbuilder/util/sanitize",      "../util/sanitize.js"],
+    ["emailbuilder/util/sourceBlock",   "../util/sourceBlock.js"],
+    ["emailbuilder/util/sourceTypes",   "../util/sourceTypes.js"],
+    ["emailbuilder/util/draftManager",  "../util/draftManager.js"],
+    ["emailbuilder/util/emailComposer", "../util/emailComposer.js"],
+    ["emailbuilder/util/fileProcessor", "../util/fileProcessor.js"],
+    ["emailbuilder/util/editorApi",     "../util/editorApi.js"],
+    ["emailbuilder/util/dndManager",    "../util/dndManager.js"],
+    ["emailbuilder/model/formatter",    "../model/formatter.js"]
+  ];
+
+  let Sanitize, Config, FileTypes, Composer, FileProcessor, Editor, Formatter, SourceBlock, Draft;
+
+  Promise.all(MODS.map((m) => window.loadAppModule(m[0], m[1])))
+  .then(() => {
+    Sanitize      = sap.ui.require("emailbuilder/util/sanitize");
+    Config        = sap.ui.require("emailbuilder/util/config");
+    FileTypes     = sap.ui.require("emailbuilder/util/fileTypes");
+    Composer      = sap.ui.require("emailbuilder/util/emailComposer");
+    FileProcessor = sap.ui.require("emailbuilder/util/fileProcessor");
+    Editor        = sap.ui.require("emailbuilder/util/editorApi");
+    Formatter     = sap.ui.require("emailbuilder/model/formatter");
+    SourceBlock   = sap.ui.require("emailbuilder/util/sourceBlock");
+    Draft         = sap.ui.require("emailbuilder/util/draftManager");
+  })
+  .then(() => t("XSS: script stripped", () => {
+    const out = Sanitize.forImport('<p>ok</p><script>window.__pwned=1<\/script>');
+    assert(out.indexOf("script") < 0, "script tag survived: " + out);
+    assert(!window.__pwned, "script executed");
+  }))
+  .then(() => t("XSS: onerror handler stripped", () => {
+    const out = Sanitize.forImport('<img src="x" onerror="window.__pwned2=1">');
+    assert(out.toLowerCase().indexOf("onerror") < 0, "onerror survived: " + out);
+  }))
+  .then(() => t("XSS: javascript: href stripped by forEmail", () => {
+    const out = Sanitize.forEmail('<a href="javascript:alert(1)">x</a>', ["company.com"]);
+    assert(out.toLowerCase().indexOf("javascript:") < 0, "javascript: survived: " + out);
+  }))
+  .then(() => t("W-3 fix: data:image survives forEmail (allowlist active)", () => {
+    const dataUrl = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUg==";
+    const out = Sanitize.forEmail('<p><img src="' + dataUrl + '" alt="a"></p>', ["company.com"]);
+    assert(out.indexOf('src="' + dataUrl) >= 0, "data:image src destroyed: " + out);
+  }))
+  .then(() => t("W-4 fix: disallowed host href removed, markup stays valid", () => {
+    const out = Sanitize.forEmail('<a href="https://evil.example/x">link</a>', ["company.com"]);
+    assert(out.indexOf("evil.example") < 0, "evil host survived: " + out);
+    assert(out.indexOf("<a") >= 0 && out.indexOf("link") >= 0, "anchor text lost: " + out);
+    const parsed = new DOMParser().parseFromString(out, "text/html");
+    assert(parsed.querySelector("a") && !parsed.querySelector("a").getAttribute("href"), "href not removed");
+  }))
+  .then(() => t("W-4 fix: allowed host hardened with rel=noopener + target", () => {
+    const out = Sanitize.forEmail('<a href="https://company.com/x">ok</a>', ["company.com"]);
+    assert(out.indexOf('rel="noopener noreferrer"') >= 0, "rel missing: " + out);
+    assert(out.indexOf('target="_blank"') >= 0, "target missing: " + out);
+    assert(out.indexOf('href="https://company.com/x"') >= 0, "href lost: " + out);
+  }))
+  .then(() => t("W-4 fix: empty allowlist fails closed for http img", () => {
+    const out = Sanitize.forEmail('<img src="https://anywhere.example/i.png">', []);
+    const img = new DOMParser().parseFromString(out, "text/html").querySelector("img");
+    assert(img && !img.getAttribute("src"), "external img src survived empty allowlist: " + out);
+  }))
+  .then(() => t("mailto link kept without target=_blank", () => {
+    const out = Sanitize.forEmail('<a href="mailto:a@b.com">m</a>', ["company.com"]);
+    assert(out.indexOf('href="mailto:a@b.com"') >= 0, "mailto lost: " + out);
+    assert(out.indexOf("target=") < 0, "mailto got target: " + out);
+  }))
+  .then(() => t("forImport does NOT enforce hosts (editor content)", () => {
+    const out = Sanitize.forImport('<img src="https://any.example/pic.png">');
+    assert(out.indexOf("any.example") >= 0, "import wrongly enforced allowlist: " + out);
+  }))
+  .then(() => t("EmailComposer: subject escaped, body sanitized, footer present", () => {
+    const html = Composer.compose('<p>hi</p><script>bad()<\/script>', ["company.com"], '<b>Q2</b> & Co');
+    assert(html.indexOf("script") < 0, "script in composed email");
+    assert(html.indexOf("&lt;b&gt;Q2&lt;/b&gt; &amp; Co") >= 0, "subject not escaped: " + html.slice(0, 300));
+    assert(html.indexOf("<p>hi</p>") >= 0, "body lost");
+  }))
+  .then(() => t("F-1 fix: removeSource handles nested divs via DOMParser fallback", () => {
+    const ed = new Editor({ byId: () => null, createId: (s) => s }, "editorContainer");
+    ed._oRte = new (sap.ui.require("sap/ui/richtexteditor/RichTextEditor"))("rte", {});
+    const block = SourceBlock.wrap("abc123", "file", "t.pdf",
+      '<div class="pdf-page-text" data-page="1">P1</div><div class="pdf-page-text" data-page="2">P2</div>');
+    ed._oRte.setValue("<p>before</p>" + block + "<p>after</p>");
+    ed.removeSource("abc123");
+    const v = ed._oRte.getValue();
+    assert(v.indexOf("P1") < 0 && v.indexOf("P2") < 0, "nested block not fully removed: " + v);
+    assert(v.indexOf("before") >= 0 && v.indexOf("after") >= 0, "sibling content damaged: " + v);
+    assert(v.indexOf("</div>") < 0, "orphan </div> left: " + v);
+  }))
+  .then(() => t("fileTypes registry: mime match + unknown ext passthrough", () => {
+    assert(FileTypes.mimeMatches(".pdf", "application/pdf") === true, "pdf mime");
+    assert(FileTypes.mimeMatches(".pdf", "image/png") === false, "pdf wrong mime accepted");
+    assert(FileTypes.mimeMatches(".zzz", "whatever") === true, "unknown ext must not veto");
+    assert(Config.mimeMatchesExt(".png", "image/png") === true, "config delegate broken");
+  }))
+  .then(() => t("config: generateLocalId matches backend allowlist regex", () => {
+    const id = Config.generateLocalId();
+    assert(/^[A-Za-z0-9_\-.]{1,40}$/.test(id), "LocalId violates backend pattern: " + id + " (len " + id.length + ")");
+  }))
+  .then(() => t("formatter: unified status domain", () => {
+    assert(Formatter.statusLabel("040") !== "—", "040 unmapped");
+    assert(Formatter.statusState("040") === "Success", "040 state");
+    assert(Formatter.statusState("050") === "Error", "050 state");
+    assert(Formatter.statusState("020") === "Warning", "020 state");
+    assert(Formatter.statusLabel("999") === "—", "unknown status not dashed");
+    assert(Formatter.statusWidth(1, 4) === "25%", "width calc");
+  }))
+  .then(() => t("formatter: OData /Date()/ and ISO parsing", () => {
+    assert(Formatter.dateTime("/Date(1700086400000)/").length > 0, "OData date");
+    assert(Formatter.dateTime("2026-07-01T10:00:00Z").indexOf("2026") >= 0, "ISO date");
+    assert(Formatter.dateTime(null) === "", "null date");
+  }))
+  .then(() => t("draftManager: save/load/clear roundtrip + schema guard", () => {
+    Draft.clear();
+    Draft.save({ localId: "MSG-X", subject: "s", content: "<p>c</p>", recipients: [{ id: 1 }], attachments: [], sources: [] });
+    const d = Draft.load();
+    assert(d && d.localId === "MSG-X" && d.recipients.length === 1, "roundtrip failed");
+    localStorage.setItem(Draft.STORAGE_KEY, JSON.stringify({ schemaVersion: 999, localId: "x" }));
+    assert(Draft.load() === null, "wrong schema accepted");
+    Draft.clear();
+  }))
+  .then(() => t("fileProcessor: txt import escaped", () => {
+    const f = new File(["a<b>&c\nline2"], "t.txt", { type: "text/plain" });
+    return FileProcessor.process(f, "src1", null, null).then((html) => {
+      assert(html.indexOf("a&lt;b&gt;&amp;c") >= 0, "txt not escaped: " + html);
+      assert(html.indexOf("<br>") >= 0, "newline not converted");
+      assert(html.indexOf('id="eb-src-src1"') >= 0, "source block id missing");
+    });
+  }))
+  .then(() => t("fileProcessor: html import sanitized (script stripped)", () => {
+    const f = new File(["<html><body><p>x</p><script>bad()<\/script></body></html>"], "t.html", { type: "text/html" });
+    return FileProcessor.process(f, "src2", null, null).then((html) => {
+      assert(html.indexOf("script") < 0, "script survived html import: " + html);
+      assert(html.indexOf("<p>x</p>") >= 0, "content lost");
+    });
+  }))
+  .then(() => t("fileProcessor: md via lazy-loaded marked, sanitized", () => {
+    const f = new File(["# Title\n\n<script>bad()<\/script>*em*"], "t.md", { type: "text/markdown" });
+    return FileProcessor.process(f, "src3", null, null).then((html) => {
+      assert(html.indexOf("<h1") >= 0, "md heading not rendered: " + html);
+      assert(html.indexOf("script") < 0, "script survived md import");
+    });
+  }))
+  .then(() => t("fileProcessor: png import as data URL", () => {
+    const bytes = atob("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==");
+    const arr = new Uint8Array(bytes.length);
+    for (let i = 0; i < bytes.length; i++) { arr[i] = bytes.charCodeAt(i); }
+    const f = new File([arr], "p.png", { type: "image/png" });
+    return FileProcessor.process(f, "src4", null, null).then((html) => {
+      assert(html.indexOf('src="data:image/png;base64') >= 0, "no data url: " + html.slice(0, 120));
+    });
+  }))
+  .then(() => t("fileProcessor: real user DOCX via mammoth (lazy)", () => {
+    return fetch("fixtures/sample.docx").then((r) => r.arrayBuffer()).then((ab) => {
+      const f = new File([ab], "Анонс.docx", { type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" });
+      return FileProcessor.process(f, "src5", null, null);
+    }).then((html) => {
+      assert(html.length > 200, "docx produced almost nothing: " + html.slice(0, 200));
+      assert(html.indexOf('id="eb-src-src5"') >= 0, "block id missing");
+      assert(html.toLowerCase().indexOf("<script") < 0, "script in docx output");
+      window.__docxOut = html.slice(0, 600);
+    });
+  }))
+  .then(() => t("fileProcessor: real user PDF text mode via pdf.js (lazy)", () => {
+    return fetch("fixtures/sample.pdf").then((r) => r.arrayBuffer()).then((ab) => {
+      const f = new File([ab], "Анонс.pdf", { type: "application/pdf" });
+      return FileProcessor.process(f, "src6", "text", null);
+    }).then((html) => {
+      assert(html.indexOf("pdf-page-text") >= 0, "no pdf page block: " + html.slice(0, 200));
+      assert(html.replace(/<[^>]+>/g, "").trim().length > 50, "pdf text empty");
+      window.__pdfOut = html.slice(0, 600);
+    });
+  }))
+  .then(() => t("fileProcessor: unsupported extension rejected", () => {
+    const f = new File(["x"], "a.exe", { type: "application/octet-stream" });
+    return FileProcessor.process(f, "s", null, null).then(
+      () => { throw new Error("exe accepted!"); },
+      () => true
+    );
+  }))
+  .then(() => t("fileProcessor: empty file rejected", () => {
+    const f = new File([], "a.txt", { type: "text/plain" });
+    return FileProcessor.process(f, "s", null, null).then(
+      () => { throw new Error("empty file accepted!"); },
+      () => true
+    );
+  }))
+  .then(() => {
+    window.__testResults = RESULTS;
+    document.getElementById("out").textContent = JSON.stringify(RESULTS, null, 1);
+  })
+  .catch((e) => {
+    RESULTS.push({ name: "HARNESS", ok: false, err: String(e && e.message || e) });
+    window.__testResults = RESULTS;
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<edmx:Edmx xmlns:edmx="http://schemas.microsoft.com/ado/2007/06/edmx" Version="1.0">
+  <edmx:DataServices xmlns:m="http://schemas.microsoft.com/ado/2008/dataservices/metadata" m:DataServiceVersion="2.0">
+    <Schema xmlns="http://schemas.microsoft.com/ado/2008/09/edm" Namespace="eb">
+
+      <EntityType Name="Recipient">
+        <Key><PropertyRef Name="RecipientId"/></Key>
+        <Property Name="RecipientId" Type="Edm.String" Nullable="false" MaxLength="40"/>
+        <Property Name="FullName"    Type="Edm.String" MaxLength="255"/>
+        <Property Name="Email"       Type="Edm.String" MaxLength="241"/>
+        <Property Name="Role"        Type="Edm.String" MaxLength="100"/>
+        <Property Name="AuthObject"  Type="Edm.String" MaxLength="100"/>
+        <Property Name="FieldName"   Type="Edm.String" MaxLength="100"/>
+      </EntityType>
+
+      <EntityType Name="News">
+        <Key><PropertyRef Name="NewID"/></Key>
+        <Property Name="NewID"       Type="Edm.String" Nullable="false" MaxLength="32"/>
+        <Property Name="Title"       Type="Edm.String" MaxLength="200"/>
+        <Property Name="Year"        Type="Edm.Int32"/>
+        <Property Name="Quarter"     Type="Edm.Int32"/>
+        <Property Name="Area"        Type="Edm.String" MaxLength="60"/>
+        <Property Name="Content"     Type="Edm.String"/>
+      </EntityType>
+
+      <EntityType Name="MailHeader">
+        <Key><PropertyRef Name="Key"/></Key>
+        <Property Name="Key"         Type="Edm.String" Nullable="false" MaxLength="32"/>
+        <Property Name="LocalId"     Type="Edm.String" MaxLength="40"/>
+        <Property Name="Subject"     Type="Edm.String" MaxLength="255"/>
+        <Property Name="Status"      Type="Edm.String" MaxLength="3"/>
+        <Property Name="CreatedBy"   Type="Edm.String" MaxLength="12"/>
+        <Property Name="CreatedAt"   Type="Edm.DateTime"/>
+        <NavigationProperty Name="ToRecipients"   Relationship="eb.MailHeader_Recipients"   FromRole="MailHeader" ToRole="Recipient"/>
+        <NavigationProperty Name="ToTexts"        Relationship="eb.MailHeader_Texts"        FromRole="MailHeader" ToRole="Text"/>
+        <NavigationProperty Name="ToAttachments"  Relationship="eb.MailHeader_Attachments" FromRole="MailHeader" ToRole="Attachment"/>
+      </EntityType>
+
+      <EntityType Name="Text">
+        <Key><PropertyRef Name="Key"/></Key>
+        <Property Name="Key"         Type="Edm.String" Nullable="false" MaxLength="32"/>
+        <Property Name="Content"     Type="Edm.String"/>
+      </EntityType>
+
+      <EntityType Name="Attachment">
+        <Key><PropertyRef Name="Key"/></Key>
+        <Property Name="Key"         Type="Edm.String" Nullable="false" MaxLength="32"/>
+        <Property Name="FileName"    Type="Edm.String" MaxLength="255"/>
+        <Property Name="MimeType"    Type="Edm.String" MaxLength="100"/>
+        <Property Name="ContentBase64" Type="Edm.String"/>
+      </EntityType>
+
+      <!-- Content (LOB) removed from the list entity — served by MailContent on key access -->
+      <EntityType Name="MailHistory">
+        <Key><PropertyRef Name="Key"/></Key>
+        <Property Name="Key"         Type="Edm.String" Nullable="false" MaxLength="32"/>
+        <Property Name="LocalID"     Type="Edm.String" MaxLength="40"/>
+        <Property Name="Subject"     Type="Edm.String" MaxLength="255"/>
+        <Property Name="Status"      Type="Edm.String" MaxLength="3"/>
+        <Property Name="CreatedAt"   Type="Edm.DateTime"/>
+        <Property Name="CreatedBy"   Type="Edm.String" MaxLength="12"/>
+        <Property Name="TotalCount"  Type="Edm.Int32"/>
+        <Property Name="SentCount"   Type="Edm.Int32"/>
+        <Property Name="ErrorCount"  Type="Edm.Int32"/>
+      </EntityType>
+
+      <EntityType Name="MailContent">
+        <Key><PropertyRef Name="Key"/></Key>
+        <Property Name="Key"         Type="Edm.String" Nullable="false" MaxLength="32"/>
+        <Property Name="LocalID"     Type="Edm.String" MaxLength="40"/>
+        <Property Name="Subject"     Type="Edm.String" MaxLength="255"/>
+        <Property Name="Content"     Type="Edm.String"/>
+      </EntityType>
+
+      <EntityType Name="MailingStatus">
+        <Key><PropertyRef Name="Key"/></Key>
+        <Property Name="Key"         Type="Edm.String" Nullable="false" MaxLength="64"/>
+        <Property Name="MailingId"   Type="Edm.String" MaxLength="32"/>
+        <Property Name="Status"      Type="Edm.String" MaxLength="3"/>
+        <Property Name="Count"       Type="Edm.Int32"/>
+      </EntityType>
+
+      <EntityType Name="AllowedHost">
+        <Key><PropertyRef Name="Host"/></Key>
+        <Property Name="Host"        Type="Edm.String" Nullable="false" MaxLength="255"/>
+        <Property Name="Description" Type="Edm.String" MaxLength="100"/>
+      </EntityType>
+
+      <Association Name="MailHeader_Recipients">
+        <End Type="eb.MailHeader"   Role="MailHeader"   Multiplicity="1"/>
+        <End Type="eb.Recipient"    Role="Recipient"    Multiplicity="*"/>
+      </Association>
+      <Association Name="MailHeader_Texts">
+        <End Type="eb.MailHeader"   Role="MailHeader"   Multiplicity="1"/>
+        <End Type="eb.Text"         Role="Text"         Multiplicity="1"/>
+      </Association>
+      <Association Name="MailHeader_Attachments">
+        <End Type="eb.MailHeader"   Role="MailHeader"   Multiplicity="1"/>
+        <End Type="eb.Attachment"   Role="Attachment"   Multiplicity="*"/>
+      </Association>
+
+      <EntityContainer Name="eb" m:IsDefaultEntityContainer="true">
+        <EntitySet Name="RecipientSet"       EntityType="eb.Recipient"/>
+        <EntitySet Name="NewsSet"            EntityType="eb.News"/>
+        <EntitySet Name="MailHeaderSet"      EntityType="eb.MailHeader"/>
+        <EntitySet Name="TextSet"            EntityType="eb.Text"/>
+        <EntitySet Name="AttachmentSet"      EntityType="eb.Attachment"/>
+        <EntitySet Name="MailHistorySet"     EntityType="eb.MailHistory"/>
+        <EntitySet Name="MailContentSet"     EntityType="eb.MailContent"/>
+        <EntitySet Name="MailingStatusSet"   EntityType="eb.MailingStatus"/>
+        <EntitySet Name="AllowedHostSet"     EntityType="eb.AllowedHost"/>
+        <AssociationSet Name="MailHeader_Recipients_Set"  Association="eb.MailHeader_Recipients">
+          <End EntitySet="MailHeaderSet" Role="MailHeader"/>
+          <End EntitySet="RecipientSet"  Role="Recipient"/>
+        </AssociationSet>
+        <AssociationSet Name="MailHeader_Texts_Set" Association="eb.MailHeader_Texts">
+          <End EntitySet="MailHeaderSet" Role="MailHeader"/>
+          <End EntitySet="TextSet"        Role="Text"/>
+        </AssociationSet>
+        <AssociationSet Name="MailHeader_Attachments_Set" Association="eb.MailHeader_Attachments">
+          <End EntitySet="MailHeaderSet"  Role="MailHeader"/>
+          <End EntitySet="AttachmentSet"   Role="Attachment"/>
+        </AssociationSet>
+      </EntityContainer>
+    </Schema>
+  </edmx:DataServices>
+</edmx:Edmx>

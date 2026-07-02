@@ -1,0 +1,41 @@
+<core:FragmentDefinition
+  xmlns="sap.m"
+  xmlns:core="sap.ui.core"
+  xmlns:layout="sap.ui.layout">
+
+  <Dialog
+    id="pdfModeDialog"
+    title="{i18n>PDF_MODE_TITLE}"
+    contentWidth="480px"
+    resizable="false"
+    draggable="true"
+    class="ebDialog ebPdfModeDialog">
+
+    <content>
+      <VBox class="sapUiMediumMargin">
+        <Text text="{i18n>PDF_MODE}" class="ebPdfModeIntro sapUiSmallMarginBottom" />
+        <IconTabBar
+          id="pdfModeTabs"
+          select="onPdfModeTabSelect"
+          selectedKey="0"
+          class="ebIconTabBar"
+          expandable="false">
+          <items>
+            <IconTabFilter icon="sap-icon://document-text" text="{i18n>PDF_TEXT}" key="0">
+              <Text text="{i18n>PDF_MODE_PROMPT_TEXT}" class="ebPdfModeDesc" />
+            </IconTabFilter>
+            <IconTabFilter icon="sap-icon://background" text="{i18n>PDF_IMAGES}" key="1">
+              <Text text="{i18n>PDF_MODE_PROMPT_IMAGES}" class="ebPdfModeDesc" />
+            </IconTabFilter>
+          </items>
+        </IconTabBar>
+      </VBox>
+    </content>
+
+    <buttons>
+      <Button text="{i18n>OK}" press="onPdfModeConfirm" type="Emphasized" />
+      <Button text="{i18n>CANCEL}" press="onPdfModeCancel" />
+    </buttons>
+
+  </Dialog>
+</core:FragmentDefinition>

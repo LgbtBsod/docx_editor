@@ -1,0 +1,82 @@
+{
+  "_version": "1.12.0",
+  "sap.app": {
+    "id": "emailbuilder",
+    "type": "application",
+    "i18n": "i18n/i18n.properties",
+    "title": "{{TITLE}}",
+    "description": "{{APP_DESC}}",
+    "applicationVersion": {
+      "version": "2.1.0"
+    },
+    "dataSources": {
+      "mainService": {
+        "uri": "/sap/opu/odata/sap/ZEB_MAILING_SRV/",
+        "type": "OData",
+        "settings": {
+          "odataVersion": "2.0",
+          "localUri": "localService/metadata.xml"
+        }
+      },
+      "i18n": {
+        "type": "sap.ui.model.resource.ResourceModel",
+        "uri": "i18n/i18n.properties"
+      }
+    }
+  },
+  "sap.ui": {
+    "technology": "UI5",
+    "deviceTypes": {
+      "desktop": true,
+      "tablet": true,
+      "phone": true
+    }
+  },
+  "sap.ui5": {
+    "rootView": {
+      "viewName": "emailbuilder.view.App",
+      "type": "XML",
+      "async": true,
+      "id": "app"
+    },
+    "dependencies": {
+      "minUI5Version": "1.71.0",
+      "libs": {
+        "sap.m": {},
+        "sap.ui.layout": {},
+        "sap.ui.richtexteditor": {},
+        "sap.ui.unified": {},
+        "sap.f": {}
+      }
+    },
+    "contentDensities": {
+      "compact": true,
+      "cozy": true
+    },
+    "models": {
+      "i18n": {
+        "type": "sap.ui.model.resource.ResourceModel",
+        "dataSource": "i18n"
+      },
+      "": {
+        "type": "sap.ui.model.odata.v2.ODataModel",
+        "dataSource": "mainService",
+        "settings": {
+          "defaultOperationMode": "Server",
+          "defaultBindingMode": "TwoWay",
+          "defaultCountMode": "None",
+          "preload": true,
+          "useBatch": true,
+          "refreshAfterChange": false
+        }
+      }
+    },
+    "resources": {
+      "css": [
+        {
+          "uri": "css/style.css"
+        }
+      ]
+    }
+  }
+}

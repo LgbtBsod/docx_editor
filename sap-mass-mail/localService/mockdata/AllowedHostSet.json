@@ -1,0 +1,6 @@
+[
+  { "Host": "company.com", "Description": "Корпоративный домен" },
+  { "Host": "sap.com", "Description": "SAP официальный сайт" },
+  { "Host": "sapui5.hana.ondemand.com", "Description": "SAPUI5 CDN" },
+  { "Host": "github.com", "Description": "GitHub для документации" }
+]

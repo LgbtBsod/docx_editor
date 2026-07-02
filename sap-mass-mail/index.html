@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Email Builder</title>
+  <script>
+    // Mock mode is opt-in per URL (?mock=true) — never hardcoded into the page.
+    window.USE_MOCK = /[?&]mock=true(&|$)/.test(window.location.search);
+    window.SAP_GATEWAY_URI = "/sap/opu/odata/sap/ZEB_MAILING_SRV/";
+  </script>
+  <script
+    id="sap-ui-bootstrap"
+    src="https://ui5.sap.com/1.71.82/resources/sap-ui-core.js"
+    data-sap-ui-libs="sap.m,sap.ui.layout,sap.ui.richtexteditor,sap.ui.unified,sap.f"
+    data-sap-ui-theme="sap_fiori_3"
+    data-sap-ui-compatVersion="edge"
+    data-sap-ui-async="true"
+    data-sap-ui-resourceroots='{"emailbuilder": "./"}'
+    data-sap-ui-frameOptions="trusted"
+  ></script>
+  <!-- DOMPurify stays eager: the sanitizer must exist before any HTML rendering
+       (fail-closed policy in util/sanitize.js). mammoth / pdf.js / marked are
+       lazy-loaded by util/fileProcessor.js on first use (~2 MB off cold start). -->
+  <script src="lib/dompurify/purify.min.js" defer></script>
+</head>
+<body class="sapUiBody">
+  <div id="content"></div>
+  <script>
+    sap.ui.getCore().attachInit(function () {
+      var aModules = ["sap/ui/core/Component", "sap/base/Log"];
+      if (window.USE_MOCK) {
+        aModules.push("emailbuilder/localService/mockserver");
+      }
+      sap.ui.require(aModules, function (Component, Log, MockServer) {
+
+        // Start MockServer BEFORE Component creation — ODataModel fetches metadata on init
+        if (MockServer) {
+          try {
+            MockServer.init();
+            Log.info("[emailbuilder] MockServer started");
+          } catch (e) {
+            Log.error("[emailbuilder] MockServer init failed: " + e.message);
+          }
+        }
+
+        Component.create({
+          name: "emailbuilder",
+          id: "emailbuilder"
+        }).then(function (oComponent) {
+          if (MockServer) {
+            try { MockServer.setComponent(oComponent); }
+            catch (e) { Log.error("[emailbuilder] MockServer.setComponent failed: " + e.message); }
+          }
+          oComponent.getRootControl().placeAt("content");
+        }).catch(function (err) {
+          Log.error("[emailbuilder] Component failed: " + (err.message || err));
+        });
+      });
+    });
+  </script>
+</body>
+</html>

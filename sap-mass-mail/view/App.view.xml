@@ -1,0 +1,205 @@
+<mvc:View
+  xmlns:mvc="sap.ui.core.mvc"
+  xmlns="sap.m"
+  xmlns:core="sap.ui.core"
+  xmlns:u="sap.ui.unified"
+  controllerName="emailbuilder.controller.App"
+  height="100%"
+  displayBlock="true">
+
+  <Page id="mainPage" class="emailBuilderPage" showFooter="true">
+
+    <customHeader>
+      <Bar class="ebHeader">
+        <contentLeft>
+          <Title text="{i18n>TITLE}" class="ebAppTitle" />
+        </contentLeft>
+        <contentRight>
+          <ObjectStatus
+            text="{path: 'state>/recipientCount'}"
+            class="ebHeaderBadge"
+            icon="sap-icon://contacts"
+            visible="{= !!${state>/recipientCount} }" />
+          <ObjectStatus
+            text="{path: 'state>/attachmentCount'}"
+            class="ebHeaderBadge"
+            icon="sap-icon://attachment"
+            visible="{= !!${state>/attachmentCount} }" />
+        </contentRight>
+      </Bar>
+    </customHeader>
+
+    <content>
+      <HBox class="ebMainHBox" height="100%" alignItems="Stretch">
+
+        <!-- ============ LEFT PANEL ============ -->
+        <VBox class="leftPanel" id="leftPanel">
+          <ScrollContainer class="leftScrollContainer" vertical="true" horizontal="false" height="100%" width="100%">
+
+            <!-- LocalId Card -->
+            <VBox class="ebCard ebLocalIdCard">
+              <HBox alignItems="Center" justifyContent="SpaceBetween" width="100%">
+                <Label text="{i18n>LOCAL_ID}" class="ebCardLabel" />
+                <HBox alignItems="Center">
+                  <Button icon="sap-icon://copy" press="onCopyLocalId" type="Transparent" tooltip="{i18n>TIP_COPY_LOCAL_ID}" class="ebCopyBtn" />
+                  <Button icon="sap-icon://history" press="onOpenMailingsDialog" type="Transparent"
+                    tooltip="{i18n>TIP_OPEN_MAILINGS}" class="ebHistoryBtn" />
+                </HBox>
+              </HBox>
+              <Input id="localIdInput" value="{state>/localId}" editable="false" class="ebLocalIdInput" width="100%" />
+            </VBox>
+
+            <!-- Sources Card -->
+            <VBox class="ebCard">
+              <HBox alignItems="Center" justifyContent="SpaceBetween" width="100%">
+                <Label text="{i18n>SOURCES_TITLE}" class="ebCardLabel" />
+                <HBox alignItems="Center">
+                  <Button text="{i18n>DIALOG_NEWS}" icon="sap-icon://notification"
+                    press="onOpenNewsDialog" type="Transparent" tooltip="{i18n>TIP_ADD_NEWS}" />
+                  <Button text="{i18n>CLEAR_ALL_NEWS}" press="onClearAllNews" type="Transparent"
+                    tooltip="{i18n>TIP_CLEAR_NEWS}" visible="{= ${state>/newsCount} > 0 }" />
+                </HBox>
+              </HBox>
+              <!-- Large DnD drop zone -->
+              <VBox id="sourceDropZone" class="ebDropZone" alignItems="Center" justifyContent="Center">
+                <core:Icon src="sap-icon://upload-to-cloud" size="2rem" class="ebDropZoneIcon" />
+                <Text text="{i18n>DROP_HINT}" class="ebDropZoneText" />
+                <Text text="{i18n>DROP_FORMATS}" class="ebDropZoneSub" />
+                <!-- Hidden file uploader for click-to-upload -->
+                <u:FileUploader
+                  id="sourceUploader"
+                  buttonOnly="true"
+                  buttonText=""
+                  icon=""
+                  multiple="true"
+                  sameFilenameAllowed="true"
+                  change="onSourceChange"
+                  class="ebHiddenUploader" />
+                <Button text="{i18n>BROWSE}" press="onSourceBrowse" type="Transparent" class="ebDropZoneBrowseBtn" />
+              </VBox>
+              <List id="sourceList" items="{state>/sources}" noDataText="{i18n>NO_SOURCES}" class="ebSourceList" inset="false">
+                <items>
+                  <CustomListItem class="ebSourceItem">
+                    <HBox alignItems="Center" width="100%" class="ebSourceItemRow">
+                      <core:Icon src="{state>iconSrc}" color="{state>iconColor}" size="1.2rem" class="ebSourceIcon" />
+                      <VBox class="ebSourceInfo">
+                        <Text text="{state>name}" class="ebSourceName" wrapping="true" />
+                        <Text text="{state>meta}" class="ebSourceMeta" />
+                      </VBox>
+                      <Button icon="sap-icon://decline" type="Transparent" press="onRemoveSource" tooltip="{i18n>TIP_REMOVE_SOURCE}" />
+                    </HBox>
+                  </CustomListItem>
+                </items>
+              </List>
+            </VBox>
+
+            <!-- Attachments Card -->
+            <VBox class="ebCard">
+              <Label text="{i18n>ATTACHMENTS_TITLE}" class="ebCardLabel" />
+              <VBox id="attachmentDropZone" class="ebDropZone" alignItems="Center" justifyContent="Center">
+                <core:Icon src="sap-icon://attachment" size="2rem" class="ebDropZoneIcon" />
+                <Text text="{i18n>DROP_HINT_ATT}" class="ebDropZoneText" />
+                <Text text="{i18n>MAX_ATTACHMENT_SIZE}" class="ebDropZoneSub" />
+                <u:FileUploader
+                  id="attachmentUploader"
+                  buttonOnly="true"
+                  buttonText=""
+                  icon=""
+                  multiple="true"
+                  sameFilenameAllowed="true"
+                  change="onAttachmentChange"
+                  class="ebHiddenUploader" />
+                <Button text="{i18n>BROWSE}" press="onAttachmentBrowse" type="Transparent" class="ebDropZoneBrowseBtn" />
+              </VBox>
+              <List id="attachmentList" items="{state>/attachments}" noDataText="{i18n>NO_ATTACHMENTS}" class="ebSourceList" inset="false">
+                <items>
+                  <CustomListItem class="ebSourceItem">
+                    <HBox alignItems="Center" width="100%" class="ebSourceItemRow">
+                      <core:Icon src="sap-icon://attachment" size="1.2rem" class="ebSourceIcon" />
+                      <VBox class="ebSourceInfo">
+                        <Text text="{state>name}" class="ebSourceName" wrapping="true" />
+                        <Text text="{state>sizeStr}" class="ebSourceMeta" />
+                      </VBox>
+                      <Button icon="sap-icon://decline" type="Transparent" press="onAttachmentDeleted" tooltip="{i18n>TIP_REMOVE_SOURCE}" />
+                    </HBox>
+                  </CustomListItem>
+                </items>
+              </List>
+            </VBox>
+
+            <!-- Recipients Card -->
+            <VBox class="ebCard">
+              <Label text="{i18n>RECIPIENTS_TITLE}" class="ebCardLabel" />
+              <Button
+                text="{path:'state>/recipients', formatter:'.formatter.recipientsSummary'}"
+                icon="sap-icon://contacts"
+                press="onOpenRecipientDialog"
+                type="Transparent"
+                tooltip="{i18n>TIP_ADD_RECIPIENTS}"
+                class="ebRecipientsSummaryBtn" />
+            </VBox>
+
+            <!-- PDF Mode Row: visibility fully model-driven (no byId/setVisible) -->
+            <HBox id="pdfModeRow" visible="{state>/showPdfMode}" class="ebPdfModeRow" alignItems="Center" width="100%">
+              <Label text="{i18n>PDF_MODE}" class="ebCardLabel" />
+              <SegmentedButton selectedKey="{state>/pdfMode}" select="onPdfModeChange">
+                <items>
+                  <SegmentedButtonItem key="text" text="{i18n>PDF_TEXT}" />
+                  <SegmentedButtonItem key="images" text="{i18n>PDF_IMAGES}" />
+                </items>
+              </SegmentedButton>
+            </HBox>
+
+          </ScrollContainer>
+        </VBox>
+
+        <!-- ============ CENTER PANEL ============ -->
+        <VBox class="ebCenterPanel">
+          <Button text="{i18n>NAVIGATE_BACK}" press="onNavigateToCurrent" type="Transparent"
+            icon="sap-icon://navigation-left-arrow"
+            visible="{= !!${state>/viewingMailingId} }" tooltip="{i18n>TIP_BACK_TO_CURRENT}" />
+
+          <VBox class="ebSubjectCard">
+            <Label text="{i18n>SUBJECT}" class="ebCardLabel" />
+            <Input id="subjectInput" value="{state>/viewingSubject}" placeholder="{i18n>SUBJECT_PLACEHOLDER}" liveChange="onSubjectChange" class="ebSubjectInput" />
+          </VBox>
+
+          <VBox id="editorContainer" class="ebEditorContainer" />
+
+          <VBox class="statusHudBox" visible="{= !!${state>/viewingMailingId} }">
+            <HBox alignItems="Center" justifyContent="SpaceBetween" width="100%">
+              <Text text="{i18n>SEND_STATUS}" class="ebHudLabel" />
+              <Text text="{parts: [{path: 'i18n>TOTAL_COUNT'}, {path: 'hud>/total'}], formatter: '.formatter.formatCount'}" class="ebHudLabel" />
+            </HBox>
+            <List items="{hud>/statuses}" inset="false" class="ebHudList" noDataText="">
+              <CustomListItem>
+                <HBox alignItems="Center" width="100%" class="ebHudItem">
+                  <ObjectStatus
+                    text="{path: 'hud>Status', formatter: '.formatter.statusLabel'}"
+                    state="{path: 'hud>Status', formatter: '.formatter.statusState'}"
+                    icon="{path: 'hud>Status', formatter: '.formatter.statusIcon'}"
+                    class="ebHudStatus" />
+                  <Text text="{path: 'hud>Count'}" class="ebHudCount" />
+                </HBox>
+              </CustomListItem>
+            </List>
+          </VBox>
+        </VBox>
+
+      </HBox>
+    </content>
+
+    <footer>
+      <OverflowToolbar class="ebFooter">
+        <ToolbarSpacer />
+        <Button text="{i18n>SAVE_DRAFT}" icon="sap-icon://save" press="onSaveDraft" type="Transparent" tooltip="{i18n>TIP_SAVE_DRAFT}" />
+        <Button text="{i18n>CLEAR_TEMPLATE}" icon="sap-icon://clear-filter" press="onClearTemplate" type="Transparent" tooltip="{i18n>TIP_CLEAR_TEMPLATE}" />
+        <Button id="testSendBtn" text="{i18n>TEST_SEND}" icon="sap-icon://paper-plane" press="onTestSend" type="Transparent"
+          enabled="{= !${state>/isSending} }" tooltip="{i18n>TIP_TEST_SEND}" />
+        <Button id="sendBtn" text="{i18n>SEND}" icon="sap-icon://send" press="onSend" type="Emphasized"
+          enabled="{= !${state>/isSending} }" tooltip="{i18n>TIP_SEND}" />
+      </OverflowToolbar>
+    </footer>
+
+  </Page>
+</mvc:View>

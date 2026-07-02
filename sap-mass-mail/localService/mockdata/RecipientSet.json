@@ -1,0 +1,1762 @@
+[
+  {
+    "RecipientId": "R000001",
+    "FullName": "Кузнецов Николай",
+    "Email": "кузнецов.николай@company.com",
+    "Role": "Архитектор",
+    "AuthObject": "ZNEWS",
+    "FieldName": "WERKS"
+  },
+  {
+    "RecipientId": "R000002",
+    "FullName": "Кузнецов Сергей",
+    "Email": "кузнецов.сергей@company.com",
+    "Role": "Консультант",
+    "AuthObject": "ZMAIL",
+    "FieldName": "BUKRS"
+  },
+  {
+    "RecipientId": "R000003",
+    "FullName": "Лебедев Анна",
+    "Email": "лебедев.анна@corp.ru",
+    "Role": "Менеджер",
+    "AuthObject": "ZNEWS",
+    "FieldName": "EKORG"
+  },
+  {
+    "RecipientId": "R000004",
+    "FullName": "Голубев Ольга",
+    "Email": "голубев.ольга@mail.example.org",
+    "Role": "Менеджер",
+    "AuthObject": "ZNEWS",
+    "FieldName": "EKORG"
+  },
+  {
+    "RecipientId": "R000005",
+    "FullName": "Новиков Андрей",
+    "Email": "новиков.андрей@corp.ru",
+    "Role": "Тестировщик",
+    "AuthObject": "ZADMIN",
+    "FieldName": "BUKRS"
+  },
+  {
+    "RecipientId": "R000006",
+    "FullName": "Павлов Анна",
+    "Email": "павлов.анна@company.com",
+    "Role": "Руководитель",
+    "AuthObject": "ZADMIN",
+    "FieldName": "VKORG"
+  },
+  {
+    "RecipientId": "R000007",
+    "FullName": "Петров Алена",
+    "Email": "петров.алена@enterprise.ru",
+    "Role": "Аналитик",
+    "AuthObject": "ZUSER",
+    "FieldName": "BUKRS"
+  },
+  {
+    "RecipientId": "R000008",
+    "FullName": "Морозов Ирина",
+    "Email": "морозов.ирина@mail.example.org",
+    "Role": "Тестировщик",
+    "AuthObject": "ZMAIL",
+    "FieldName": "BUKRS"
+  },
+  {
+    "RecipientId": "R000009",
+    "FullName": "Козлов Светлана",
+    "Email": "козлов.светлана@mail.example.org",
+    "Role": "Аналитик",
+    "AuthObject": "ZNEWS",
+    "FieldName": "BUKRS"
+  },
+  {
+    "RecipientId": "R000010",
+    "FullName": "Новиков Михаил",
+    "Email": "новиков.михаил@enterprise.ru",
+    "Role": "Руководитель",
+    "AuthObject": "ZNEWS",
+    "FieldName": "VKORG"
+  },
+  {
+    "RecipientId": "R000011",
+    "FullName": "Лебедев Татьяна",
+    "Email": "лебедев.татьяна@mail.example.org",
+    "Role": "Аналитик",
+    "AuthObject": "ZNEWS",
+    "FieldName": "WERKS"
+  },
+  {
+    "RecipientId": "R000012",
+    "FullName": "Голубев Елена",
+    "Email": "голубев.елена@enterprise.ru",
+    "Role": "Архитектор",
+    "AuthObject": "ZNEWS",
+    "FieldName": "VKORG"
+  },
+  {
+    "RecipientId": "R000013",
+    "FullName": "Петров Максим",
+    "Email": "петров.максим@corp.ru",
+    "Role": "Менеджер",
+    "AuthObject": "ZADMIN",
+    "FieldName": "EKORG"
+  },
+  {
+    "RecipientId": "R000014",
+    "FullName": "Сидоров Алексей",
+    "Email": "сидоров.алексей@corp.ru",
+    "Role": "Руководитель",
+    "AuthObject": "ZNEWS",
+    "FieldName": "EKORG"
+  },
+  {
+    "RecipientId": "R000015",
+    "FullName": "Голубев Михаил",
+    "Email": "голубев.михаил@corp.ru",
+    "Role": "Архитектор",
+    "AuthObject": "ZNEWS",
+    "FieldName": "WERKS"
+  },
+  {
+    "RecipientId": "R000016",
+    "FullName": "Воробьев Оксана",
+    "Email": "воробьев.оксана@mail.example.org",
+    "Role": "Консультант",
+    "AuthObject": "ZUSER",
+    "FieldName": "VKORG"
+  },
+  {
+    "RecipientId": "R000017",
+    "FullName": "Соколов Ольга",
+    "Email": "соколов.ольга@enterprise.ru",
+    "Role": "Аналитик",
+    "AuthObject": "ZMAIL",
+    "FieldName": "BUKRS"
+  },
+  {
+    "RecipientId": "R000018",
+    "FullName": "Попов Сергей",
+    "Email": "попов.сергей@enterprise.ru",
+    "Role": "Аналитик",
+    "AuthObject": "ZUSER",
+    "FieldName": "EKORG"
+  },
+  {
+    "RecipientId": "R000019",
+    "FullName": "Голубев Виктория",
+    "Email": "голубев.виктория@mail.example.org",
+    "Role": "Менеджер",
+    "AuthObject": "ZMAIL",
+    "FieldName": "VKORG"
+  },
+  {
+    "RecipientId": "R000020",
+    "FullName": "Волков Роман",
+    "Email": "волков.роман@company.com",
+    "Role": "Архитектор",
+    "AuthObject": "ZUSER",
+    "FieldName": "WERKS"
+  },
+  {
+    "RecipientId": "R000021",
+    "FullName": "Иванов Владимир",
+    "Email": "иванов.владимир@mail.example.org",
+    "Role": "Разработчик",
+    "AuthObject": "ZMAIL",
+    "FieldName": "VKORG"
+  },
+  {
+    "RecipientId": "R000022",
+    "FullName": "Богданов Максим",
+    "Email": "богданов.максим@corp.ru",
+    "Role": "Разработчик",
+    "AuthObject": "ZADMIN",
+    "FieldName": "WERKS"
+  },
+  {
+    "RecipientId": "R000023",
+    "FullName": "Богданов Ирина",
+    "Email": "богданов.ирина@company.com",
+    "Role": "Руководитель",
+    "AuthObject": "ZUSER",
+    "FieldName": "BUKRS"
+  },
+  {
+    "RecipientId": "R000024",
+    "FullName": "Зайцев Мария",
+    "Email": "зайцев.мария@mail.example.org",
+    "Role": "Тестировщик",
+    "AuthObject": "ZMAIL",
+    "FieldName": "WERKS"
+  },
+  {
+    "RecipientId": "R000025",
+    "FullName": "Федоров Кирилл",
+    "Email": "федоров.кирилл@company.com",
+    "Role": "Аналитик",
+    "AuthObject": "ZUSER",
+    "FieldName": "BUKRS"
+  },
+  {
+    "RecipientId": "R000026",
+    "FullName": "Воробьев Роман",
+    "Email": "воробьев.роман@corp.ru",
+    "Role": "Разработчик",
+    "AuthObject": "ZUSER",
+    "FieldName": "WERKS"
+  },
+  {
+    "RecipientId": "R000027",
+    "FullName": "Богданов Алексей",
+    "Email": "богданов.алексей@enterprise.ru",
+    "Role": "Тестировщик",
+    "AuthObject": "ZNEWS",
+    "FieldName": "VKORG"
+  },
+  {
+    "RecipientId": "R000028",
+    "FullName": "Зайцев Михаил",
+    "Email": "зайцев.михаил@enterprise.ru",
+    "Role": "Координатор",
+    "AuthObject": "ZMAIL",
+    "FieldName": "WERKS"
+  },
+  {
+    "RecipientId": "R000029",
+    "FullName": "Сидоров Ольга",
+    "Email": "сидоров.ольга@mail.example.org",
+    "Role": "Менеджер",
+    "AuthObject": "ZNEWS",
+    "FieldName": "WERKS"
+  },
+  {
+    "RecipientId": "R000030",
+    "FullName": "Сидоров Иван",
+    "Email": "сидоров.иван@company.com",
+    "Role": "Тестировщик",
+    "AuthObject": "ZMAIL",
+    "FieldName": "BUKRS"
+  },
+  {
+    "RecipientId": "R000031",
+    "FullName": "Волков Дарья",
+    "Email": "волков.дарья@company.com",
+    "Role": "Тестировщик",
+    "AuthObject": "ZADMIN",
+    "FieldName": "EKORG"
+  },
+  {
+    "RecipientId": "R000032",
+    "FullName": "Воробьев Дмитрий",
+    "Email": "воробьев.дмитрий@corp.ru",
+    "Role": "Координатор",
+    "AuthObject": "ZNEWS",
+    "FieldName": "EKORG"
+  },
+  {
+    "RecipientId": "R000033",
+    "FullName": "Семенов Алена",
+    "Email": "семенов.алена@corp.ru",
+    "Role": "Аналитик",
+    "AuthObject": "ZMAIL",
+    "FieldName": "EKORG"
+  },
+  {
+    "RecipientId": "R000034",
+    "FullName": "Семенов Татьяна",
+    "Email": "семенов.татьяна@enterprise.ru",
+    "Role": "Координатор",
+    "AuthObject": "ZMAIL",
+    "FieldName": "BUKRS"
+  },
+  {
+    "RecipientId": "R000035",
+    "FullName": "Павлов Петр",
+    "Email": "павлов.петр@mail.example.org",
+    "Role": "Аналитик",
+    "AuthObject": "ZNEWS",
+    "FieldName": "WERKS"
+  },
+  {
+    "RecipientId": "R000036",
+    "FullName": "Воробьев Дмитрий",
+    "Email": "воробьев.дмитрий@enterprise.ru",
+    "Role": "Разработчик",
+    "AuthObject": "ZUSER",
+    "FieldName": "WERKS"
+  },
+  {
+    "RecipientId": "R000037",
+    "FullName": "Голубев Алексей",
+    "Email": "голубев.алексей@corp.ru",
+    "Role": "Аналитик",
+    "AuthObject": "ZUSER",
+    "FieldName": "BUKRS"
+  },
+  {
+    "RecipientId": "R000038",
+    "FullName": "Воробьев Петр",
+    "Email": "воробьев.петр@company.com",
+    "Role": "Аналитик",
+    "AuthObject": "ZNEWS",
+    "FieldName": "WERKS"
+  },
+  {
+    "RecipientId": "R000039",
+    "FullName": "Виноградов Юлия",
+    "Email": "виноградов.юлия@enterprise.ru",
+    "Role": "Тестировщик",
+    "AuthObject": "ZUSER",
+    "FieldName": "BUKRS"
+  },
+  {
+    "RecipientId": "R000040",
+    "FullName": "Павлов Елена",
+    "Email": "павлов.елена@company.com",
+    "Role": "Консультант",
+    "AuthObject": "ZADMIN",
+    "FieldName": "EKORG"
+  },
+  {
+    "RecipientId": "R000041",
+    "FullName": "Семенов Наталья",
+    "Email": "семенов.наталья@enterprise.ru",
+    "Role": "Разработчик",
+    "AuthObject": "ZNEWS",
+    "FieldName": "VKORG"
+  },
+  {
+    "RecipientId": "R000042",
+    "FullName": "Петров Дмитрий",
+    "Email": "петров.дмитрий@company.com",
+    "Role": "Руководитель",
+    "AuthObject": "ZMAIL",
+    "FieldName": "BUKRS"
+  },
+  {
+    "RecipientId": "R000043",
+    "FullName": "Виноградов Павел",
+    "Email": "виноградов.павел@corp.ru",
+    "Role": "Менеджер",
+    "AuthObject": "ZMAIL",
+    "FieldName": "WERKS"
+  },
+  {
+    "RecipientId": "R000044",
+    "FullName": "Михайлов Анна",
+    "Email": "михайлов.анна@company.com",
+    "Role": "Тестировщик",
+    "AuthObject": "ZUSER",
+    "FieldName": "BUKRS"
+  },
+  {
+    "RecipientId": "R000045",
+    "FullName": "Федоров Кирилл",
+    "Email": "федоров.кирилл@corp.ru",
+    "Role": "Менеджер",
+    "AuthObject": "ZMAIL",
+    "FieldName": "EKORG"
+  },
+  {
+    "RecipientId": "R000046",
+    "FullName": "Федоров Светлана",
+    "Email": "федоров.светлана@mail.example.org",
+    "Role": "Архитектор",
+    "AuthObject": "ZNEWS",
+    "FieldName": "VKORG"
+  },
+  {
+    "RecipientId": "R000047",
+    "FullName": "Новиков Ольга",
+    "Email": "новиков.ольга@enterprise.ru",
+    "Role": "Разработчик",
+    "AuthObject": "ZADMIN",
+    "FieldName": "EKORG"
+  },
+  {
+    "RecipientId": "R000048",
+    "FullName": "Сидоров Андрей",
+    "Email": "сидоров.андрей@company.com",
+    "Role": "Координатор",
+    "AuthObject": "ZMAIL",
+    "FieldName": "BUKRS"
+  },
+  {
+    "RecipientId": "R000049",
+    "FullName": "Лебедев Ирина",
+    "Email": "лебедев.ирина@mail.example.org",
+    "Role": "Разработчик",
+    "AuthObject": "ZADMIN",
+    "FieldName": "BUKRS"
+  },
+  {
+    "RecipientId": "R000050",
+    "FullName": "Козлов Кирилл",
+    "Email": "козлов.кирилл@mail.example.org",
+    "Role": "Архитектор",
+    "AuthObject": "ZNEWS",
+    "FieldName": "EKORG"
+  },
+  {
+    "RecipientId": "R000051",
+    "FullName": "Воробьев Максим",
+    "Email": "воробьев.максим@mail.example.org",
+    "Role": "Менеджер",
+    "AuthObject": "ZADMIN",
+    "FieldName": "BUKRS"
+  },
+  {
+    "RecipientId": "R000052",
+    "FullName": "Соколов Кирилл",
+    "Email": "соколов.кирилл@mail.example.org",
+    "Role": "Аналитик",
+    "AuthObject": "ZMAIL",
+    "FieldName": "WERKS"
+  },
+  {
+    "RecipientId": "R000053",
+    "FullName": "Морозов Алексей",
+    "Email": "морозов.алексей@corp.ru",
+    "Role": "Руководитель",
+    "AuthObject": "ZNEWS",
+    "FieldName": "VKORG"
+  },
+  {
+    "RecipientId": "R000054",
+    "FullName": "Виноградов Сергей",
+    "Email": "виноградов.сергей@mail.example.org",
+    "Role": "Менеджер",
+    "AuthObject": "ZMAIL",
+    "FieldName": "EKORG"
+  },
+  {
+    "RecipientId": "R000055",
+    "FullName": "Новиков Максим",
+    "Email": "новиков.максим@company.com",
+    "Role": "Менеджер",
+    "AuthObject": "ZADMIN",
+    "FieldName": "WERKS"
+  },
+  {
+    "RecipientId": "R000056",
+    "FullName": "Новиков Николай",
+    "Email": "новиков.николай@corp.ru",
+    "Role": "Координатор",
+    "AuthObject": "ZUSER",
+    "FieldName": "BUKRS"
+  },
+  {
+    "RecipientId": "R000057",
+    "FullName": "Сидоров Мария",
+    "Email": "сидоров.мария@corp.ru",
+    "Role": "Менеджер",
+    "AuthObject": "ZADMIN",
+    "FieldName": "WERKS"
+  },
+  {
+    "RecipientId": "R000058",
+    "FullName": "Соколов Юлия",
+    "Email": "соколов.юлия@company.com",
+    "Role": "Архитектор",
+    "AuthObject": "ZADMIN",
+    "FieldName": "BUKRS"
+  },
+  {
+    "RecipientId": "R000059",
+    "FullName": "Зайцев Кирилл",
+    "Email": "зайцев.кирилл@corp.ru",
+    "Role": "Тестировщик",
+    "AuthObject": "ZMAIL",
+    "FieldName": "VKORG"
+  },
+  {
+    "RecipientId": "R000060",
+    "FullName": "Воробьев Роман",
+    "Email": "воробьев.роман@enterprise.ru",
+    "Role": "Разработчик",
+    "AuthObject": "ZNEWS",
+    "FieldName": "WERKS"
+  },
+  {
+    "RecipientId": "R000061",
+    "FullName": "Попов Алена",
+    "Email": "попов.алена@enterprise.ru",
+    "Role": "Менеджер",
+    "AuthObject": "ZNEWS",
+    "FieldName": "VKORG"
+  },
+  {
+    "RecipientId": "R000062",
+    "FullName": "Семенов Алена",
+    "Email": "семенов.алена@corp.ru",
+    "Role": "Архитектор",
+    "AuthObject": "ZNEWS",
+    "FieldName": "BUKRS"
+  },
+  {
+    "RecipientId": "R000063",
+    "FullName": "Петров Михаил",
+    "Email": "петров.михаил@enterprise.ru",
+    "Role": "Тестировщик",
+    "AuthObject": "ZNEWS",
+    "FieldName": "EKORG"
+  },
+  {
+    "RecipientId": "R000064",
+    "FullName": "Морозов Татьяна",
+    "Email": "морозов.татьяна@corp.ru",
+    "Role": "Тестировщик",
+    "AuthObject": "ZMAIL",
+    "FieldName": "WERKS"
+  },
+  {
+    "RecipientId": "R000065",
+    "FullName": "Волков Михаил",
+    "Email": "волков.михаил@mail.example.org",
+    "Role": "Аналитик",
+    "AuthObject": "ZADMIN",
+    "FieldName": "VKORG"
+  },
+  {
+    "RecipientId": "R000066",
+    "FullName": "Богданов Николай",
+    "Email": "богданов.николай@enterprise.ru",
+    "Role": "Руководитель",
+    "AuthObject": "ZMAIL",
+    "FieldName": "BUKRS"
+  },
+  {
+    "RecipientId": "R000067",
+    "FullName": "Новиков Кирилл",
+    "Email": "новиков.кирилл@corp.ru",
+    "Role": "Архитектор",
+    "AuthObject": "ZMAIL",
+    "FieldName": "BUKRS"
+  },
+  {
+    "RecipientId": "R000068",
+    "FullName": "Семенов Виктория",
+    "Email": "семенов.виктория@mail.example.org",
+    "Role": "Руководитель",
+    "AuthObject": "ZUSER",
+    "FieldName": "BUKRS"
+  },
+  {
+    "RecipientId": "R000069",
+    "FullName": "Федоров Михаил",
+    "Email": "федоров.михаил@corp.ru",
+    "Role": "Архитектор",
+    "AuthObject": "ZMAIL",
+    "FieldName": "EKORG"
+  },
+  {
+    "RecipientId": "R000070",
+    "FullName": "Богданов Иван",
+    "Email": "богданов.иван@corp.ru",
+    "Role": "Руководитель",
+    "AuthObject": "ZUSER",
+    "FieldName": "BUKRS"
+  },
+  {
+    "RecipientId": "R000071",
+    "FullName": "Волков Светлана",
+    "Email": "волков.светлана@mail.example.org",
+    "Role": "Аналитик",
+    "AuthObject": "ZADMIN",
+    "FieldName": "VKORG"
+  },
+  {
+    "RecipientId": "R000072",
+    "FullName": "Семенов Светлана",
+    "Email": "семенов.светлана@mail.example.org",
+    "Role": "Консультант",
+    "AuthObject": "ZADMIN",
+    "FieldName": "WERKS"
+  },
+  {
+    "RecipientId": "R000073",
+    "FullName": "Семенов Дмитрий",
+    "Email": "семенов.дмитрий@enterprise.ru",
+    "Role": "Разработчик",
+    "AuthObject": "ZADMIN",
+    "FieldName": "EKORG"
+  },
+  {
+    "RecipientId": "R000074",
+    "FullName": "Иванов Ирина",
+    "Email": "иванов.ирина@mail.example.org",
+    "Role": "Архитектор",
+    "AuthObject": "ZNEWS",
+    "FieldName": "EKORG"
+  },
+  {
+    "RecipientId": "R000075",
+    "FullName": "Федоров Алена",
+    "Email": "федоров.алена@mail.example.org",
+    "Role": "Координатор",
+    "AuthObject": "ZUSER",
+    "FieldName": "EKORG"
+  },
+  {
+    "RecipientId": "R000076",
+    "FullName": "Лебедев Светлана",
+    "Email": "лебедев.светлана@enterprise.ru",
+    "Role": "Разработчик",
+    "AuthObject": "ZMAIL",
+    "FieldName": "VKORG"
+  },
+  {
+    "RecipientId": "R000077",
+    "FullName": "Михайлов Сергей",
+    "Email": "михайлов.сергей@mail.example.org",
+    "Role": "Аналитик",
+    "AuthObject": "ZNEWS",
+    "FieldName": "VKORG"
+  },
+  {
+    "RecipientId": "R000078",
+    "FullName": "Лебедев Ольга",
+    "Email": "лебедев.ольга@corp.ru",
+    "Role": "Менеджер",
+    "AuthObject": "ZMAIL",
+    "FieldName": "WERKS"
+  },
+  {
+    "RecipientId": "R000079",
+    "FullName": "Михайлов Екатерина",
+    "Email": "михайлов.екатерина@company.com",
+    "Role": "Координатор",
+    "AuthObject": "ZUSER",
+    "FieldName": "WERKS"
+  },
+  {
+    "RecipientId": "R000080",
+    "FullName": "Павлов Артем",
+    "Email": "павлов.артем@enterprise.ru",
+    "Role": "Консультант",
+    "AuthObject": "ZNEWS",
+    "FieldName": "WERKS"
+  },
+  {
+    "RecipientId": "R000081",
+    "FullName": "Иванов Николай",
+    "Email": "иванов.николай@company.com",
+    "Role": "Консультант",
+    "AuthObject": "ZNEWS",
+    "FieldName": "WERKS"
+  },
+  {
+    "RecipientId": "R000082",
+    "FullName": "Богданов Алена",
+    "Email": "богданов.алена@enterprise.ru",
+    "Role": "Менеджер",
+    "AuthObject": "ZNEWS",
+    "FieldName": "BUKRS"
+  },
+  {
+    "RecipientId": "R000083",
+    "FullName": "Соколов Владимир",
+    "Email": "соколов.владимир@enterprise.ru",
+    "Role": "Руководитель",
+    "AuthObject": "ZUSER",
+    "FieldName": "EKORG"
+  },
+  {
+    "RecipientId": "R000084",
+    "FullName": "Воробьев Максим",
+    "Email": "воробьев.максим@enterprise.ru",
+    "Role": "Разработчик",
+    "AuthObject": "ZUSER",
+    "FieldName": "EKORG"
+  },
+  {
+    "RecipientId": "R000085",
+    "FullName": "Козлов Алексей",
+    "Email": "козлов.алексей@mail.example.org",
+    "Role": "Координатор",
+    "AuthObject": "ZNEWS",
+    "FieldName": "VKORG"
+  },
+  {
+    "RecipientId": "R000086",
+    "FullName": "Сидоров Владимир",
+    "Email": "сидоров.владимир@mail.example.org",
+    "Role": "Тестировщик",
+    "AuthObject": "ZADMIN",
+    "FieldName": "VKORG"
+  },
+  {
+    "RecipientId": "R000087",
+    "FullName": "Воробьев Андрей",
+    "Email": "воробьев.андрей@company.com",
+    "Role": "Разработчик",
+    "AuthObject": "ZNEWS",
+    "FieldName": "WERKS"
+  },
+  {
+    "RecipientId": "R000088",
+    "FullName": "Соколов Михаил",
+    "Email": "соколов.михаил@corp.ru",
+    "Role": "Аналитик",
+    "AuthObject": "ZUSER",
+    "FieldName": "EKORG"
+  },
+  {
+    "RecipientId": "R000089",
+    "FullName": "Воробьев Андрей",
+    "Email": "воробьев.андрей@enterprise.ru",
+    "Role": "Консультант",
+    "AuthObject": "ZMAIL",
+    "FieldName": "WERKS"
+  },
+  {
+    "RecipientId": "R000090",
+    "FullName": "Семенов Максим",
+    "Email": "семенов.максим@enterprise.ru",
+    "Role": "Менеджер",
+    "AuthObject": "ZUSER",
+    "FieldName": "EKORG"
+  },
+  {
+    "RecipientId": "R000091",
+    "FullName": "Зайцев Иван",
+    "Email": "зайцев.иван@mail.example.org",
+    "Role": "Консультант",
+    "AuthObject": "ZUSER",
+    "FieldName": "WERKS"
+  },
+  {
+    "RecipientId": "R000092",
+    "FullName": "Козлов Екатерина",
+    "Email": "козлов.екатерина@mail.example.org",
+    "Role": "Консультант",
+    "AuthObject": "ZUSER",
+    "FieldName": "BUKRS"
+  },
+  {
+    "RecipientId": "R000093",
+    "FullName": "Волков Михаил",
+    "Email": "волков.михаил@enterprise.ru",
+    "Role": "Разработчик",
+    "AuthObject": "ZUSER",
+    "FieldName": "WERKS"
+  },
+  {
+    "RecipientId": "R000094",
+    "FullName": "Воробьев Виктория",
+    "Email": "воробьев.виктория@company.com",
+    "Role": "Консультант",
+    "AuthObject": "ZMAIL",
+    "FieldName": "BUKRS"
+  },
+  {
+    "RecipientId": "R000095",
+    "FullName": "Семенов Николай",
+    "Email": "семенов.николай@corp.ru",
+    "Role": "Координатор",
+    "AuthObject": "ZNEWS",
+    "FieldName": "BUKRS"
+  },
+  {
+    "RecipientId": "R000096",
+    "FullName": "Павлов Алексей",
+    "Email": "павлов.алексей@mail.example.org",
+    "Role": "Тестировщик",
+    "AuthObject": "ZUSER",
+    "FieldName": "VKORG"
+  },
+  {
+    "RecipientId": "R000097",
+    "FullName": "Павлов Андрей",
+    "Email": "павлов.андрей@mail.example.org",
+    "Role": "Консультант",
+    "AuthObject": "ZADMIN",
+    "FieldName": "BUKRS"
+  },
+  {
+    "RecipientId": "R000098",
+    "FullName": "Иванов Екатерина",
+    "Email": "иванов.екатерина@company.com",
+    "Role": "Руководитель",
+    "AuthObject": "ZNEWS",
+    "FieldName": "BUKRS"
+  },
+  {
+    "RecipientId": "R000099",
+    "FullName": "Петров Роман",
+    "Email": "петров.роман@company.com",
+    "Role": "Тестировщик",
+    "AuthObject": "ZNEWS",
+    "FieldName": "BUKRS"
+  },
+  {
+    "RecipientId": "R000100",
+    "FullName": "Соколов Виктория",
+    "Email": "соколов.виктория@corp.ru",
+    "Role": "Разработчик",
+    "AuthObject": "ZUSER",
+    "FieldName": "BUKRS"
+  },
+  {
+    "RecipientId": "R000101",
+    "FullName": "Лебедев Павел",
+    "Email": "лебедев.павел@enterprise.ru",
+    "Role": "Архитектор",
+    "AuthObject": "ZADMIN",
+    "FieldName": "WERKS"
+  },
+  {
+    "RecipientId": "R000102",
+    "FullName": "Михайлов Виктория",
+    "Email": "михайлов.виктория@company.com",
+    "Role": "Разработчик",
+    "AuthObject": "ZADMIN",
+    "FieldName": "BUKRS"
+  },
+  {
+    "RecipientId": "R000103",
+    "FullName": "Иванов Павел",
+    "Email": "иванов.павел@mail.example.org",
+    "Role": "Консультант",
+    "AuthObject": "ZUSER",
+    "FieldName": "WERKS"
+  },
+  {
+    "RecipientId": "R000104",
+    "FullName": "Федоров Анна",
+    "Email": "федоров.анна@corp.ru",
+    "Role": "Аналитик",
+    "AuthObject": "ZADMIN",
+    "FieldName": "BUKRS"
+  },
+  {
+    "RecipientId": "R000105",
+    "FullName": "Федоров Алена",
+    "Email": "федоров.алена@company.com",
+    "Role": "Руководитель",
+    "AuthObject": "ZUSER",
+    "FieldName": "VKORG"
+  },
+  {
+    "RecipientId": "R000106",
+    "FullName": "Богданов Анна",
+    "Email": "богданов.анна@mail.example.org",
+    "Role": "Менеджер",
+    "AuthObject": "ZUSER",
+    "FieldName": "EKORG"
+  },
+  {
+    "RecipientId": "R000107",
+    "FullName": "Семенов Мария",
+    "Email": "семенов.мария@mail.example.org",
+    "Role": "Координатор",
+    "AuthObject": "ZNEWS",
+    "FieldName": "EKORG"
+  },
+  {
+    "RecipientId": "R000108",
+    "FullName": "Богданов Елена",
+    "Email": "богданов.елена@mail.example.org",
+    "Role": "Координатор",
+    "AuthObject": "ZUSER",
+    "FieldName": "EKORG"
+  },
+  {
+    "RecipientId": "R000109",
+    "FullName": "Федоров Максим",
+    "Email": "федоров.максим@mail.example.org",
+    "Role": "Руководитель",
+    "AuthObject": "ZNEWS",
+    "FieldName": "BUKRS"
+  },
+  {
+    "RecipientId": "R000110",
+    "FullName": "Голубев Алексей",
+    "Email": "голубев.алексей@corp.ru",
+    "Role": "Координатор",
+    "AuthObject": "ZUSER",
+    "FieldName": "VKORG"
+  },
+  {
+    "RecipientId": "R000111",
+    "FullName": "Виноградов Иван",
+    "Email": "виноградов.иван@mail.example.org",
+    "Role": "Разработчик",
+    "AuthObject": "ZUSER",
+    "FieldName": "WERKS"
+  },
+  {
+    "RecipientId": "R000112",
+    "FullName": "Новиков Татьяна",
+    "Email": "новиков.татьяна@mail.example.org",
+    "Role": "Архитектор",
+    "AuthObject": "ZADMIN",
+    "FieldName": "BUKRS"
+  },
+  {
+    "RecipientId": "R000113",
+    "FullName": "Лебедев Сергей",
+    "Email": "лебедев.сергей@company.com",
+    "Role": "Тестировщик",
+    "AuthObject": "ZUSER",
+    "FieldName": "EKORG"
+  },
+  {
+    "RecipientId": "R000114",
+    "FullName": "Козлов Ирина",
+    "Email": "козлов.ирина@enterprise.ru",
+    "Role": "Координатор",
+    "AuthObject": "ZUSER",
+    "FieldName": "BUKRS"
+  },
+  {
+    "RecipientId": "R000115",
+    "FullName": "Морозов Анна",
+    "Email": "морозов.анна@corp.ru",
+    "Role": "Консультант",
+    "AuthObject": "ZNEWS",
+    "FieldName": "VKORG"
+  },
+  {
+    "RecipientId": "R000116",
+    "FullName": "Федоров Светлана",
+    "Email": "федоров.светлана@mail.example.org",
+    "Role": "Координатор",
+    "AuthObject": "ZADMIN",
+    "FieldName": "EKORG"
+  },
+  {
+    "RecipientId": "R000117",
+    "FullName": "Воробьев Оксана",
+    "Email": "воробьев.оксана@mail.example.org",
+    "Role": "Руководитель",
+    "AuthObject": "ZUSER",
+    "FieldName": "VKORG"
+  },
+  {
+    "RecipientId": "R000118",
+    "FullName": "Новиков Наталья",
+    "Email": "новиков.наталья@corp.ru",
+    "Role": "Аналитик",
+    "AuthObject": "ZNEWS",
+    "FieldName": "VKORG"
+  },
+  {
+    "RecipientId": "R000119",
+    "FullName": "Воробьев Мария",
+    "Email": "воробьев.мария@corp.ru",
+    "Role": "Тестировщик",
+    "AuthObject": "ZNEWS",
+    "FieldName": "EKORG"
+  },
+  {
+    "RecipientId": "R000120",
+    "FullName": "Федоров Алексей",
+    "Email": "федоров.алексей@mail.example.org",
+    "Role": "Аналитик",
+    "AuthObject": "ZNEWS",
+    "FieldName": "VKORG"
+  },
+  {
+    "RecipientId": "R000121",
+    "FullName": "Зайцев Ольга",
+    "Email": "зайцев.ольга@corp.ru",
+    "Role": "Архитектор",
+    "AuthObject": "ZMAIL",
+    "FieldName": "WERKS"
+  },
+  {
+    "RecipientId": "R000122",
+    "FullName": "Петров Алексей",
+    "Email": "петров.алексей@company.com",
+    "Role": "Архитектор",
+    "AuthObject": "ZNEWS",
+    "FieldName": "EKORG"
+  },
+  {
+    "RecipientId": "R000123",
+    "FullName": "Иванов Мария",
+    "Email": "иванов.мария@mail.example.org",
+    "Role": "Координатор",
+    "AuthObject": "ZUSER",
+    "FieldName": "EKORG"
+  },
+  {
+    "RecipientId": "R000124",
+    "FullName": "Попов Андрей",
+    "Email": "попов.андрей@company.com",
+    "Role": "Архитектор",
+    "AuthObject": "ZUSER",
+    "FieldName": "BUKRS"
+  },
+  {
+    "RecipientId": "R000125",
+    "FullName": "Сидоров Максим",
+    "Email": "сидоров.максим@enterprise.ru",
+    "Role": "Координатор",
+    "AuthObject": "ZMAIL",
+    "FieldName": "BUKRS"
+  },
+  {
+    "RecipientId": "R000126",
+    "FullName": "Соколов Сергей",
+    "Email": "соколов.сергей@mail.example.org",
+    "Role": "Аналитик",
+    "AuthObject": "ZNEWS",
+    "FieldName": "BUKRS"
+  },
+  {
+    "RecipientId": "R000127",
+    "FullName": "Семенов Ирина",
+    "Email": "семенов.ирина@corp.ru",
+    "Role": "Консультант",
+    "AuthObject": "ZUSER",
+    "FieldName": "EKORG"
+  },
+  {
+    "RecipientId": "R000128",
+    "FullName": "Федоров Наталья",
+    "Email": "федоров.наталья@enterprise.ru",
+    "Role": "Архитектор",
+    "AuthObject": "ZMAIL",
+    "FieldName": "BUKRS"
+  },
+  {
+    "RecipientId": "R000129",
+    "FullName": "Лебедев Роман",
+    "Email": "лебедев.роман@corp.ru",
+    "Role": "Архитектор",
+    "AuthObject": "ZMAIL",
+    "FieldName": "WERKS"
+  },
+  {
+    "RecipientId": "R000130",
+    "FullName": "Попов Ольга",
+    "Email": "попов.ольга@company.com",
+    "Role": "Разработчик",
+    "AuthObject": "ZMAIL",
+    "FieldName": "EKORG"
+  },
+  {
+    "RecipientId": "R000131",
+    "FullName": "Михайлов Владимир",
+    "Email": "михайлов.владимир@enterprise.ru",
+    "Role": "Архитектор",
+    "AuthObject": "ZMAIL",
+    "FieldName": "WERKS"
+  },
+  {
+    "RecipientId": "R000132",
+    "FullName": "Морозов Наталья",
+    "Email": "морозов.наталья@enterprise.ru",
+    "Role": "Аналитик",
+    "AuthObject": "ZNEWS",
+    "FieldName": "VKORG"
+  },
+  {
+    "RecipientId": "R000133",
+    "FullName": "Федоров Алена",
+    "Email": "федоров.алена@corp.ru",
+    "Role": "Консультант",
+    "AuthObject": "ZMAIL",
+    "FieldName": "WERKS"
+  },
+  {
+    "RecipientId": "R000134",
+    "FullName": "Соколов Николай",
+    "Email": "соколов.николай@mail.example.org",
+    "Role": "Разработчик",
+    "AuthObject": "ZMAIL",
+    "FieldName": "BUKRS"
+  },
+  {
+    "RecipientId": "R000135",
+    "FullName": "Морозов Елена",
+    "Email": "морозов.елена@mail.example.org",
+    "Role": "Координатор",
+    "AuthObject": "ZMAIL",
+    "FieldName": "EKORG"
+  },
+  {
+    "RecipientId": "R000136",
+    "FullName": "Морозов Артем",
+    "Email": "морозов.артем@enterprise.ru",
+    "Role": "Архитектор",
+    "AuthObject": "ZUSER",
+    "FieldName": "EKORG"
+  },
+  {
+    "RecipientId": "R000137",
+    "FullName": "Михайлов Анна",
+    "Email": "михайлов.анна@company.com",
+    "Role": "Консультант",
+    "AuthObject": "ZADMIN",
+    "FieldName": "VKORG"
+  },
+  {
+    "RecipientId": "R000138",
+    "FullName": "Сидоров Иван",
+    "Email": "сидоров.иван@corp.ru",
+    "Role": "Менеджер",
+    "AuthObject": "ZADMIN",
+    "FieldName": "BUKRS"
+  },
+  {
+    "RecipientId": "R000139",
+    "FullName": "Попов Роман",
+    "Email": "попов.роман@enterprise.ru",
+    "Role": "Координатор",
+    "AuthObject": "ZADMIN",
+    "FieldName": "WERKS"
+  },
+  {
+    "RecipientId": "R000140",
+    "FullName": "Семенов Павел",
+    "Email": "семенов.павел@enterprise.ru",
+    "Role": "Аналитик",
+    "AuthObject": "ZUSER",
+    "FieldName": "VKORG"
+  },
+  {
+    "RecipientId": "R000141",
+    "FullName": "Волков Юлия",
+    "Email": "волков.юлия@mail.example.org",
+    "Role": "Аналитик",
+    "AuthObject": "ZNEWS",
+    "FieldName": "VKORG"
+  },
+  {
+    "RecipientId": "R000142",
+    "FullName": "Виноградов Юлия",
+    "Email": "виноградов.юлия@mail.example.org",
+    "Role": "Консультант",
+    "AuthObject": "ZMAIL",
+    "FieldName": "EKORG"
+  },
+  {
+    "RecipientId": "R000143",
+    "FullName": "Волков Анна",
+    "Email": "волков.анна@mail.example.org",
+    "Role": "Руководитель",
+    "AuthObject": "ZMAIL",
+    "FieldName": "EKORG"
+  },
+  {
+    "RecipientId": "R000144",
+    "FullName": "Богданов Дарья",
+    "Email": "богданов.дарья@company.com",
+    "Role": "Координатор",
+    "AuthObject": "ZUSER",
+    "FieldName": "BUKRS"
+  },
+  {
+    "RecipientId": "R000145",
+    "FullName": "Богданов Дмитрий",
+    "Email": "богданов.дмитрий@mail.example.org",
+    "Role": "Координатор",
+    "AuthObject": "ZUSER",
+    "FieldName": "BUKRS"
+  },
+  {
+    "RecipientId": "R000146",
+    "FullName": "Новиков Дмитрий",
+    "Email": "новиков.дмитрий@corp.ru",
+    "Role": "Архитектор",
+    "AuthObject": "ZUSER",
+    "FieldName": "EKORG"
+  },
+  {
+    "RecipientId": "R000147",
+    "FullName": "Иванов Мария",
+    "Email": "иванов.мария@corp.ru",
+    "Role": "Разработчик",
+    "AuthObject": "ZADMIN",
+    "FieldName": "BUKRS"
+  },
+  {
+    "RecipientId": "R000148",
+    "FullName": "Семенов Ирина",
+    "Email": "семенов.ирина@company.com",
+    "Role": "Тестировщик",
+    "AuthObject": "ZMAIL",
+    "FieldName": "EKORG"
+  },
+  {
+    "RecipientId": "R000149",
+    "FullName": "Соколов Мария",
+    "Email": "соколов.мария@enterprise.ru",
+    "Role": "Архитектор",
+    "AuthObject": "ZADMIN",
+    "FieldName": "EKORG"
+  },
+  {
+    "RecipientId": "R000150",
+    "FullName": "Виноградов Максим",
+    "Email": "виноградов.максим@enterprise.ru",
+    "Role": "Тестировщик",
+    "AuthObject": "ZUSER",
+    "FieldName": "WERKS"
+  },
+  {
+    "RecipientId": "R000151",
+    "FullName": "Лебедев Михаил",
+    "Email": "лебедев.михаил@corp.ru",
+    "Role": "Аналитик",
+    "AuthObject": "ZADMIN",
+    "FieldName": "EKORG"
+  },
+  {
+    "RecipientId": "R000152",
+    "FullName": "Богданов Андрей",
+    "Email": "богданов.андрей@mail.example.org",
+    "Role": "Менеджер",
+    "AuthObject": "ZADMIN",
+    "FieldName": "VKORG"
+  },
+  {
+    "RecipientId": "R000153",
+    "FullName": "Федоров Максим",
+    "Email": "федоров.максим@enterprise.ru",
+    "Role": "Разработчик",
+    "AuthObject": "ZUSER",
+    "FieldName": "EKORG"
+  },
+  {
+    "RecipientId": "R000154",
+    "FullName": "Волков Татьяна",
+    "Email": "волков.татьяна@enterprise.ru",
+    "Role": "Координатор",
+    "AuthObject": "ZADMIN",
+    "FieldName": "WERKS"
+  },
+  {
+    "RecipientId": "R000155",
+    "FullName": "Козлов Артем",
+    "Email": "козлов.артем@enterprise.ru",
+    "Role": "Тестировщик",
+    "AuthObject": "ZUSER",
+    "FieldName": "BUKRS"
+  },
+  {
+    "RecipientId": "R000156",
+    "FullName": "Виноградов Андрей",
+    "Email": "виноградов.андрей@enterprise.ru",
+    "Role": "Консультант",
+    "AuthObject": "ZNEWS",
+    "FieldName": "EKORG"
+  },
+  {
+    "RecipientId": "R000157",
+    "FullName": "Соколов Петр",
+    "Email": "соколов.петр@mail.example.org",
+    "Role": "Аналитик",
+    "AuthObject": "ZUSER",
+    "FieldName": "BUKRS"
+  },
+  {
+    "RecipientId": "R000158",
+    "FullName": "Голубев Сергей",
+    "Email": "голубев.сергей@company.com",
+    "Role": "Разработчик",
+    "AuthObject": "ZUSER",
+    "FieldName": "WERKS"
+  },
+  {
+    "RecipientId": "R000159",
+    "FullName": "Виноградов Анна",
+    "Email": "виноградов.анна@mail.example.org",
+    "Role": "Руководитель",
+    "AuthObject": "ZUSER",
+    "FieldName": "BUKRS"
+  },
+  {
+    "RecipientId": "R000160",
+    "FullName": "Волков Дарья",
+    "Email": "волков.дарья@enterprise.ru",
+    "Role": "Руководитель",
+    "AuthObject": "ZUSER",
+    "FieldName": "BUKRS"
+  },
+  {
+    "RecipientId": "R000161",
+    "FullName": "Сидоров Виктория",
+    "Email": "сидоров.виктория@corp.ru",
+    "Role": "Архитектор",
+    "AuthObject": "ZNEWS",
+    "FieldName": "BUKRS"
+  },
+  {
+    "RecipientId": "R000162",
+    "FullName": "Кузнецов Юлия",
+    "Email": "кузнецов.юлия@company.com",
+    "Role": "Координатор",
+    "AuthObject": "ZNEWS",
+    "FieldName": "VKORG"
+  },
+  {
+    "RecipientId": "R000163",
+    "FullName": "Иванов Кирилл",
+    "Email": "иванов.кирилл@company.com",
+    "Role": "Руководитель",
+    "AuthObject": "ZMAIL",
+    "FieldName": "VKORG"
+  },
+  {
+    "RecipientId": "R000164",
+    "FullName": "Зайцев Татьяна",
+    "Email": "зайцев.татьяна@enterprise.ru",
+    "Role": "Разработчик",
+    "AuthObject": "ZNEWS",
+    "FieldName": "EKORG"
+  },
+  {
+    "RecipientId": "R000165",
+    "FullName": "Попов Павел",
+    "Email": "попов.павел@corp.ru",
+    "Role": "Разработчик",
+    "AuthObject": "ZMAIL",
+    "FieldName": "EKORG"
+  },
+  {
+    "RecipientId": "R000166",
+    "FullName": "Козлов Виктория",
+    "Email": "козлов.виктория@enterprise.ru",
+    "Role": "Разработчик",
+    "AuthObject": "ZNEWS",
+    "FieldName": "EKORG"
+  },
+  {
+    "RecipientId": "R000167",
+    "FullName": "Новиков Николай",
+    "Email": "новиков.николай@enterprise.ru",
+    "Role": "Архитектор",
+    "AuthObject": "ZMAIL",
+    "FieldName": "EKORG"
+  },
+  {
+    "RecipientId": "R000168",
+    "FullName": "Морозов Кирилл",
+    "Email": "морозов.кирилл@corp.ru",
+    "Role": "Аналитик",
+    "AuthObject": "ZUSER",
+    "FieldName": "VKORG"
+  },
+  {
+    "RecipientId": "R000169",
+    "FullName": "Морозов Павел",
+    "Email": "морозов.павел@enterprise.ru",
+    "Role": "Архитектор",
+    "AuthObject": "ZUSER",
+    "FieldName": "VKORG"
+  },
+  {
+    "RecipientId": "R000170",
+    "FullName": "Павлов Дмитрий",
+    "Email": "павлов.дмитрий@enterprise.ru",
+    "Role": "Аналитик",
+    "AuthObject": "ZNEWS",
+    "FieldName": "EKORG"
+  },
+  {
+    "RecipientId": "R000171",
+    "FullName": "Зайцев Павел",
+    "Email": "зайцев.павел@mail.example.org",
+    "Role": "Архитектор",
+    "AuthObject": "ZMAIL",
+    "FieldName": "EKORG"
+  },
+  {
+    "RecipientId": "R000172",
+    "FullName": "Иванов Алексей",
+    "Email": "иванов.алексей@company.com",
+    "Role": "Координатор",
+    "AuthObject": "ZADMIN",
+    "FieldName": "WERKS"
+  },
+  {
+    "RecipientId": "R000173",
+    "FullName": "Зайцев Виктория",
+    "Email": "зайцев.виктория@corp.ru",
+    "Role": "Тестировщик",
+    "AuthObject": "ZADMIN",
+    "FieldName": "WERKS"
+  },
+  {
+    "RecipientId": "R000174",
+    "FullName": "Кузнецов Николай",
+    "Email": "кузнецов.николай@company.com",
+    "Role": "Архитектор",
+    "AuthObject": "ZUSER",
+    "FieldName": "BUKRS"
+  },
+  {
+    "RecipientId": "R000175",
+    "FullName": "Зайцев Павел",
+    "Email": "зайцев.павел@corp.ru",
+    "Role": "Аналитик",
+    "AuthObject": "ZADMIN",
+    "FieldName": "VKORG"
+  },
+  {
+    "RecipientId": "R000176",
+    "FullName": "Семенов Оксана",
+    "Email": "семенов.оксана@corp.ru",
+    "Role": "Тестировщик",
+    "AuthObject": "ZNEWS",
+    "FieldName": "VKORG"
+  },
+  {
+    "RecipientId": "R000177",
+    "FullName": "Богданов Сергей",
+    "Email": "богданов.сергей@mail.example.org",
+    "Role": "Разработчик",
+    "AuthObject": "ZADMIN",
+    "FieldName": "EKORG"
+  },
+  {
+    "RecipientId": "R000178",
+    "FullName": "Морозов Алена",
+    "Email": "морозов.алена@mail.example.org",
+    "Role": "Аналитик",
+    "AuthObject": "ZUSER",
+    "FieldName": "BUKRS"
+  },
+  {
+    "RecipientId": "R000179",
+    "FullName": "Козлов Сергей",
+    "Email": "козлов.сергей@enterprise.ru",
+    "Role": "Руководитель",
+    "AuthObject": "ZMAIL",
+    "FieldName": "EKORG"
+  },
+  {
+    "RecipientId": "R000180",
+    "FullName": "Новиков Иван",
+    "Email": "новиков.иван@company.com",
+    "Role": "Координатор",
+    "AuthObject": "ZADMIN",
+    "FieldName": "VKORG"
+  },
+  {
+    "RecipientId": "R000181",
+    "FullName": "Павлов Павел",
+    "Email": "павлов.павел@mail.example.org",
+    "Role": "Аналитик",
+    "AuthObject": "ZNEWS",
+    "FieldName": "EKORG"
+  },
+  {
+    "RecipientId": "R000182",
+    "FullName": "Михайлов Иван",
+    "Email": "михайлов.иван@mail.example.org",
+    "Role": "Тестировщик",
+    "AuthObject": "ZMAIL",
+    "FieldName": "EKORG"
+  },
+  {
+    "RecipientId": "R000183",
+    "FullName": "Морозов Полина",
+    "Email": "морозов.полина@enterprise.ru",
+    "Role": "Аналитик",
+    "AuthObject": "ZNEWS",
+    "FieldName": "BUKRS"
+  },
+  {
+    "RecipientId": "R000184",
+    "FullName": "Морозов Петр",
+    "Email": "морозов.петр@enterprise.ru",
+    "Role": "Аналитик",
+    "AuthObject": "ZMAIL",
+    "FieldName": "WERKS"
+  },
+  {
+    "RecipientId": "R000185",
+    "FullName": "Воробьев Кирилл",
+    "Email": "воробьев.кирилл@corp.ru",
+    "Role": "Консультант",
+    "AuthObject": "ZUSER",
+    "FieldName": "VKORG"
+  },
+  {
+    "RecipientId": "R000186",
+    "FullName": "Воробьев Светлана",
+    "Email": "воробьев.светлана@enterprise.ru",
+    "Role": "Разработчик",
+    "AuthObject": "ZUSER",
+    "FieldName": "BUKRS"
+  },
+  {
+    "RecipientId": "R000187",
+    "FullName": "Виноградов Максим",
+    "Email": "виноградов.максим@enterprise.ru",
+    "Role": "Архитектор",
+    "AuthObject": "ZMAIL",
+    "FieldName": "VKORG"
+  },
+  {
+    "RecipientId": "R000188",
+    "FullName": "Голубев Дмитрий",
+    "Email": "голубев.дмитрий@enterprise.ru",
+    "Role": "Тестировщик",
+    "AuthObject": "ZADMIN",
+    "FieldName": "BUKRS"
+  },
+  {
+    "RecipientId": "R000189",
+    "FullName": "Зайцев Светлана",
+    "Email": "зайцев.светлана@mail.example.org",
+    "Role": "Менеджер",
+    "AuthObject": "ZUSER",
+    "FieldName": "VKORG"
+  },
+  {
+    "RecipientId": "R000190",
+    "FullName": "Кузнецов Дмитрий",
+    "Email": "кузнецов.дмитрий@enterprise.ru",
+    "Role": "Аналитик",
+    "AuthObject": "ZNEWS",
+    "FieldName": "BUKRS"
+  },
+  {
+    "RecipientId": "R000191",
+    "FullName": "Волков Петр",
+    "Email": "волков.петр@corp.ru",
+    "Role": "Разработчик",
+    "AuthObject": "ZNEWS",
+    "FieldName": "BUKRS"
+  },
+  {
+    "RecipientId": "R000192",
+    "FullName": "Воробьев Максим",
+    "Email": "воробьев.максим@corp.ru",
+    "Role": "Тестировщик",
+    "AuthObject": "ZNEWS",
+    "FieldName": "VKORG"
+  },
+  {
+    "RecipientId": "R000193",
+    "FullName": "Соколов Роман",
+    "Email": "соколов.роман@company.com",
+    "Role": "Архитектор",
+    "AuthObject": "ZNEWS",
+    "FieldName": "WERKS"
+  },
+  {
+    "RecipientId": "R000194",
+    "FullName": "Новиков Ирина",
+    "Email": "новиков.ирина@corp.ru",
+    "Role": "Аналитик",
+    "AuthObject": "ZMAIL",
+    "FieldName": "WERKS"
+  },
+  {
+    "RecipientId": "R000195",
+    "FullName": "Зайцев Иван",
+    "Email": "зайцев.иван@corp.ru",
+    "Role": "Руководитель",
+    "AuthObject": "ZMAIL",
+    "FieldName": "WERKS"
+  },
+  {
+    "RecipientId": "R000196",
+    "FullName": "Петров Алексей",
+    "Email": "петров.алексей@corp.ru",
+    "Role": "Консультант",
+    "AuthObject": "ZMAIL",
+    "FieldName": "BUKRS"
+  },
+  {
+    "RecipientId": "R000197",
+    "FullName": "Голубев Екатерина",
+    "Email": "голубев.екатерина@mail.example.org",
+    "Role": "Аналитик",
+    "AuthObject": "ZUSER",
+    "FieldName": "WERKS"
+  },
+  {
+    "RecipientId": "R000198",
+    "FullName": "Петров Виктория",
+    "Email": "петров.виктория@mail.example.org",
+    "Role": "Координатор",
+    "AuthObject": "ZMAIL",
+    "FieldName": "BUKRS"
+  },
+  {
+    "RecipientId": "R000199",
+    "FullName": "Павлов Екатерина",
+    "Email": "павлов.екатерина@enterprise.ru",
+    "Role": "Аналитик",
+    "AuthObject": "ZUSER",
+    "FieldName": "EKORG"
+  },
+  {
+    "RecipientId": "R000200",
+    "FullName": "Сидоров Анна",
+    "Email": "сидоров.анна@mail.example.org",
+    "Role": "Разработчик",
+    "AuthObject": "ZMAIL",
+    "FieldName": "WERKS"
+  },
+  {
+    "RecipientId": "R000201",
+    "FullName": "Михайлов Алексей",
+    "Email": "михайлов.алексей@mail.example.org",
+    "Role": "Консультант",
+    "AuthObject": "ZADMIN",
+    "FieldName": "EKORG"
+  },
+  {
+    "RecipientId": "R000202",
+    "FullName": "Михайлов Сергей",
+    "Email": "михайлов.сергей@enterprise.ru",
+    "Role": "Аналитик",
+    "AuthObject": "ZMAIL",
+    "FieldName": "WERKS"
+  },
+  {
+    "RecipientId": "R000203",
+    "FullName": "Голубев Юлия",
+    "Email": "голубев.юлия@corp.ru",
+    "Role": "Консультант",
+    "AuthObject": "ZADMIN",
+    "FieldName": "EKORG"
+  },
+  {
+    "RecipientId": "R000204",
+    "FullName": "Семенов Михаил",
+    "Email": "семенов.михаил@company.com",
+    "Role": "Руководитель",
+    "AuthObject": "ZUSER",
+    "FieldName": "VKORG"
+  },
+  {
+    "RecipientId": "R000205",
+    "FullName": "Новиков Светлана",
+    "Email": "новиков.светлана@mail.example.org",
+    "Role": "Разработчик",
+    "AuthObject": "ZUSER",
+    "FieldName": "BUKRS"
+  },
+  {
+    "RecipientId": "R000206",
+    "FullName": "Сидоров Анна",
+    "Email": "сидоров.анна@company.com",
+    "Role": "Консультант",
+    "AuthObject": "ZMAIL",
+    "FieldName": "VKORG"
+  },
+  {
+    "RecipientId": "R000207",
+    "FullName": "Соколов Алена",
+    "Email": "соколов.алена@company.com",
+    "Role": "Руководитель",
+    "AuthObject": "ZMAIL",
+    "FieldName": "EKORG"
+  },
+  {
+    "RecipientId": "R000208",
+    "FullName": "Семенов Татьяна",
+    "Email": "семенов.татьяна@company.com",
+    "Role": "Архитектор",
+    "AuthObject": "ZADMIN",
+    "FieldName": "VKORG"
+  },
+  {
+    "RecipientId": "R000209",
+    "FullName": "Федоров Мария",
+    "Email": "федоров.мария@corp.ru",
+    "Role": "Разработчик",
+    "AuthObject": "ZUSER",
+    "FieldName": "WERKS"
+  },
+  {
+    "RecipientId": "R000210",
+    "FullName": "Кузнецов Дарья",
+    "Email": "кузнецов.дарья@mail.example.org",
+    "Role": "Руководитель",
+    "AuthObject": "ZMAIL",
+    "FieldName": "VKORG"
+  },
+  {
+    "RecipientId": "R000211",
+    "FullName": "Козлов Павел",
+    "Email": "козлов.павел@enterprise.ru",
+    "Role": "Менеджер",
+    "AuthObject": "ZADMIN",
+    "FieldName": "BUKRS"
+  },
+  {
+    "RecipientId": "R000212",
+    "FullName": "Новиков Елена",
+    "Email": "новиков.елена@mail.example.org",
+    "Role": "Руководитель",
+    "AuthObject": "ZADMIN",
+    "FieldName": "BUKRS"
+  },
+  {
+    "RecipientId": "R000213",
+    "FullName": "Соколов Елена",
+    "Email": "соколов.елена@enterprise.ru",
+    "Role": "Аналитик",
+    "AuthObject": "ZNEWS",
+    "FieldName": "BUKRS"
+  },
+  {
+    "RecipientId": "R000214",
+    "FullName": "Богданов Анна",
+    "Email": "богданов.анна@corp.ru",
+    "Role": "Консультант",
+    "AuthObject": "ZUSER",
+    "FieldName": "EKORG"
+  },
+  {
+    "RecipientId": "R000215",
+    "FullName": "Попов Андрей",
+    "Email": "попов.андрей@mail.example.org",
+    "Role": "Архитектор",
+    "AuthObject": "ZADMIN",
+    "FieldName": "BUKRS"
+  },
+  {
+    "RecipientId": "R000216",
+    "FullName": "Петров Кирилл",
+    "Email": "петров.кирилл@corp.ru",
+    "Role": "Разработчик",
+    "AuthObject": "ZMAIL",
+    "FieldName": "BUKRS"
+  },
+  {
+    "RecipientId": "R000217",
+    "FullName": "Голубев Алексей",
+    "Email": "голубев.алексей@enterprise.ru",
+    "Role": "Координатор",
+    "AuthObject": "ZUSER",
+    "FieldName": "EKORG"
+  },
+  {
+    "RecipientId": "R000218",
+    "FullName": "Лебедев Алексей",
+    "Email": "лебедев.алексей@company.com",
+    "Role": "Руководитель",
+    "AuthObject": "ZUSER",
+    "FieldName": "BUKRS"
+  },
+  {
+    "RecipientId": "R000219",
+    "FullName": "Федоров Наталья",
+    "Email": "федоров.наталья@enterprise.ru",
+    "Role": "Архитектор",
+    "AuthObject": "ZMAIL",
+    "FieldName": "WERKS"
+  },
+  {
+    "RecipientId": "R000220",
+    "FullName": "Михайлов Михаил",
+    "Email": "михайлов.михаил@company.com",
+    "Role": "Менеджер",
+    "AuthObject": "ZNEWS",
+    "FieldName": "VKORG"
+  }
+]

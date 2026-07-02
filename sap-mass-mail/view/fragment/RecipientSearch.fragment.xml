@@ -1,0 +1,177 @@
+<core:FragmentDefinition
+  xmlns="sap.m"
+  xmlns:core="sap.ui.core"
+  xmlns:f="sap.f"
+  xmlns:layout="sap.ui.layout">
+
+  <Dialog
+    id="recipientDialog"
+    title="{i18n>DIALOG_RECIPIENTS}"
+    contentWidth="640px"
+    contentHeight="560px"
+    resizable="true"
+    draggable="true"
+    class="ebDialog ebRecipientDialog">
+
+    <content>
+      <VBox class="sapUiSmallMargin">
+        <IconTabBar
+          id="recipientTabs"
+          select="onRecipTabSelect"
+          selectedKey="{dialog>/selectedMode}"
+          class="ebIconTabBar"
+          expandable="false">
+          <items>
+            <IconTabFilter icon="sap-icon://accept" text="{i18n>TAB_ADDED}" key="added"
+              count="{= ${state>/recipients}.length || '' }" />
+            <IconTabFilter icon="sap-icon://person" text="{i18n>TAB_BY_NAME}" key="name">
+              <HBox width="100%" alignItems="Center" justifyContent="SpaceBetween" class="sapUiSmallMarginBottom">
+                <Input
+                  id="nameSearchInput"
+                  placeholder="{i18n>SEARCH_NAME}"
+                  value="{dialog>/nameSearchValue}"
+                  class="ebSearchInput"
+                  width="100%"
+                  submit="onSearchRecipients" />
+                <Button
+                  icon="sap-icon://search"
+                  press="onSearchRecipients"
+                  type="Emphasized"
+                  tooltip="{i18n>DIALOG_RECIPIENTS}" />
+              </HBox>
+            </IconTabFilter>
+            <IconTabFilter icon="sap-icon://role" text="{i18n>TAB_BY_ROLE}" key="role">
+              <HBox width="100%" alignItems="Center" justifyContent="SpaceBetween" class="sapUiSmallMarginBottom">
+                <Input
+                  id="roleSearchInput"
+                  placeholder="{i18n>SEARCH_ROLE}"
+                  value="{dialog>/roleSearchValue}"
+                  class="ebSearchInput"
+                  width="100%"
+                  submit="onSearchRecipients" />
+                <Button
+                  icon="sap-icon://search"
+                  press="onSearchRecipients"
+                  type="Emphasized"
+                  tooltip="{i18n>DIALOG_RECIPIENTS}" />
+              </HBox>
+            </IconTabFilter>
+            <IconTabFilter icon="sap-icon://key" text="{i18n>TAB_BY_AUTH}" key="authField">
+              <VBox width="100%" class="sapUiSmallMarginBottom">
+                <Label text="{i18n>AUTH_LABEL}" class="ebFieldLabel" />
+                <layout:Grid
+                  defaultSpan="L3 M6 S12"
+                  containerQuery="false"
+                  width="100%">
+                  <Input
+                    id="authObjInput"
+                    placeholder="{i18n>SEARCH_AUTH_OBJ}"
+                    value="{dialog>/authObject}"
+                    class="ebSearchInput"
+                    submit="onSearchRecipients">
+                    <layoutData>
+                      <layout:GridData span="L3 M6 S12" />
+                    </layoutData>
+                  </Input>
+                  <Input
+                    id="authFieldInput"
+                    placeholder="{i18n>SEARCH_AUTH_FIELD}"
+                    value="{dialog>/authField}"
+                    class="ebSearchInput"
+                    submit="onSearchRecipients">
+                    <layoutData>
+                      <layout:GridData span="L3 M6 S12" />
+                    </layoutData>
+                  </Input>
+                  <Input
+                    id="authValueInput"
+                    placeholder="{i18n>SEARCH_AUTH_VALUE}"
+                    value="{dialog>/authValue}"
+                    class="ebSearchInput"
+                    submit="onSearchRecipients">
+                    <layoutData>
+                      <layout:GridData span="L3 M6 S12" />
+                    </layoutData>
+                  </Input>
+                  <Button
+                    icon="sap-icon://search"
+                    press="onSearchRecipients"
+                    type="Emphasized"
+                    tooltip="{i18n>DIALOG_RECIPIENTS}">
+                    <layoutData>
+                      <layout:GridData span="L3 M12 S12" />
+                    </layoutData>
+                  </Button>
+                </layout:Grid>
+              </VBox>
+            </IconTabFilter>
+          </items>
+        </IconTabBar>
+
+        <Table
+          id="recipientTable"
+          visible="{= ${dialog>/selectedMode} !== 'added' }"
+          items="{ path: '/RecipientSet', parameters: { countMode: 'Inline' } }"
+          mode="MultiSelect"
+          growing="true"
+          growingThreshold="20"
+          growingScrollToLoad="true"
+          class="ebDialogTable"
+          noDataText="{i18n>NO_RECIPIENTS_FOUND}">
+          <columns>
+            <Column width="40%" minScreenWidth="Phone" demandPopin="false">
+              <Text text="{i18n>COL_NAME}" />
+            </Column>
+            <Column width="25%" minScreenWidth="Tablet" demandPopin="true" popinDisplay="Inline">
+              <Text text="{i18n>COL_ROLE}" />
+            </Column>
+            <Column width="35%" minScreenWidth="Desktop" demandPopin="true" popinDisplay="Block">
+              <Text text="{i18n>COL_EMAIL}" />
+            </Column>
+          </columns>
+          <items>
+            <ColumnListItem type="Active">
+              <cells>
+                <Text text="{FullName}" wrapping="true" />
+                <Text text="{Role}" wrapping="true" />
+                <Text text="{Email}" wrapping="true" />
+              </cells>
+            </ColumnListItem>
+          </items>
+        </Table>
+
+        <!-- Already-added recipients: view + remove. Bound to the app "state"
+             model (not the OData model) since it reflects local compose state. -->
+        <List
+          id="addedRecipientsList"
+          visible="{= ${dialog>/selectedMode} === 'added' }"
+          items="{state>/recipients}"
+          noDataText="{i18n>NO_RECIPIENTS}"
+          class="ebDialogTable"
+          inset="false">
+          <items>
+            <CustomListItem class="ebSourceItem">
+              <HBox alignItems="Center" width="100%" class="ebSourceItemRow">
+                <core:Icon src="sap-icon://person-placeholder" size="1.2rem" class="ebSourceIcon" />
+                <VBox class="ebSourceInfo">
+                  <Text text="{state>name}" class="ebSourceName" wrapping="true" />
+                  <Text text="{state>email}" class="ebSourceMeta" />
+                </VBox>
+                <Button icon="sap-icon://decline" type="Transparent" press="onRemoveAddedRecipient" tooltip="{i18n>TIP_REMOVE_SOURCE}" />
+              </HBox>
+            </CustomListItem>
+          </items>
+        </List>
+      </VBox>
+    </content>
+
+    <buttons>
+      <Button text="{i18n>ADD_SELECTED}" press="onAddSelectedRecipients" type="Emphasized"
+        visible="{= ${dialog>/selectedMode} !== 'added' }" />
+      <Button text="{i18n>CLEAR_ALL_RECIPIENTS}" press="onClearAllRecipients" type="Transparent"
+        visible="{= ${dialog>/selectedMode} === 'added' }" />
+      <Button text="{i18n>CANCEL}" press="onCancelDialog" />
+    </buttons>
+
+  </Dialog>
+</core:FragmentDefinition>

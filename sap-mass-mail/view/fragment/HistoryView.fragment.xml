@@ -1,0 +1,59 @@
+<core:FragmentDefinition
+  xmlns="sap.m"
+  xmlns:core="sap.ui.core"
+  xmlns:layout="sap.ui.layout">
+
+  <Dialog
+    id="historyViewDialog"
+    title="{i18n>HISTORY_VIEW_TITLE}"
+    contentWidth="720px"
+    contentHeight="640px"
+    resizable="true"
+    draggable="true"
+    class="ebDialog ebHistoryViewDialog">
+
+    <content>
+      <VBox class="sapUiSmallMargin">
+        <Label text="{i18n>COL_SUBJECT}" class="ebFieldLabel" />
+        <Text text="{state>/viewingSubject}" class="ebHistorySubject" />
+
+        <Label text="{i18n>COL_DATETIME}" class="ebFieldLabel sapUiTinyMarginTop" />
+        <Text text="{state>/viewingCreatedAt}" />
+
+        <Label text="{i18n>SEND_STATUS}" class="ebFieldLabel sapUiTinyMarginTop" />
+        <Text
+          text="{parts: [{path: 'i18n>TOTAL_COUNT'}, {path: 'hud>/total'}], formatter: '.formatter.formatCount'}"
+          class="statusHudLabel" />
+        <List
+          items="{hud>/statuses}"
+          inset="false"
+          class="statusHudList"
+          noDataText="">
+          <CustomListItem>
+            <HBox alignItems="Center" width="100%" class="statusHudItem">
+              <ObjectStatus
+                text="{path: 'hud>Status', formatter: '.formatter.statusLabel'}"
+                state="{path: 'hud>Status', formatter: '.formatter.statusState'}"
+                icon="{path: 'hud>Status', formatter: '.formatter.statusIcon'}"
+                class="statusHudStatus" />
+              <Text text="{path: 'hud>Count'}" class="statusHudCount" />
+            </HBox>
+          </CustomListItem>
+        </List>
+
+        <Label text="{i18n>CONTENT}" class="ebFieldLabel sapUiTinyMarginTop" />
+        <ScrollContainer height="320px" vertical="true" horizontal="false" class="ebHistoryScroll">
+          <FormattedText
+            htmlText="{path: 'state>/historyContent', formatter: '.formatter.sanitizedHtml'}"
+            class="ebHistoryContent" />
+        </ScrollContainer>
+      </VBox>
+    </content>
+
+    <buttons>
+      <Button text="{i18n>COPY_TO_DRAFT}" press="onCopyViewingMailing" type="Emphasized" />
+      <Button text="{i18n>CLOSE}" press="onCloseHistoryView" />
+    </buttons>
+
+  </Dialog>
+</core:FragmentDefinition>
