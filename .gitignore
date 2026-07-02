@@ -1,3 +1,9 @@
+
+*.pdf
+*.docx
+*.htm
+*.jpg
+
 ```
 # Logs and temp files
 *.log
