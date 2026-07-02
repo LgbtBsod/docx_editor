@@ -68,8 +68,12 @@ sap.ui.define([
         MessageToast.show(this._t("MSG_MIME_MISMATCH", [file.name, file.type]));
       }
 
-      const sMode = sExt === ".pdf" ? "text" : null;
-      return FileProcessor.process(file, sSourceId, sMode, oBundle)
+      if (sExt === ".pdf") {
+        return this._promptPdfMode(file.name)
+          .then((sMode) => FileProcessor.process(file, sSourceId, sMode, oBundle))
+          .then((sHtml) => this._finalizeSource(sHtml, sSourceId, sExt, file.name));
+      }
+      return FileProcessor.process(file, sSourceId, null, oBundle)
         .then((sHtml) => this._finalizeSource(sHtml, sSourceId, sExt, file.name));
     },
 
@@ -78,6 +82,73 @@ sap.ui.define([
       this._addSourceToList(sSourceId, "file", sName);
     },
 
+    /**
+     * Prompts the user for a PDF import mode via the PdfModeDialog fragment.
+     * Resolves with the selected mode ("text" | "images"), rejects on cancel.
+     *
+     * @param {string} sFileName file name (informational)
+     * @returns {Promise<string>} chosen mode
+     * @private
+     */
+    _promptPdfMode(sFileName) {
+      if (this._fnPdfResolve) {
+        this._fnPdfResolve("text");
+        this._fnPdfResolve = null;
+        this._fnPdfReject = null;
+      }
+
+      return new Promise((resolve, reject) => {
+        this._fnPdfResolve = resolve;
+        this._fnPdfReject = reject;
+
+        if (this._oPdfModeDialog) {
+          this._oState.setProperty("/pdfModeIndex", 0);
+          this._oPdfModeDialog.open();
+          return;
+        }
+
+        Fragment.load({
+          id: this.getView().getId(),
+          name: "emailbuilder.view.fragment.PdfModeDialog",
+          controller: this
+        }).then((oDialog) => {
+          this._oPdfModeDialog = oDialog;
+          this.getView().addDependent(oDialog);
+          this._oState.setProperty("/pdfModeIndex", 0);
+          oDialog.open();
+        }).catch((err) => {
+          this._fnPdfResolve = null;
+          this._fnPdfReject = null;
+          reject(err);
+        });
+      });
+    },
+
+    onPdfModeConfirm() {
+      const bImages = (this._oState.getProperty("/pdfModeIndex") || 0) === 1;
+      const sMode = bImages ? "images" : "text";
+      this._oPdfModeDialog.close();
+      if (this._fnPdfResolve) {
+        const fnResolve = this._fnPdfResolve;
+        this._fnPdfResolve = null;
+        this._fnPdfReject = null;
+        fnResolve(sMode);
+      }
+    },
+
+    onPdfModeCancel() {
+      this._oPdfModeDialog.close();
+      if (this._fnPdfReject) {
+        const fnReject = this._fnPdfReject;
+        this._fnPdfResolve = null;
+        this._fnPdfReject = null;
+        fnReject(new Error("PDF import cancelled"));
+      }
+    },
+
+    onPdfModeTabSelect(oEvent) {
+      this._oState.setProperty("/pdfModeIndex", parseInt(oEvent.getParameter("selectedKey"), 10) || 0);
+    },
 
     _addSourceToList(sSourceId, sType, sName) {
       const sExt = Config.getFileExt(sName);
@@ -105,20 +176,48 @@ sap.ui.define([
       this._updateHeaderBadges();
     },
 
+    /**
+     * Adds a selected news item as its own tracked entry (state>/newsItems),
+     * fully decoupled from file sources — mirrors how recipients are tracked
+     * separately from attachments. The HTML is still inserted into the editor
+     * as a removable source block so onRemoveNewsItem can cleanly retract it.
+     *
+     * @param {object} oObj news entity ({ Title, Content })
+     * @private
+     */
     _addNewsAsSource(oObj) {
       const sClean = Sanitize.forImport(oObj.Content || "");
       const sSourceId = Config.generateSourceId();
       this._oEditor.insert(SourceBlock.wrap(sSourceId, "news", oObj.Title, sClean));
-      this._addSourceToList(sSourceId, "news", oObj.Title);
+
+      const aNews = (this._oState.getProperty("/newsItems") || []).slice();
+      aNews.push({
+        id: sSourceId,
+        title: oObj.Title,
+        meta: Formatter.sourceMeta("news", new Date().toISOString()),
+        addedAt: new Date().toISOString()
+      });
+      this._oState.setProperty("/newsItems", aNews);
+      this._updateHeaderBadges();
+    },
+
+    onRemoveNewsItem(oEvent) {
+      const oCtx = oEvent.getSource().getBindingContext("state");
+      if (!oCtx) { return; }
+      const sId = oCtx.getProperty("id");
+      this._oEditor.removeSource(sId);
+      const aNews = (this._oState.getProperty("/newsItems") || [])
+        .filter((n) => n.id !== sId);
+      this._oState.setProperty("/newsItems", aNews);
+      this._updateHeaderBadges();
     },
 
     onClearAllNews() {
-      const aAll = this._oState.getProperty("/sources") || [];
-      // Keep editor content and source list in sync: remove the inserted
+      const aNews = this._oState.getProperty("/newsItems") || [];
+      // Keep editor content and news list in sync: remove the inserted
       // blocks from the editor as well (was: list cleared, HTML left behind).
-      aAll.filter((s) => s.type === "news")
-          .forEach((s) => this._oEditor.removeSource(s.id));
-      this._oState.setProperty("/sources", aAll.filter((s) => s.type !== "news"));
+      aNews.forEach((n) => this._oEditor.removeSource(n.id));
+      this._oState.setProperty("/newsItems", []);
       this._updateHeaderBadges();
       MessageToast.show(this._t("MSG_NEWS_CLEARED"));
     },

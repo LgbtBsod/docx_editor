@@ -14,65 +14,79 @@
 
     <content>
       <VBox class="sapUiSmallMargin">
-        <layout:Grid
-          defaultSpan="L3 M6 S12"
-          containerQuery="false"
-          width="100%"
-          class="sapUiSmallMarginBottom">
-          <VBox class="ebSearchInput">
-            <Label text="{i18n>YEAR}" class="ebFieldLabel" />
-            <Input
-              placeholder="{i18n>YEAR_PLACEHOLDER}"
-              value="{dialog>/year}"
-              submit="onSearchNews">
-              <layoutData>
-                <layout:GridData span="L3 M6 S12" />
-              </layoutData>
-            </Input>
-          </VBox>
-          <VBox class="ebSearchInput">
-            <Label text="{i18n>QUARTER}" class="ebFieldLabel" />
-            <Select selectedKey="{dialog>/quarter}" change="onSearchNews">
-              <items>
-                <core:Item key="all" text="{i18n>ALL}" />
-                <core:Item key="1" text="Q1" />
-                <core:Item key="2" text="Q2" />
-                <core:Item key="3" text="Q3" />
-                <core:Item key="4" text="Q4" />
-              </items>
-              <layoutData>
-                <layout:GridData span="L3 M6 S12" />
-              </layoutData>
-            </Select>
-          </VBox>
-          <VBox class="ebSearchInput">
-            <Label text="{i18n>AREA}" class="ebFieldLabel" />
-            <Select selectedKey="{dialog>/area}" change="onSearchNews">
-              <items>
-                <core:Item key="" text="{i18n>ALL}" />
-                <core:Item key="Technical" text="Technical" />
-                <core:Item key="Business" text="Business" />
-                <core:Item key="Strategic" text="Strategic" />
-                <core:Item key="Operations" text="Operations" />
-              </items>
-              <layoutData>
-                <layout:GridData span="L3 M6 S12" />
-              </layoutData>
-            </Select>
-          </VBox>
-          <Button
-            icon="sap-icon://search"
-            press="onSearchNews"
-            type="Emphasized"
-            tooltip="{i18n>DIALOG_NEWS}">
-            <layoutData>
-              <layout:GridData span="L3 M12 S12" />
-            </layoutData>
-          </Button>
-        </layout:Grid>
+        <IconTabBar
+          id="newsTabs"
+          select="onNewsTabSelect"
+          selectedKey="{dialog>/selectedMode}"
+          class="ebIconTabBar"
+          expandable="false">
+          <items>
+            <IconTabFilter icon="sap-icon://accept" text="{i18n>TAB_ADDED}" key="added"
+              count="{= ${state>/newsItems}.length || '' }" />
+            <IconTabFilter icon="sap-icon://search" text="{i18n>DIALOG_NEWS}" key="search">
+              <layout:Grid
+                defaultSpan="L3 M6 S12"
+                containerQuery="false"
+                width="100%"
+                class="sapUiSmallMarginBottom">
+                <VBox class="ebSearchInput">
+                  <Label text="{i18n>YEAR}" class="ebFieldLabel" />
+                  <Input
+                    placeholder="{i18n>YEAR_PLACEHOLDER}"
+                    value="{dialog>/year}"
+                    submit="onSearchNews">
+                    <layoutData>
+                      <layout:GridData span="L3 M6 S12" />
+                    </layoutData>
+                  </Input>
+                </VBox>
+                <VBox class="ebSearchInput">
+                  <Label text="{i18n>QUARTER}" class="ebFieldLabel" />
+                  <Select selectedKey="{dialog>/quarter}" change="onSearchNews">
+                    <items>
+                      <core:Item key="all" text="{i18n>ALL}" />
+                      <core:Item key="1" text="Q1" />
+                      <core:Item key="2" text="Q2" />
+                      <core:Item key="3" text="Q3" />
+                      <core:Item key="4" text="Q4" />
+                    </items>
+                    <layoutData>
+                      <layout:GridData span="L3 M6 S12" />
+                    </layoutData>
+                  </Select>
+                </VBox>
+                <VBox class="ebSearchInput">
+                  <Label text="{i18n>AREA}" class="ebFieldLabel" />
+                  <Select selectedKey="{dialog>/area}" change="onSearchNews">
+                    <items>
+                      <core:Item key="" text="{i18n>ALL}" />
+                      <core:Item key="Technical" text="Technical" />
+                      <core:Item key="Business" text="Business" />
+                      <core:Item key="Strategic" text="Strategic" />
+                      <core:Item key="Operations" text="Operations" />
+                    </items>
+                    <layoutData>
+                      <layout:GridData span="L3 M6 S12" />
+                    </layoutData>
+                  </Select>
+                </VBox>
+                <Button
+                  icon="sap-icon://search"
+                  press="onSearchNews"
+                  type="Emphasized"
+                  tooltip="{i18n>DIALOG_NEWS}">
+                  <layoutData>
+                    <layout:GridData span="L3 M12 S12" />
+                  </layoutData>
+                </Button>
+              </layout:Grid>
+            </IconTabFilter>
+          </items>
+        </IconTabBar>
 
         <Table
           id="newsTable"
+          visible="{= ${dialog>/selectedMode} !== 'added' }"
           items="{ path: '/NewsSet', parameters: { countMode: 'Inline' } }"
           mode="MultiSelect"
           growing="true"
@@ -101,11 +115,37 @@
             </ColumnListItem>
           </items>
         </Table>
+
+        <!-- Already-added news: view + remove. Bound to the app "state" model
+             (not the OData model) since it reflects local compose state. -->
+        <List
+          id="addedNewsList"
+          visible="{= ${dialog>/selectedMode} === 'added' }"
+          items="{state>/newsItems}"
+          noDataText="{i18n>NO_NEWS}"
+          class="ebDialogTable"
+          inset="false">
+          <items>
+            <CustomListItem class="ebSourceItem">
+              <HBox alignItems="Center" width="100%" class="ebSourceItemRow">
+                <core:Icon src="sap-icon://notification" size="1.2rem" class="ebSourceIcon" />
+                <VBox class="ebSourceInfo">
+                  <Text text="{state>title}" class="ebSourceName" wrapping="true" />
+                  <Text text="{state>meta}" class="ebSourceMeta" />
+                </VBox>
+                <Button icon="sap-icon://decline" type="Transparent" press="onRemoveNewsItem" tooltip="{i18n>TIP_REMOVE_SOURCE}" />
+              </HBox>
+            </CustomListItem>
+          </items>
+        </List>
       </VBox>
     </content>
 
     <buttons>
-      <Button text="{i18n>ADD_AS_SOURCES}" press="onAddSelectedNews" type="Emphasized" />
+      <Button text="{i18n>ADD_AS_SOURCES}" press="onAddSelectedNews" type="Emphasized"
+        visible="{= ${dialog>/selectedMode} !== 'added' }" />
+      <Button text="{i18n>CLEAR_ALL_NEWS}" press="onClearAllNews" type="Transparent"
+        visible="{= ${dialog>/selectedMode} === 'added' }" />
       <Button text="{i18n>CANCEL}" press="onCancelDialog" />
     </buttons>
 

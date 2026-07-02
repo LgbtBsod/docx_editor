@@ -132,7 +132,28 @@ sap.ui.define([
     }
   };
 
+  /**
+   * Returns the editor's current HTML content.
+   *
+   * Prefers the raw TinyMCE editor's getContent(): it resolves the
+   * blob: object URLs TinyMCE substitutes for data: URI images (so large
+   * embedded images serialize back to their original data: URI, not a
+   * dead blob: reference that only resolves inside this tab). The
+   * RichTextEditor wrapper's own getValue() does not perform this
+   * resolution and silently drops such an image's src entirely — used
+   * only as a fallback when the live TinyMCE instance can't be resolved.
+   *
+   * @returns {string} editor HTML
+   */
   Editor.prototype.getValue = function () {
+    const oTinymce = this._getTinymceEditor();
+    if (oTinymce && typeof oTinymce.getContent === "function") {
+      try {
+        return oTinymce.getContent() || "";
+      } catch (e) {
+        Log.warning("[emailbuilder] TinyMCE getContent failed, falling back: " + e.message);
+      }
+    }
     if (!this._oRte) { return ""; }
     try {
       return this._oRte.getValue() || "";
@@ -150,14 +171,27 @@ sap.ui.define([
     }
   };
 
+  /**
+   * Resolves the live TinyMCE editor instance for this control via the
+   * global tinymce registry (tinymce.get(id)).
+   *
+   * NOTE: the per-iframe reference (iframe.contentWindow.tinymce) is NOT
+   * usable here — TinyMCE4 only tracks activeEditor/editors[] on the
+   * top-level `window.tinymce` singleton, so the iframe copy's
+   * `.activeEditor` is always null. Using it silently forced insert() onto
+   * its setValue()-concatenation fallback for every call, which corrupts
+   * large data: URI images (observed: a mammoth-embedded PNG's whole `src`
+   * attribute gets dropped, leaving only `alt`) instead of using TinyMCE's
+   * own insertContent(), which correctly converts data: URIs to a
+   * blob: reference backed by its blob cache.
+   *
+   * @returns {Object|null} tinymce.Editor instance or null
+   * @private
+   */
   Editor.prototype._getTinymceEditor = function () {
-    if (!this._oRte) { return null; }
+    if (!this._oRte || typeof window.tinymce === "undefined") { return null; }
     try {
-      const oDom = this._oRte.getDomRef ? this._oRte.getDomRef() : null;
-      if (!oDom) { return null; }
-      const oIframe = oDom.querySelector("iframe");
-      if (!oIframe || !oIframe.contentWindow || !oIframe.contentWindow.tinymce) { return null; }
-      return oIframe.contentWindow.tinymce.activeEditor || null;
+      return window.tinymce.get(this._oRte.getId() + "-textarea") || null;
     } catch (e) {
       return null;
     }

@@ -91,6 +91,7 @@ sap.ui.define([
     onOpenNewsDialog() {
       this._ensureDefaultModel();
       if (this._oNewsDialog) {
+        this._setNewsDialogDefaultTab();
         this._oNewsDialog.open();
         return;
       }
@@ -105,17 +106,34 @@ sap.ui.define([
         this._oNewsTable = Fragment.byId(sViewId, "newsTable");
         this.getView().addDependent(oDialog);
 
-        const oModel = new JSONModel({ year: "", quarter: "all", area: "" });
+        const oModel = new JSONModel({ selectedMode: "search", year: "", quarter: "all", area: "" });
         oModel.setSizeLimit(1000);
         oDialog.setModel(oModel, "dialog");
 
-        this._oNewsDialogOpenHandler = () => this._searchNews();
+        this._setNewsDialogDefaultTab();
+
+        this._oNewsDialogOpenHandler = () => {
+          if (oModel.getProperty("/selectedMode") !== "added") {
+            this._searchNews();
+          }
+        };
         oDialog.attachAfterOpen(this._oNewsDialogOpenHandler);
 
         oDialog.open();
       }).catch((err) => {
         Log.error("[emailbuilder] Failed to load NewsSearch fragment");
       });
+    },
+
+    _setNewsDialogDefaultTab() {
+      const oModel = this._oNewsDialog && this._oNewsDialog.getModel("dialog");
+      if (!oModel) { return; }
+      const aNews = this._oState.getProperty("/newsItems") || [];
+      oModel.setProperty("/selectedMode", aNews.length > 0 ? "added" : "search");
+    },
+
+    onNewsTabSelect(oEvent) {
+      if (oEvent.getParameter("selectedKey") !== "added") { this._searchNews(); }
     },
 
     onOpenMailingsDialog() {

@@ -49,12 +49,12 @@ sap.ui.define([
       if (!oState) { return; }
       const aRecipients  = oState.getProperty("/recipients")  || [];
       const aAttachments = oState.getProperty("/attachments") || [];
-      const aSources     = oState.getProperty("/sources")     || [];
+      const aNewsItems   = oState.getProperty("/newsItems")   || [];
       oState.setProperty("/recipientCount",
         aRecipients.length ? this._t("RECIPIENT_COUNT", [aRecipients.length]) : "");
       oState.setProperty("/attachmentCount",
         aAttachments.length ? this._t("ATTACHMENT_COUNT", [aAttachments.length]) : "");
-      oState.setProperty("/newsCount", aSources.filter((s) => s.type === "news").length);
+      oState.setProperty("/newsCount", aNewsItems.length);
     },
 
     /**

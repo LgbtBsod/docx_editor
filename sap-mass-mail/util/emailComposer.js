@@ -1,13 +1,13 @@
 /**
  * Email template composer.
- * FIXED: Clear separation of text encoding (HTML.encode) and HTML sanitization (Sanitize.forEmail).
+ * FIXED: Clear separation of text encoding (encodeXML) and HTML sanitization (Sanitize.forEmail).
  * FIXED: i18n moved to caller (App.controller), not hardcoded.
  */
 sap.ui.define([
-  "sap/ui/core/HTML",
+  "sap/base/security/encodeXML",
   "emailbuilder/util/sanitize",
   "sap/base/Log"
-], (HTML, Sanitize, Log) => {
+], (encodeXML, Sanitize, Log) => {
   "use strict";
 
   let oBundle = null;
@@ -41,7 +41,7 @@ sap.ui.define([
   /**
    * Composes the final HTML email body.
    *
-   * Text fields (sTitle, sFooter) are encoded via HTML.encode() to escape special characters.
+   * Text fields (sTitle, sFooter) are encoded via encodeXML() to escape special characters.
    * HTML content (sBody) is sanitized via Sanitize.forEmail() to allow tags but prevent XSS.
    *
    * @param {string} sEditorHtml raw editor HTML
@@ -56,9 +56,9 @@ sap.ui.define([
       const sBody = Sanitize.forEmail(sEditorHtml || "", aAllowedHosts);
 
       // Text fields are encoded as TEXT (not HTML) — safe against XSS
-      // HTML.encode escapes <, >, &, etc. so they render as literal text
+      // encodeXML escapes <, >, &, etc. so they render as literal text
       const sTitle = sSubject
-        ? HTML.encode(sSubject)
+        ? encodeXML(sSubject)
         : "";
 
       const sFooterText = getText(
@@ -66,7 +66,7 @@ sap.ui.define([
         "This message was sent by the mailing system.",
         oComponent
       );
-      const sFooter = HTML.encode(sFooterText);
+      const sFooter = encodeXML(sFooterText);
 
       const aParts = [
         '<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.6;color:#1d2d3e;max-width:680px;margin:0 auto;">'

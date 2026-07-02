@@ -41,6 +41,7 @@ sap.ui.define([
     if (oDraft.recipients && !Array.isArray(oDraft.recipients)) { return false; }
     if (oDraft.attachments && !Array.isArray(oDraft.attachments)) { return false; }
     if (oDraft.sources && !Array.isArray(oDraft.sources)) { return false; }
+    if (oDraft.newsItems && !Array.isArray(oDraft.newsItems)) { return false; }
     if (oDraft.subject && typeof oDraft.subject !== "string") { return false; }
     if (oDraft.content && typeof oDraft.content !== "string") { return false; }
     return true;
@@ -108,6 +109,7 @@ sap.ui.define([
       recipients:  Array.isArray(oDraft.recipients) ? oDraft.recipients : [],
       attachments: Array.isArray(oDraft.attachments) ? oDraft.attachments : [],
       sources:     Array.isArray(oDraft.sources) ? oDraft.sources : [],
+      newsItems:   Array.isArray(oDraft.newsItems) ? oDraft.newsItems : [],
       savedAt:     new Date().toISOString()
     };
 

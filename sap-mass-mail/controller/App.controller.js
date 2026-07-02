@@ -81,7 +81,7 @@ sap.ui.define([
     onExit() {
       // FIXED: Explicit cleanup with isDestroyed check
       [this._oRecipDialog, this._oNewsDialog, this._oMailingsDialog,
-       this._oHistoryViewDialog]
+       this._oPdfModeDialog, this._oHistoryViewDialog]
         .forEach((oDialog) => {
           if (oDialog && !oDialog.isDestroyed()) {
             oDialog.destroyContent();
@@ -90,7 +90,7 @@ sap.ui.define([
         });
 
       this._oRecipDialog = this._oNewsDialog = this._oMailingsDialog =
-        this._oHistoryViewDialog = null;
+        this._oPdfModeDialog = this._oHistoryViewDialog = null;
 
       if (this._oDnD)    { this._oDnD.destroy();    this._oDnD = null; }
       if (this._oEditor) { this._oEditor.destroy(); this._oEditor = null; }
@@ -244,6 +244,7 @@ sap.ui.define([
       this._oState.setProperty("/recipients", oDraft.recipients || []);
       this._oState.setProperty("/attachments", oDraft.attachments || []);
       this._oState.setProperty("/sources", oDraft.sources || []);
+      this._oState.setProperty("/newsItems", oDraft.newsItems || []);
       this._updateHeaderBadges();
 
       if (oDraft.content) { this._oEditor.setValue(oDraft.content); }
@@ -258,7 +259,8 @@ sap.ui.define([
           content:     this._oEditor.getValue() || "",
           recipients:  this._oState.getProperty("/recipients")  || [],
           attachments: this._oState.getProperty("/attachments") || [],
-          sources:     this._oState.getProperty("/sources")     || []
+          sources:     this._oState.getProperty("/sources")     || [],
+          newsItems:   this._oState.getProperty("/newsItems")   || []
         }, this._sUserId);  // FIXED: User-isolated save
         MessageToast.show(this._t("DRAFT_SAVED"));
       } catch (e) {

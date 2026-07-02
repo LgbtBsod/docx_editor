@@ -150,6 +150,14 @@ sap.ui.define([
       return getText("RECIPIENTS_SUMMARY", [c], c + " получателей — нажмите для просмотра");
     },
 
+    newsSummary(aNews) {
+      const c = (aNews || []).length;
+      if (c <= 0) {
+        return getText("NEWS_SUMMARY_EMPTY", null, "Нет новостей — нажмите, чтобы добавить");
+      }
+      return getText("NEWS_SUMMARY", [c], c + " новостей — нажмите для просмотра");
+    },
+
     /**
      * Sanitizes HTML for safe rendering inside sap.m.FormattedText.
      *

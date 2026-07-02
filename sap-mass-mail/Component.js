@@ -48,10 +48,12 @@ sap.ui.define([
         viewingCreatedAt: "",
         historyContent: "",
         isSending: false,
+        pdfModeIndex: 0,
         recipientCount: "",
         attachmentCount: "",
         newsCount: 0,
         sources: [],
+        newsItems: [],
         attachments: [],
         recipients: []
       };
