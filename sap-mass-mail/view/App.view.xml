@@ -139,16 +139,23 @@
                 class="ebRecipientsSummaryBtn" />
             </VBox>
 
-            <!-- PDF Mode Row: visibility fully model-driven (no byId/setVisible) -->
-            <HBox id="pdfModeRow" visible="{state>/showPdfMode}" class="ebPdfModeRow" alignItems="Center" width="100%">
-              <Label text="{i18n>PDF_MODE}" class="ebCardLabel" />
-              <SegmentedButton selectedKey="{state>/pdfMode}" select="onPdfModeChange">
-                <items>
-                  <SegmentedButtonItem key="text" text="{i18n>PDF_TEXT}" />
-                  <SegmentedButtonItem key="images" text="{i18n>PDF_IMAGES}" />
-                </items>
-              </SegmentedButton>
-            </HBox>
+            <!-- News Card -->
+            <VBox class="ebCard">
+              <HBox alignItems="Center" justifyContent="SpaceBetween" width="100%">
+                <Label text="{i18n>NEWS_TITLE}" class="ebCardLabel" />
+                <HBox alignItems="Center">
+                  <Button text="{i18n>DIALOG_NEWS}" icon="sap-icon://add" press="onOpenNewsDialog"
+                    type="Transparent" tooltip="{i18n>TIP_ADD_NEWS}" class="ebAddNewsBtn" />
+                </HBox>
+              </HBox>
+              <VBox visible="{= ${state>/newsCount} > 0 }" class="ebNewsSummary">
+                <HBox alignItems="Center" width="100%" class="ebNewsBadge">
+                  <core:Icon src="sap-icon://document-text" color="#0070f2" size="1.2rem" />
+                  <Text text="{parts: [{path: 'i18n>TOTAL_COUNT'}, {path: 'state>/newsCount'}], formatter: '.formatter.formatCount'}" class="ebNewsCount" />
+                </HBox>
+              </VBox>
+              <Text text="{i18n>NO_NEWS}" visible="{= ${state>/newsCount} === 0 }" class="ebNoData" />
+            </VBox>
 
           </ScrollContainer>
         </VBox>

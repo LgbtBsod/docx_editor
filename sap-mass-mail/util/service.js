@@ -234,11 +234,48 @@ sap.ui.define([
       .then(extractResults);
   }
 
+  /**
+   * Saves email to backend (mock mode only).
+   * In mock mode, saves to filesystem via Node.js backend.
+   *
+   * @param {object} oPayload { LocalId, Subject, Content, ToRecipients }
+   * @returns {Promise<{success:boolean, filename?:string}>} save result
+   */
+  function saveEmailToBackend(oPayload) {
+    if (!window.USE_MOCK) {
+      return Promise.resolve({ success: false, reason: "Not in mock mode" });
+    }
+
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', '/api/save-email', true);
+      xhr.setRequestHeader('Content-Type', 'application/json');
+
+      xhr.onload = () => {
+        if (xhr.status === 200) {
+          try {
+            const result = JSON.parse(xhr.responseText);
+            resolve(result);
+          } catch (e) {
+            reject(new Error("Invalid server response"));
+          }
+        } else {
+          reject(new Error(`Server error: ${xhr.status}`));
+        }
+      };
+
+      xhr.onerror = () => reject(new Error("Network error"));
+
+      xhr.send(JSON.stringify(oPayload));
+    });
+  }
+
   return {
     sendMailing: sendMailing,
     getMailingStatus: getMailingStatus,
     getMailingContent: getMailingContent,
     copyMailing: copyMailing,
-    getAllowedHosts: getAllowedHosts
+    getAllowedHosts: getAllowedHosts,
+    saveEmailToBackend: saveEmailToBackend
   };
 });

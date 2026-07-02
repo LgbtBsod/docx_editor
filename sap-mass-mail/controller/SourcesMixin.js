@@ -68,96 +68,16 @@ sap.ui.define([
         MessageToast.show(this._t("MSG_MIME_MISMATCH", [file.name, file.type]));
       }
 
-      if (sExt === ".pdf") {
-        return this._promptPdfMode(file.name)
-          .then((sMode) => FileProcessor.process(file, sSourceId, sMode, oBundle))
-          .then((sHtml) => this._finalizeSource(sHtml, sSourceId, sExt, file.name));
-      }
-      return FileProcessor.process(file, sSourceId, null, oBundle)
+      const sMode = sExt === ".pdf" ? "text" : null;
+      return FileProcessor.process(file, sSourceId, sMode, oBundle)
         .then((sHtml) => this._finalizeSource(sHtml, sSourceId, sExt, file.name));
     },
 
     _finalizeSource(sHtml, sSourceId, sExt, sName) {
       this._oEditor.insert(sHtml);
       this._addSourceToList(sSourceId, "file", sName);
-      if (sExt === ".pdf") {
-        // pdfModeRow visibility is bound to {state>/showPdfMode} in the view.
-        this._oState.setProperty("/showPdfMode", true);
-      }
     },
 
-    /**
-     * Prompts the user for a PDF import mode via the PdfModeDialog fragment.
-     * Resolves with the selected mode ("text" | "images"), rejects on cancel.
-     *
-     * @param {string} sFileName file name (informational)
-     * @returns {Promise<string>} chosen mode
-     * @private
-     */
-    _promptPdfMode(sFileName) {
-      if (this._fnPdfResolve) {
-        this._fnPdfResolve(this._oState.getProperty("/pdfMode") || "text");
-        this._fnPdfResolve = null;
-        this._fnPdfReject = null;
-      }
-
-      return new Promise((resolve, reject) => {
-        this._fnPdfResolve = resolve;
-        this._fnPdfReject = reject;
-
-        if (this._oPdfModeDialog) {
-          this._oPdfModeDialog.open();
-          return;
-        }
-
-        Fragment.load({
-          id: this.getView().getId(),
-          name: "emailbuilder.view.fragment.PdfModeDialog",
-          controller: this
-        }).then((oDialog) => {
-          this._oPdfModeDialog = oDialog;
-          this.getView().addDependent(oDialog);
-          this._oState.setProperty("/pdfModeIndex", 0);
-          oDialog.open();
-        }).catch((err) => {
-          this._fnPdfResolve = null;
-          this._fnPdfReject = null;
-          reject(err);
-        });
-      });
-    },
-
-    onPdfModeConfirm() {
-      const bImages = (this._oState.getProperty("/pdfModeIndex") || 0) === 1;
-      const sMode = bImages ? "images" : "text";
-      this._oState.setProperty("/pdfMode", sMode);
-      this._oState.setProperty("/showPdfMode", true);
-      this._oPdfModeDialog.close();
-      if (this._fnPdfResolve) {
-        const fnResolve = this._fnPdfResolve;
-        this._fnPdfResolve = null;
-        this._fnPdfReject = null;
-        fnResolve(sMode);
-      }
-    },
-
-    onPdfModeCancel() {
-      this._oPdfModeDialog.close();
-      if (this._fnPdfReject) {
-        const fnReject = this._fnPdfReject;
-        this._fnPdfResolve = null;
-        this._fnPdfReject = null;
-        fnReject(new Error("PDF import cancelled"));
-      }
-    },
-
-    onPdfModeChange(oEvent) {
-      this._oState.setProperty("/pdfMode", oEvent.getParameter("selectedKey") || "text");
-    },
-
-    onPdfModeTabSelect(oEvent) {
-      this._oState.setProperty("/pdfModeIndex", parseInt(oEvent.getParameter("selectedKey"), 10) || 0);
-    },
 
     _addSourceToList(sSourceId, sType, sName) {
       const sExt = Config.getFileExt(sName);
@@ -174,18 +94,6 @@ sap.ui.define([
       this._updateHeaderBadges();
     },
 
-    /**
-     * Hides the PDF mode row when no PDF source remains.
-     *
-     * @param {Array} aSources current sources list
-     * @private
-     */
-    _refreshPdfModeVisibility(aSources) {
-      if (!(aSources || []).some((s) => s.ext === ".pdf")) {
-        this._oState.setProperty("/showPdfMode", false);
-      }
-    },
-
     onRemoveSource(oEvent) {
       const oCtx = oEvent.getSource().getBindingContext("state");
       if (!oCtx) { return; }
@@ -194,7 +102,6 @@ sap.ui.define([
       const aSources = (this._oState.getProperty("/sources") || [])
         .filter((s) => s.id !== sSourceId);
       this._oState.setProperty("/sources", aSources);
-      this._refreshPdfModeVisibility(aSources);
       this._updateHeaderBadges();
     },
 

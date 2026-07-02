@@ -81,7 +81,7 @@ sap.ui.define([
     onExit() {
       // FIXED: Explicit cleanup with isDestroyed check
       [this._oRecipDialog, this._oNewsDialog, this._oMailingsDialog,
-       this._oPdfModeDialog, this._oHistoryViewDialog]
+       this._oHistoryViewDialog]
         .forEach((oDialog) => {
           if (oDialog && !oDialog.isDestroyed()) {
             oDialog.destroyContent();
@@ -90,7 +90,7 @@ sap.ui.define([
         });
 
       this._oRecipDialog = this._oNewsDialog = this._oMailingsDialog =
-        this._oPdfModeDialog = this._oHistoryViewDialog = null;
+        this._oHistoryViewDialog = null;
 
       if (this._oDnD)    { this._oDnD.destroy();    this._oDnD = null; }
       if (this._oEditor) { this._oEditor.destroy(); this._oEditor = null; }
@@ -183,6 +183,13 @@ sap.ui.define([
       };
 
       Service.sendMailing(oComponent, oPayload, bIsTest)
+        .then((data) => {
+          // Save to backend in mock mode
+          if (window.USE_MOCK) {
+            return Service.saveEmailToBackend(oPayload).then(() => data);
+          }
+          return data;
+        })
         .then((data) => {
           // MSG_SENT carries a {0} placeholder for the LocalId
           MessageBox.success(this._t(data.messageKey, [data.localId]), {

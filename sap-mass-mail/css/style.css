@@ -419,10 +419,47 @@
 }
 
 /* ============================================================
-   PDF MODE ROW
+   NEWS CARD
    ============================================================ */
-.ebPdfModeRow {
-  gap: var(--eb-space-md);
+.ebNewsSummary {
+  margin-top: var(--eb-space-sm) !important;
+  padding: var(--eb-space-sm);
+  background: var(--eb-tint-02);
+  border-radius: var(--eb-radius-sm);
+  border: 1px solid var(--eb-tint-12);
+}
+
+.ebNewsBadge {
+  gap: var(--eb-space-sm);
+  padding: var(--eb-space-sm) 0 !important;
+}
+
+.ebNewsCount {
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  color: var(--eb-primary) !important;
+}
+
+.ebAddNewsBtn {
+  box-sizing: border-box !important;
+  padding: var(--eb-space-xs) var(--eb-space-md) !important;
+  background: var(--eb-tint-06) !important;
+  border: 1px solid var(--eb-tint-12) !important;
+  border-radius: var(--eb-radius-sm) !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  color: var(--eb-primary) !important;
+}
+
+.ebAddNewsBtn:hover {
+  background: var(--eb-tint-12) !important;
+  border-color: var(--eb-primary) !important;
+}
+
+.ebNoData {
+  font-size: 12px !important;
+  color: var(--eb-text-muted) !important;
+  text-align: center !important;
   padding: var(--eb-space-sm) 0 !important;
 }
 
