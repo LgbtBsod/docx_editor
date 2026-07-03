@@ -19,14 +19,14 @@ CLASS zcl_newsletter_constants DEFINITION
         sent_err   TYPE ty_status VALUE 'ERROR',
       END OF root_status,
 
-      " Numeric codes, NOT word codes: must match the raw receiver-status
-      " literals CASE-mapped in CDS ZI_Mailing_Status (010 new / 020 sent /
-      " 030 error -> unified 020/040/050 display domain). A CDS CASE WHEN
-      " can't reference an ABAP class constant, so this side has to conform
-      " to the DDL literal, not the other way round — changing this value
-      " without mirroring it in zi_mailing_status.ddls.asddls silently
-      " breaks every status breakdown (rows fall into the CDS view's ELSE
-      " '000' bucket instead of pending/sent/failed).
+      " Numeric codes, NOT word codes: must match ZI_Mail_Status_Map's
+      " RecStatus column (zi_mail_status_map.ddls.asddls) — that view, not
+      " this class, is the single source of truth for the receiver-status
+      " -> unified display-status mapping (020/040/050, consumed via
+      " ZI_Mailing_Status). CDS cannot reference an ABAP class constant, so
+      " the two can drift silently; ASSERT_STATUS_MAP_CONSISTENT below
+      " closes that gap by SELECTing the map at test time and failing fast
+      " if these literals and the view ever disagree.
       BEGIN OF rec_status,
         new   TYPE ty_status VALUE '010',
         sent  TYPE ty_status VALUE '020',
@@ -42,7 +42,8 @@ CLASS zcl_newsletter_constants DEFINITION
       " OData entity set names (SADL/Gateway side) — must match manifest.json's
       " mainService metadata (MailHeaderSet) on the SAPUI5 side.
       BEGIN OF entity,
-        mail_header TYPE string VALUE 'MailHeaderSet',
+        mail_header    TYPE string VALUE 'MailHeaderSet',
+        mailing_config TYPE string VALUE 'MailingConfig',
       END OF entity,
 
       BEGIN OF http_status,
@@ -84,7 +85,43 @@ CLASS zcl_newsletter_constants DEFINITION
         html_type TYPE c LENGTH 3 VALUE 'HTM',
       END OF document.
 
+    " SSOT guard for the rec_status -> display-status mapping. Not called
+    " from production flow (the mapping is only ever consumed via the
+    " ZI_Mailing_Status CDS join) — this exists purely so
+    " ZCL_NEWSLETTER_CONSTANTS_UNIT_TEST can fail the build the moment
+    " these constants and ZI_Mail_Status_Map disagree, instead of that
+    " drift surfacing later as silently-dropped rows in a status
+    " breakdown.
+    CLASS-METHODS assert_status_map_consistent
+      RAISING cx_dynamic_check.
+
 ENDCLASS.
 
 CLASS zcl_newsletter_constants IMPLEMENTATION.
+
+  METHOD assert_status_map_consistent.
+    TYPES: BEGIN OF tys_map,
+             rec_status  TYPE c LENGTH 3,
+             disp_status TYPE c LENGTH 3,
+           END OF tys_map.
+    DATA lt_map TYPE STANDARD TABLE OF tys_map WITH EMPTY KEY.
+
+    SELECT FROM zi_mail_status_map
+      FIELDS rec_status AS rec_status, disp_status AS disp_status
+      INTO TABLE @lt_map.
+
+    DATA(lt_expected) = VALUE STANDARD TABLE OF tys_map(
+      ( rec_status = rec_status-new   disp_status = '020' )
+      ( rec_status = rec_status-sent  disp_status = '040' )
+      ( rec_status = rec_status-error disp_status = '050' ) ).
+
+    SORT: lt_map BY rec_status, lt_expected BY rec_status.
+
+    IF lt_map <> lt_expected.
+      RAISE EXCEPTION TYPE cx_dynamic_check
+        EXPORTING textid = VALUE #( msgid = 'ZEB_MAIL' msgno = '001'
+                                    attr1 = 'rec_status/ZI_Mail_Status_Map mismatch' ).
+    ENDIF.
+  ENDMETHOD.
+
 ENDCLASS.

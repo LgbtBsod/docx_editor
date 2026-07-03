@@ -13,8 +13,8 @@
    Recipient counts are derived from ZI_Mailing_Status rather than joining
    the receiver table directly: that view is the single place that reads
    the BOPF-managed receiver persistence and maps its status domain
-   (010/020/030) into the unified display domain (020/040/050 — see
-   ZI_Mailing_Status). A second, independent join against the receiver
+   (010/020/030) into the unified display domain (020/040/050 — via
+   ZI_Mail_Status_Map, joined once inside ZI_Mailing_Status). A second, independent join against the receiver
    table here would inevitably drift onto a stale/renamed table the moment
    the BOPF persistence layer changes — composing on the existing view
    keeps exactly one place that touches that table (SSOT). */

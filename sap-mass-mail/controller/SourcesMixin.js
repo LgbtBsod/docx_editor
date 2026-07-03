@@ -2,12 +2,11 @@ sap.ui.define([
   "sap/ui/core/Fragment",
   "emailbuilder/util/toast",
   "emailbuilder/util/config",
-  "emailbuilder/util/sanitize",
   "emailbuilder/util/sourceBlock",
   "emailbuilder/util/fileProcessor",
   "emailbuilder/util/sourceTypes",
   "emailbuilder/model/formatter"
-], (Fragment, Toast, Config, Sanitize, SourceBlock, FileProcessor,
+], (Fragment, Toast, Config, SourceBlock, FileProcessor,
     SourceTypes, Formatter) => {
   "use strict";
 
@@ -179,7 +178,10 @@ sap.ui.define([
     },
 
     _addNewsAsSource(oObj) {
-      const sClean = Sanitize.forImport(oObj.Content || "");
+      // CHG-flagged items (IsChange="X") get the structured announcement
+      // layout (change number / initiator / area — see ZCDS_News);
+      // regular news keep the plain sanitized Content as before.
+      const sClean = Formatter.newsContentHtml(oObj);
       const sSourceId = Config.generateSourceId();
       this._oEditor.insert(SourceBlock.wrap(sSourceId, SourceBlock.TYPE.NEWS, sClean));
 

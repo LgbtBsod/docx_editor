@@ -15,15 +15,25 @@ sap.ui.define([
       // Flat schema — single source of truth; every path below matches the
       // paths read by controllers, mixins and the view (no ui/data nesting).
       const oAppStateModel = new JSONModel(this._initialState());
-      // Must cover the backend's max recipients per mailing (see the
-      // constant's own comment) — a lower limit here would silently
-      // truncate the "Добавлено" recipients list well before that cap.
+      // Pre-load fallback (see config model comment below); raised again to
+      // the backend-delivered value once MailingConfigSet resolves via
+      // setStateSizeLimit(), so the JSONModel never silently truncates the
+      // "Добавлено" recipients list before that cap.
       oAppStateModel.setSizeLimit(Constants.PERFORMANCE.MAX_RECIPIENTS_PER_MAILING);
       this.setModel(oAppStateModel, "state");
 
-      // Runtime configuration delivered by the backend (AllowedHostSet).
-      // Client-side limits live in util/config.js only (single source).
-      this.setModel(new JSONModel({ allowedHosts: [] }), "config");
+      // Runtime configuration delivered by the backend (AllowedHostSet,
+      // MailingConfigSet). maxRecipients/subjectMaxLen start out seeded from
+      // util/constants.js purely as a pre-load fallback so the UI has a sane
+      // maxLength/sizeLimit before the first round-trip resolves; App
+      // controller#_loadMailingConfig overwrites them from the backend
+      // (the actual single source of truth — see util/service.js#getMailingConfig)
+      // the moment it responds.
+      this.setModel(new JSONModel({
+        allowedHosts:   [],
+        maxRecipients:  Constants.PERFORMANCE.MAX_RECIPIENTS_PER_MAILING,
+        subjectMaxLen:  Constants.VALIDATION.SUBJECT_MAX_LEN
+      }), "config");
 
       // Exposes util/constants.js to XML bindings (e.g. subjectInput's
       // maxLength) so a view-level literal never has to duplicate a value
@@ -91,6 +101,21 @@ sap.ui.define([
 
     setMockServer(oMockServer) {
       this._oMockServer = oMockServer;
+    },
+
+    /**
+     * Raises the "state" JSONModel's array size limit to the backend-delivered
+     * MaxRecipients once MailingConfigSet resolves (see App.controller#_loadMailingConfig).
+     * A no-op no-lower-than-default guard: never shrinks below the pre-load
+     * fallback, so a transient bad backend value can't silently truncate.
+     *
+     * @param {number} iMaxRecipients backend-delivered recipient cap
+     */
+    setStateSizeLimit(iMaxRecipients) {
+      const oStateModel = this.getModel("state");
+      if (oStateModel && iMaxRecipients > Constants.PERFORMANCE.MAX_RECIPIENTS_PER_MAILING) {
+        oStateModel.setSizeLimit(iMaxRecipients);
+      }
     },
 
     getResourceBundle() {

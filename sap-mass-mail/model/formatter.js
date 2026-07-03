@@ -1,9 +1,10 @@
 sap.ui.define([
   "sap/ui/core/format/DateFormat",
   "sap/base/Log",
+  "sap/base/security/encodeXML",
   "emailbuilder/util/sanitize",
   "emailbuilder/util/sourceBlock"
-], (DateFormat, Log, Sanitize, SourceBlock) => {
+], (DateFormat, Log, encodeXML, Sanitize, SourceBlock) => {
   "use strict";
 
   let oDateTimeFormat = null;
@@ -207,6 +208,66 @@ sap.ui.define([
     sanitizedHtml(sHtml) {
       if (!sHtml) { return ""; }
       return Sanitize.forImport(sHtml);
+    },
+
+    /**
+     * Builds the editor-ready HTML block for a single News/NewsSet entry.
+     * When IsChange="X" (see ZCDS_News), this reproduces the CHG-announcement
+     * layout from the reference template — bold change number, bold
+     * "Инициатор: ФИО, Организация" and "Область изменения: ..." lines,
+     * then the body paragraph — instead of just dumping Content raw. A
+     * regular (non-change) news item keeps the old plain-Content behavior
+     * unchanged.
+     *
+     * ChangeNumber/InitiatorName/InitiatorOrg/Area are plain OData string
+     * fields (not HTML) and are XML-encoded here; Content is HTML and goes
+     * through Sanitize.forImport like before.
+     *
+     * Styling is INLINE, not a CSS class: this block ends up embedded in the
+     * outgoing email body (see util/emailComposer.js), which strips <style>
+     * tags and isn't served css/style.css — a recipient's mail client has no
+     * app stylesheet to resolve a class against, only what travels in the
+     * markup itself.
+     *
+     * @param {object} oNews News/NewsSet entity (Title, Area, Content,
+     *   IsChange, ChangeNumber, InitiatorName, InitiatorOrg)
+     * @returns {string} sanitized HTML ready for SourceBlock.wrap
+     */
+    newsContentHtml(oNews) {
+      const sContent = Sanitize.forImport((oNews && oNews.Content) || "");
+      if (!oNews || oNews.IsChange !== "X") {
+        return sContent;
+      }
+
+      const aParts = ['<div style="margin:0 0 12px;">'];
+
+      if (oNews.ChangeNumber) {
+        aParts.push(
+          '<p style="margin:0 0 8px;font-size:16px;font-weight:700;color:#0070f2;text-align:center;">',
+          encodeXML(oNews.ChangeNumber),
+          '</p>'
+        );
+      }
+
+      const sInitiator = [oNews.InitiatorName, oNews.InitiatorOrg]
+        .filter(Boolean).map(encodeXML).join(", ");
+      if (sInitiator) {
+        aParts.push(
+          '<p style="margin:0 0 4px;"><strong>', getText("NEWS_INITIATOR", null, "Инициатор"), ': </strong>',
+          sInitiator, '</p>'
+        );
+      }
+
+      if (oNews.Area) {
+        aParts.push(
+          '<p style="margin:0 0 10px;"><strong>', getText("NEWS_CHANGE_AREA", null, "Область изменения"), ': </strong>',
+          encodeXML(oNews.Area), '</p>'
+        );
+      }
+
+      aParts.push(sContent);
+      aParts.push('</div>');
+      return aParts.join("");
     },
 
     /**

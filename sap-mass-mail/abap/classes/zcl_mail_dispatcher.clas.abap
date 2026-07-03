@@ -5,7 +5,14 @@ CLASS zcl_mail_dispatcher DEFINITION
 
   PUBLIC SECTION.
     CLASS-METHODS run
-      IMPORTING iv_max_runtime_s TYPE i DEFAULT 300.
+      IMPORTING iv_max_runtime_s   TYPE i DEFAULT 300
+                " Horizontal scaling: N dispatcher job instances started with
+                " distinct iv_partition (0..iv_partition_count-1) and the same
+                " iv_partition_count split the in_queue backlog between them
+                " (see zmail_dispatcher_launcher.prog.abap). Default keeps a
+                " single-instance job behaving exactly as before.
+                iv_partition        TYPE i DEFAULT 0
+                iv_partition_count  TYPE i DEFAULT 1.
 
   PRIVATE SECTION.
     TYPES:
@@ -22,10 +29,20 @@ CLASS zcl_mail_dispatcher DEFINITION
         total   TYPE i,
         sent_ok TYPE i,
         errors  TYPE i,
-      END OF tys_stats.
+      END OF tys_stats,
+
+      tt_root_key TYPE STANDARD TABLE OF /bobf/conf_key WITH EMPTY KEY.
 
     CONSTANTS:
-      c_max_stuck_rows TYPE i VALUE 100.
+      c_max_stuck_rows TYPE i VALUE 100,
+      " Batch of oldest in_queue candidates fetched per poll. Trying each in
+      " order (instead of a single top-1 pick) means a worker that loses the
+      " lock race on the oldest row falls through to the next-oldest one in
+      " the SAME round trip, rather than re-selecting and re-losing against
+      " the identical top-1 row every poll cycle — the thundering-herd
+      " pattern the previous single-candidate pick produced under multiple
+      " parallel dispatcher instances (see RUN's iv_partition).
+      c_candidate_batch TYPE i VALUE 20.
 
     CLASS-METHODS:
       process_one
@@ -33,10 +50,14 @@ CLASS zcl_mail_dispatcher DEFINITION
                   iv_log_handle       TYPE balloghndl
                   iv_started_ts       TYPE timestampl
                   iv_max_runtime      TYPE i
+                  iv_partition        TYPE i
+                  iv_partition_count  TYPE i
         RETURNING VALUE(rv_processed) TYPE abap_bool,
 
       pick_next_mailing
-        RETURNING VALUE(rv_root_key) TYPE /bobf/conf_key,
+        IMPORTING iv_partition         TYPE i
+                  iv_partition_count   TYPE i
+        RETURNING VALUE(rt_root_keys) TYPE tt_root_key,
 
       requeue_stuck_mailings
         IMPORTING io_srv_mgr    TYPE REF TO /bobf/if_frw_service_manager
@@ -76,6 +97,13 @@ CLASS zcl_mail_dispatcher DEFINITION
                   it_recipients TYPE zcl_mail_transport=>tt_recipient_node
                   iv_status     TYPE zcl_newsletter_constants=>ty_status
                   iv_log_handle TYPE balloghndl,
+
+      apply_recipient_results
+        IMPORTING io_srv_mgr    TYPE REF TO /bobf/if_frw_service_manager
+                  it_chunk      TYPE zcl_mail_transport=>tt_recipient_node
+                  it_results    TYPE zcl_mail_transport=>tt_recipient_result
+                  iv_log_handle TYPE balloghndl
+        CHANGING  cs_stats      TYPE tys_stats,
 
       finalize_mailing
         IMPORTING io_srv_mgr    TYPE REF TO /bobf/if_frw_service_manager
@@ -119,12 +147,19 @@ CLASS zcl_mail_dispatcher IMPLEMENTATION.
     DATA(lv_log_handle) = init_log( ).
     GET TIME STAMP FIELD DATA(lv_started).
 
+    " Stuck-mailing requeue deliberately runs unpartitioned on every
+    " instance: it is a rare, cheap, idempotent UP TO 100 ROWS sweep (a
+    " mailing only qualifies after sitting in PROCESSING past the stuck
+    " timeout), so running it redundantly across N partitions costs far
+    " less than the complexity of electing a single instance to own it.
     requeue_stuck_mailings( io_srv_mgr = lo_srv_mgr iv_log_handle = lv_log_handle ).
 
-    WHILE process_one( io_srv_mgr     = lo_srv_mgr
-                       iv_log_handle  = lv_log_handle
-                       iv_started_ts  = lv_started
-                       iv_max_runtime = iv_max_runtime_s ) = abap_true
+    WHILE process_one( io_srv_mgr         = lo_srv_mgr
+                       iv_log_handle       = lv_log_handle
+                       iv_started_ts       = lv_started
+                       iv_max_runtime      = iv_max_runtime_s
+                       iv_partition        = iv_partition
+                       iv_partition_count  = iv_partition_count ) = abap_true
       AND runtime_exceeded( iv_started_ts = lv_started iv_max_runtime = iv_max_runtime_s ) = abap_false.
     ENDWHILE.
 
@@ -139,52 +174,85 @@ CLASS zcl_mail_dispatcher IMPLEMENTATION.
   METHOD process_one.
     rv_processed = abap_false.
 
-    DATA(lv_root_key) = pick_next_mailing( ).
-    IF lv_root_key IS INITIAL.
+    DATA(lt_candidates) = pick_next_mailing( iv_partition = iv_partition iv_partition_count = iv_partition_count ).
+    IF lt_candidates IS INITIAL.
       log_msg( iv_log_handle = iv_log_handle iv_msgno = zcl_newsletter_constants=>dispatcher_msgno-no_mailing_found ).
       RETURN.
     ENDIF.
 
-    IF acquire_mailing( io_srv_mgr    = io_srv_mgr
+    " Walk the candidate batch instead of stopping at the first lock
+    " failure: under multiple parallel dispatcher instances, one row losing
+    " the race to another worker is expected, not "no work left" — falling
+    " through to the next-oldest candidate in the same round trip avoids
+    " re-selecting and re-losing against the identical row every poll.
+    LOOP AT lt_candidates INTO DATA(lv_root_key).
+      IF acquire_mailing( io_srv_mgr    = io_srv_mgr
+                          iv_root_key   = lv_root_key
+                          iv_log_handle = iv_log_handle ) = abap_false.
+        CONTINUE.
+      ENDIF.
+
+      DATA(ls_payload) = fetch_mailing_data( io_srv_mgr = io_srv_mgr iv_root_key = lv_root_key ).
+      ls_payload-root_key = lv_root_key.
+      ls_payload-sender   = resolve_sender( io_srv_mgr ).
+
+      DATA ls_stats TYPE tys_stats.
+      ls_stats-total = lines( ls_payload-recipients ).
+
+      IF ls_payload-recipients IS INITIAL.
+        log_msg( iv_log_handle = iv_log_handle iv_msgno = zcl_newsletter_constants=>dispatcher_msgno-no_recipients ).
+      ELSE.
+        ls_stats = send_all( io_srv_mgr     = io_srv_mgr
+                             is_payload     = ls_payload
+                             iv_log_handle  = iv_log_handle
+                             iv_started_ts  = iv_started_ts
+                             iv_max_runtime = iv_max_runtime ).
+      ENDIF.
+
+      finalize_mailing( io_srv_mgr    = io_srv_mgr
                         iv_root_key   = lv_root_key
-                        iv_log_handle = iv_log_handle ) = abap_false.
+                        is_stats      = ls_stats
+                        iv_log_handle = iv_log_handle ).
+
       rv_processed = abap_true.
       RETURN.
-    ENDIF.
+    ENDLOOP.
 
-    DATA(ls_payload) = fetch_mailing_data( io_srv_mgr = io_srv_mgr iv_root_key = lv_root_key ).
-    ls_payload-root_key = lv_root_key.
-    ls_payload-sender   = resolve_sender( io_srv_mgr ).
-
-    DATA ls_stats TYPE tys_stats.
-    ls_stats-total = lines( ls_payload-recipients ).
-
-    IF ls_payload-recipients IS INITIAL.
-      log_msg( iv_log_handle = iv_log_handle iv_msgno = zcl_newsletter_constants=>dispatcher_msgno-no_recipients ).
-    ELSE.
-      ls_stats = send_all( io_srv_mgr     = io_srv_mgr
-                           is_payload     = ls_payload
-                           iv_log_handle  = iv_log_handle
-                           iv_started_ts  = iv_started_ts
-                           iv_max_runtime = iv_max_runtime ).
-    ENDIF.
-
-    finalize_mailing( io_srv_mgr    = io_srv_mgr
-                      iv_root_key   = lv_root_key
-                      is_stats      = ls_stats
-                      iv_log_handle = iv_log_handle ).
-
+    " Every candidate in this batch lost its acquire race to another
+    " worker — report processed=true so RUN's WHILE retries immediately
+    " with a fresh SELECT rather than treating a contested batch as
+    " end-of-queue (which would end this job's run early while work
+    " genuinely remains).
     rv_processed = abap_true.
   ENDMETHOD.
 
   METHOD pick_next_mailing.
+    DATA(lt_all) = VALUE tt_root_key( ).
     SELECT FROM zmail_hdr
       FIELDS key
       WHERE status = @zcl_newsletter_constants=>root_status-in_queue
       ORDER BY created_at ASCENDING
-      INTO @rv_root_key
-      UP TO 1 ROWS.
-    ENDSELECT.
+      INTO TABLE @lt_all
+      UP TO @c_candidate_batch ROWS.
+
+    IF iv_partition_count <= 1.
+      rt_root_keys = lt_all.
+      RETURN.
+    ENDIF.
+
+    " Deterministic partitioning by position in the shared, identically
+    " ordered candidate list (not by hashing the key itself — no Code-to-Data
+    " benefit to a HANA-side hash here since the whole batch already has to
+    " be fetched client-side to preserve ORDER BY created_at). Every one of
+    " the N job instances runs this exact SELECT and lands on the exact same
+    " ordered rows; keeping only every Nth row (offset by iv_partition)
+    " gives each instance a disjoint working set with no extra round trip
+    " or shared coordination state.
+    LOOP AT lt_all INTO DATA(lv_key).
+      IF ( sy-tabix - 1 ) MOD iv_partition_count = iv_partition.
+        APPEND lv_key TO rt_root_keys.
+      ENDIF.
+    ENDLOOP.
   ENDMETHOD.
 
   METHOD requeue_stuck_mailings.
@@ -349,6 +417,19 @@ CLASS zcl_mail_dispatcher IMPLEMENTATION.
         apply_chunk_status( io_srv_mgr = io_srv_mgr it_recipients = lt_chunk
                             iv_status = zcl_newsletter_constants=>rec_status-sent iv_log_handle = iv_log_handle ).
         rs_stats-sent_ok += lines( lt_chunk ).
+
+      ELSEIF ls_result-items IS NOT INITIAL.
+        " Whole-chunk send failed but the per-recipient fallback ran (see
+        " zcl_mail_transport=>send_chunk_with_retry) — apply sent/error
+        " per actual outcome instead of marking every recipient in the
+        " chunk 'error' just because one address (or one transient relay
+        " blip) tripped the bulk BCC request.
+        apply_recipient_results( io_srv_mgr    = io_srv_mgr
+                                 it_chunk       = lt_chunk
+                                 it_results     = ls_result-items
+                                 iv_log_handle  = iv_log_handle
+                                 cs_stats       = rs_stats ).
+
       ELSE.
         log_msg( iv_log_handle = iv_log_handle iv_msgty = zcl_newsletter_constants=>msg_type-error
                  iv_msgno = zcl_newsletter_constants=>dispatcher_msgno-send_error
@@ -361,6 +442,41 @@ CLASS zcl_mail_dispatcher IMPLEMENTATION.
 
       lv_from = lv_to + 1.
     ENDWHILE.
+  ENDMETHOD.
+
+  METHOD apply_recipient_results.
+    DATA(lt_sent)  = VALUE zcl_mail_transport=>tt_recipient_node( ).
+    DATA(lt_error) = VALUE zcl_mail_transport=>tt_recipient_node( ).
+
+    LOOP AT it_chunk INTO DATA(ls_rec).
+      READ TABLE it_results WITH KEY key = ls_rec-key INTO DATA(ls_item).
+      " A recipient absent from it_results means send_individually ran out
+      " of its deadline before reaching it (see that method's header
+      " comment) — treated as an error, the same conservative default the
+      " whole-chunk failure branch already uses.
+      IF sy-subrc = 0 AND ls_item-ok = abap_true.
+        APPEND ls_rec TO lt_sent.
+      ELSE.
+        APPEND ls_rec TO lt_error.
+      ENDIF.
+    ENDLOOP.
+
+    IF lt_sent IS NOT INITIAL.
+      apply_chunk_status( io_srv_mgr = io_srv_mgr it_recipients = lt_sent
+                          iv_status = zcl_newsletter_constants=>rec_status-sent iv_log_handle = iv_log_handle ).
+    ENDIF.
+    IF lt_error IS NOT INITIAL.
+      apply_chunk_status( io_srv_mgr = io_srv_mgr it_recipients = lt_error
+                          iv_status = zcl_newsletter_constants=>rec_status-error iv_log_handle = iv_log_handle ).
+    ENDIF.
+
+    log_msg( iv_log_handle = iv_log_handle iv_msgty = zcl_newsletter_constants=>msg_type-warning
+             iv_msgno = zcl_newsletter_constants=>dispatcher_msgno-send_error
+             iv_msgv1 = |Chunk fallback: { lines( lt_sent ) } sent|
+             iv_msgv2 = |{ lines( lt_error ) } failed individually| ).
+
+    cs_stats-sent_ok += lines( lt_sent ).
+    cs_stats-errors  += lines( lt_error ).
   ENDMETHOD.
 
   METHOD apply_chunk_status.
@@ -433,3 +549,9 @@ CLASS zcl_mail_dispatcher IMPLEMENTATION.
   ENDMETHOD.
 
 ENDCLASS.
+
+" Grants the ABAP Unit test class in zcl_mail_dispatcher.clas.testclasses.abap
+" access to the private CLASS-METHODS it exercises (runtime_exceeded,
+" stuck_cutoff, pick_next_mailing's partitioning arithmetic) without widening
+" their visibility for production callers.
+CLASS zcl_mail_dispatcher DEFINITION LOCAL FRIENDS ltc_dispatcher_test.

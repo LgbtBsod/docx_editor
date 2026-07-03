@@ -165,6 +165,29 @@
     assert(Formatter.dateTime("2026-07-01T10:00:00Z").indexOf("2026") >= 0, "ISO date");
     assert(Formatter.dateTime(null) === "", "null date");
   }))
+  .then(() => t("formatter: newsContentHtml — regular news passes Content through unchanged", () => {
+    const sHtml = Formatter.newsContentHtml({ Content: "<p>plain news</p>", IsChange: "" });
+    assert(sHtml === "<p>plain news</p>", "no CHG wrapper for non-change news: " + sHtml);
+  }))
+  .then(() => t("formatter: newsContentHtml — IsChange=X renders CHG block with inline styles + escaping", () => {
+    const sHtml = Formatter.newsContentHtml({
+      Content: "<p>body</p>",
+      IsChange: "X",
+      ChangeNumber: "CHG00141304",
+      InitiatorName: "<script>x</script>",
+      InitiatorOrg: 'ООО "Норникель-ЕРП"',
+      Area: "HSE.1.2.PRD Учёт разрешительных документов"
+    });
+    assert(sHtml.indexOf("CHG00141304") >= 0, "change number present");
+    assert(sHtml.indexOf("<strong>") >= 0, "labels bolded");
+    assert(sHtml.indexOf('style="') >= 0, "inline styles present (must survive outside app CSS in the sent email)");
+    assert(sHtml.indexOf("<script>") === -1, "InitiatorName XML-encoded, not raw HTML");
+    assert(sHtml.indexOf("<p>body</p>") >= 0, "original Content preserved");
+  }))
+  .then(() => t("formatter: newsContentHtml — missing optional CHG fields don't emit empty lines", () => {
+    const sHtml = Formatter.newsContentHtml({ Content: "<p>body</p>", IsChange: "X", ChangeNumber: "CHG1" });
+    assert(sHtml.indexOf("Инициатор") === -1, "no initiator line when both name and org are blank: " + sHtml);
+  }))
   .then(() => t("draftManager: save/load/clear roundtrip + schema guard", () => {
     Draft.clear();
     Draft.save({ localId: "MSG-X", subject: "s", content: "<p>c</p>", attachments: [], sources: [] });

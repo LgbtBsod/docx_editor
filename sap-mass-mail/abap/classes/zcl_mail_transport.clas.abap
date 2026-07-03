@@ -8,9 +8,24 @@ CLASS zcl_mail_transport DEFINITION
       tt_recipient_node  TYPE STANDARD TABLE OF /bobf/if_znewsletter_bo_c=>sc_node_data-receivers WITH EMPTY KEY,
       tt_attachment_node TYPE STANDARD TABLE OF /bobf/if_znewsletter_bo_c=>sc_node_data-attachment_folder WITH EMPTY KEY,
 
+      BEGIN OF ty_recipient_result,
+        key   TYPE /bobf/conf_key,
+        email TYPE ad_smtpadr,
+        ok    TYPE abap_bool,
+      END OF ty_recipient_result,
+      tt_recipient_result TYPE STANDARD TABLE OF ty_recipient_result WITH EMPTY KEY,
+
       BEGIN OF ty_send_result,
         ok         TYPE abap_bool,
         error_text TYPE string,
+        " Populated only when the whole-chunk send failed AND a per-recipient
+        " fallback ran (see send_chunk_with_retry); empty otherwise — in
+        " which case the caller applies `ok` uniformly to the whole chunk,
+        " same as before this fallback existed. A recipient present in
+        " it_recipients but absent from items means the fallback ran out of
+        " its deadline before reaching it; the caller treats those as
+        " errors (the conservative default the whole-chunk branch already used).
+        items      TYPE tt_recipient_result,
       END OF ty_send_result.
 
     CLASS-METHODS build_document
@@ -37,6 +52,13 @@ CLASS zcl_mail_transport DEFINITION
                 iv_sender     TYPE ad_smtpadr
                 it_recipients TYPE tt_recipient_node
       RAISING   cx_bcs.
+
+    CLASS-METHODS send_individually
+      IMPORTING io_document    TYPE REF TO cl_document_bcs
+                iv_sender      TYPE ad_smtpadr
+                it_recipients  TYPE tt_recipient_node
+                iv_deadline    TYPE timestampl
+      RETURNING VALUE(rt_items) TYPE tt_recipient_result.
 
 ENDCLASS.
 
@@ -107,12 +129,54 @@ CLASS zcl_mail_transport IMPLEMENTATION.
 
         CATCH cx_bcs INTO DATA(lx_permanent).
           " Anything else derived from cx_bcs (e.g. cx_address_bcs_invalid)
-          " is deterministic — retrying achieves nothing, fail fast.
+          " is deterministic for the WHOLE chunk as a single BCS request,
+          " but not necessarily per recipient — one malformed/blocked
+          " address in a 50-recipient BCC chunk must not be allowed to sink
+          " the other 49. Fail fast out of the chunk-level retry loop and
+          " let the per-recipient fallback below isolate the bad address.
           ROLLBACK WORK.
           rs_result-error_text = lx_permanent->get_text( ).
           EXIT.
       ENDTRY.
     ENDDO.
+
+    " Whole-chunk send failed (transient retries exhausted, or a permanent
+    " per-request BCS error). Fall back to one BCS send per recipient so the
+    " caller can persist an accurate per-recipient status instead of
+    " marking the entire chunk 'error' on account of a single bad address
+    " or one relay hiccup. Bounded by the same deadline as the chunk-level
+    " retries above — send_individually stops (not raises) the moment the
+    " job's own runtime budget is exhausted.
+    rs_result-items = send_individually( io_document   = io_document
+                                         iv_sender      = iv_sender
+                                         it_recipients  = it_recipients
+                                         iv_deadline    = iv_deadline ).
+  ENDMETHOD.
+
+  METHOD send_individually.
+    LOOP AT it_recipients ASSIGNING FIELD-SYMBOL(<rec>).
+      GET TIME STAMP FIELD DATA(lv_now).
+      IF cl_abap_tstmp=>subtract( tstmp1 = iv_deadline tstmp2 = lv_now ) <= 0.
+        " Out of runtime budget — stop; recipients not yet appended to
+        " rt_items are treated by the caller as errors (same conservative
+        " default the whole-chunk branch used before this fallback existed).
+        EXIT.
+      ENDIF.
+
+      DATA(ls_item) = VALUE ty_recipient_result( key = <rec>-key email = <rec>-email ok = abap_false ).
+      TRY.
+          send_chunk( io_document = io_document iv_sender = iv_sender it_recipients = VALUE #( ( <rec> ) ) ).
+          ls_item-ok = abap_true.
+        CATCH cx_bcs.
+          " Single-recipient failure — isolated to this one item, the loop
+          " continues with the rest of the chunk. No backoff/retry here:
+          " send_chunk_with_retry already exhausted retries at chunk level;
+          " retrying serially per recipient too would burn the runtime
+          " budget the deadline check above exists to protect.
+          ROLLBACK WORK.
+      ENDTRY.
+      APPEND ls_item TO rt_items.
+    ENDLOOP.
   ENDMETHOD.
 
 ENDCLASS.

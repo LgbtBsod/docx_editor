@@ -83,6 +83,12 @@
                     tooltip="{i18n>DIALOG_NEWS}" />
                 </search:SearchField>
               </layout:Grid>
+              <!-- Sends Filter("IsChange", EQ, "X") in DialogMixin#_searchNews
+                   when on — same News entity, just the CHG subset. -->
+              <HBox alignItems="Center" class="sapUiTinyMarginTop sapUiTinyMarginBottom">
+                <Switch state="{dialog>/changesOnly}" change="onSearchNews" customTextOn=" " customTextOff=" " />
+                <Label text="{i18n>NEWS_CHANGES_ONLY}" class="sapUiTinyMarginBegin" />
+              </HBox>
             </IconTabFilter>
           </items>
         </IconTabBar>
@@ -98,7 +104,10 @@
           class="ebDialogTable"
           noDataText="{i18n>NO_NEWS_RESULTS}">
           <columns>
-            <Column width="55%" minScreenWidth="Phone" demandPopin="false">
+            <Column width="15%" minScreenWidth="Tablet" demandPopin="true" popinDisplay="Inline">
+              <Text text="{i18n>NEWS_CHANGE_NUMBER}" />
+            </Column>
+            <Column width="40%" minScreenWidth="Phone" demandPopin="false">
               <Text text="{i18n>NEWS_TITLE}" />
             </Column>
             <Column width="15%" minScreenWidth="Tablet" demandPopin="true" popinDisplay="Inline">
@@ -111,6 +120,7 @@
           <items>
             <ColumnListItem type="Active">
               <cells>
+                <Text text="{ChangeNumber}" />
                 <Text text="{Title}" wrapping="true" />
                 <Text text="{Year}" />
                 <Text text="{Area}" wrapping="true" />

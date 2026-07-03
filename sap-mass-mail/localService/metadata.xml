@@ -13,14 +13,24 @@
         <Property Name="FieldName"   Type="Edm.String" MaxLength="100"/>
       </EntityType>
 
+      <!-- IsChange/ChangeNumber/InitiatorName/InitiatorOrg: same News entity,
+           reused for CHG-style change announcements (see ZCDS_News). All four
+           are plain strings sourced straight from the existing news table —
+           no new backend lookup, just projected columns. IsChange is the
+           filter switch ("change = X") the client's news search toggle sends;
+           everything else about News (search, add-as-source) is unchanged. -->
       <EntityType Name="News">
         <Key><PropertyRef Name="NewID"/></Key>
-        <Property Name="NewID"       Type="Edm.String" Nullable="false" MaxLength="32"/>
-        <Property Name="Title"       Type="Edm.String" MaxLength="200"/>
-        <Property Name="Year"        Type="Edm.Int32"/>
-        <Property Name="Quarter"     Type="Edm.Int32"/>
-        <Property Name="Area"        Type="Edm.String" MaxLength="60"/>
-        <Property Name="Content"     Type="Edm.String"/>
+        <Property Name="NewID"          Type="Edm.String" Nullable="false" MaxLength="32"/>
+        <Property Name="Title"          Type="Edm.String" MaxLength="200"/>
+        <Property Name="Year"           Type="Edm.Int32"/>
+        <Property Name="Quarter"        Type="Edm.Int32"/>
+        <Property Name="Area"           Type="Edm.String" MaxLength="60"/>
+        <Property Name="Content"        Type="Edm.String"/>
+        <Property Name="IsChange"       Type="Edm.String" MaxLength="1"/>
+        <Property Name="ChangeNumber"   Type="Edm.String" MaxLength="20"/>
+        <Property Name="InitiatorName"  Type="Edm.String" MaxLength="120"/>
+        <Property Name="InitiatorOrg"   Type="Edm.String" MaxLength="200"/>
       </EntityType>
 
       <EntityType Name="MailHeader">
@@ -86,6 +96,18 @@
         <Property Name="Description" Type="Edm.String" MaxLength="100"/>
       </EntityType>
 
+      <!-- Singleton runtime config: single source of truth for limits enforced
+           both server-side (ZCL_EB_MAILING_DPC_EXT / ZCL_NEWSLETTER_CONSTANTS)
+           and client-side, so a backend-side change never needs a matching
+           client deploy to take effect. Key is a constant "1" — one row. -->
+      <EntityType Name="MailingConfig">
+        <Key><PropertyRef Name="Key"/></Key>
+        <Property Name="Key"            Type="Edm.String" Nullable="false" MaxLength="1"/>
+        <Property Name="MaxRecipients"  Type="Edm.Int32"/>
+        <Property Name="SubjectMaxLen"  Type="Edm.Int32"/>
+        <Property Name="ChunkSize"      Type="Edm.Int32"/>
+      </EntityType>
+
       <Association Name="MailHeader_Recipients">
         <End Type="eb.MailHeader"   Role="MailHeader"   Multiplicity="1"/>
         <End Type="eb.Recipient"    Role="Recipient"    Multiplicity="*"/>
@@ -109,6 +131,7 @@
         <EntitySet Name="MailContentSet"     EntityType="eb.MailContent"/>
         <EntitySet Name="MailingStatusSet"   EntityType="eb.MailingStatus"/>
         <EntitySet Name="AllowedHostSet"     EntityType="eb.AllowedHost"/>
+        <EntitySet Name="MailingConfigSet"   EntityType="eb.MailingConfig"/>
         <AssociationSet Name="MailHeader_Recipients_Set"  Association="eb.MailHeader_Recipients">
           <End EntitySet="MailHeaderSet" Role="MailHeader"/>
           <End EntitySet="RecipientSet"  Role="Recipient"/>

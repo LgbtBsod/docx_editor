@@ -1,0 +1,3 @@
+[
+  { "Key": "1", "MaxRecipients": 10000, "SubjectMaxLen": 50, "ChunkSize": 50 }
+]

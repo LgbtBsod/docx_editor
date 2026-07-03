@@ -96,7 +96,7 @@ sap.ui.define([
         this._oNewsTable = Fragment.byId(sViewId, "newsTable");
         this.getView().addDependent(oDialog);
 
-        const oModel = new JSONModel({ selectedMode: "search", year: "", quarter: "all", area: "" });
+        const oModel = new JSONModel({ selectedMode: "search", year: "", quarter: "all", area: "", changesOnly: false });
         oModel.setSizeLimit(1000);
         oDialog.setModel(oModel, "dialog");
 
@@ -219,6 +219,11 @@ sap.ui.define([
       const sArea = oDialogModel.getProperty("/area");
       if (sArea) {
         aFilters.push(new Filter("Area", FilterOperator.Contains, sArea));
+      }
+      // "Только изменения (CHG)" switch — same News entity, IsChange="X"
+      // subset (see ZCDS_News/NewsSearch.fragment.xml).
+      if (oDialogModel.getProperty("/changesOnly")) {
+        aFilters.push(new Filter("IsChange", FilterOperator.EQ, "X"));
       }
       applyItemsFilter(this._oNewsTable, aFilters);
     },

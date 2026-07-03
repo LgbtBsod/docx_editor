@@ -6,6 +6,7 @@ CLASS zcl_eb_mailing_dpc_ext DEFINITION
 
   PUBLIC SECTION.
     METHODS /iwbep/if_mgw_appl_srv_runtime~create_deep_entity REDEFINITION.
+    METHODS /iwbep/if_mgw_appl_srv_runtime~get_entity REDEFINITION.
 
   PROTECTED SECTION.
     METHODS handle_mailing_deep_create
@@ -44,7 +45,21 @@ CLASS zcl_eb_mailing_dpc_ext DEFINITION
         to_recipients  TYPE tt_recipient,
         to_texts       TYPE tt_text,
         to_attachments TYPE tt_attachment,
-      END OF tys_mailing_deep.
+      END OF tys_mailing_deep,
+
+      " MailingConfigSet — single-row runtime config entity. Not
+      " BOPF/CDS-backed: it is a read-only projection of
+      " ZCL_NEWSLETTER_CONSTANTS=>c_validation/behavior computed at request
+      " time, so the client (util/service.js#getMailingConfig) always sees
+      " the same limits this class itself enforces, without a second
+      " hardcoded copy on the JS side (see emailbuilder/util/constants.js
+      " header comment for the client-side fallback-only counterpart).
+      BEGIN OF tys_mailing_config,
+        key            TYPE c LENGTH 1,
+        max_recipients TYPE i,
+        subject_max_len TYPE i,
+        chunk_size     TYPE i,
+      END OF tys_mailing_config.
 
     CONSTANTS:
       BEGIN OF c_validation,
@@ -98,6 +113,9 @@ CLASS zcl_eb_mailing_dpc_ext DEFINITION
 
       build_response
         IMPORTING is_mailing       TYPE tys_mailing_deep
+        RETURNING VALUE(rr_entity) TYPE REF TO data,
+
+      build_mailing_config
         RETURNING VALUE(rr_entity) TYPE REF TO data.
 
 ENDCLASS.
@@ -132,6 +150,29 @@ CLASS zcl_eb_mailing_dpc_ext IMPLEMENTATION.
     persist_mailing( it_modification = build_modifications( ls_payload ) iv_local_id = ls_payload-local_id ).
 
     er_deep_entity = build_response( ls_payload ).
+  ENDMETHOD.
+
+  METHOD /iwbep/if_mgw_appl_srv_runtime~get_entity.
+    IF iv_entity_name = zcl_newsletter_constants=>entity-mailing_config.
+      er_entity = build_mailing_config( ).
+    ELSE.
+      super->/iwbep/if_mgw_appl_srv_runtime~get_entity(
+        EXPORTING iv_entity_name          = iv_entity_name
+                  iv_entity_set_name      = iv_entity_set_name
+                  iv_source_name          = iv_source_name
+                  it_key_tab              = it_key_tab
+                  it_navigation_path      = it_navigation_path
+                  io_tech_request_context = io_tech_request_context
+        IMPORTING er_entity               = er_entity ).
+    ENDIF.
+  ENDMETHOD.
+
+  METHOD build_mailing_config.
+    rr_entity = NEW tys_mailing_config(
+      key             = '1'
+      max_recipients  = c_validation-max_recipients
+      subject_max_len = c_validation-max_subject_len
+      chunk_size      = zcl_newsletter_constants=>behavior-chunk_size ).
   ENDMETHOD.
 
   METHOD read_payload.

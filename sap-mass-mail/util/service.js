@@ -253,11 +253,28 @@ sap.ui.define([
       .then(extractResults);
   }
 
+  /**
+   * Reads the single-row runtime config entity (MaxRecipients, SubjectMaxLen,
+   * ChunkSize) served by the backend from ZCL_NEWSLETTER_CONSTANTS
+   * (zcl_eb_mailing_dpc_ext#build_mailing_config). This is the single source
+   * of truth for those limits — util/constants.js only holds fallback
+   * defaults for the brief window before this resolves (or if it fails).
+   *
+   * @param {sap.ui.core.UIComponent} oComponent owner component
+   * @returns {Promise<{MaxRecipients:number, SubjectMaxLen:number, ChunkSize:number}>}
+   */
+  function getMailingConfig(oComponent) {
+    return entityPath(oComponent, "MailingConfigSet", { Key: "1" })
+      .then((sPath) => readWithRetry(oComponent, sPath, null, 0))
+      .then(extractEntity);
+  }
+
   return {
     sendMailing: sendMailing,
     getMailingStatus: getMailingStatus,
     getMailingContent: getMailingContent,
     copyMailing: copyMailing,
-    getAllowedHosts: getAllowedHosts
+    getAllowedHosts: getAllowedHosts,
+    getMailingConfig: getMailingConfig
   };
 });

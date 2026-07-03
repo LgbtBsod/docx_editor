@@ -122,3 +122,8 @@ CLASS zcl_eb_mailing_mod_builder IMPLEMENTATION.
   ENDMETHOD.
 
 ENDCLASS.
+
+" Grants the ABAP Unit test class in
+" zcl_eb_mailing_mod_builder.clas.testclasses.abap access to the private
+" dedupe_recipients CLASS-METHOD without widening its visibility.
+CLASS zcl_eb_mailing_mod_builder DEFINITION LOCAL FRIENDS ltc_mod_builder_test.

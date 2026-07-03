@@ -59,6 +59,7 @@ sap.ui.define([
       }
 
       this._loadAllowedHosts();
+      this._loadMailingConfig();
     },
 
     onAfterRendering() {
@@ -289,6 +290,34 @@ sap.ui.define([
           // company images/links now vanish on send) unless we say so.
           this._oConfig.setProperty("/allowedHosts", []);
           Toast.warning(this._t("MSG_ALLOWED_HOSTS_LOAD_FAILED"));
+        });
+    },
+
+    /**
+     * Loads MaxRecipients/SubjectMaxLen from the backend's single-row
+     * MailingConfigSet (see util/service.js#getMailingConfig) and overwrites
+     * the util/constants.js-seeded fallback in the "config" model. A failure
+     * here is silently ignored — the pre-load fallback already in place
+     * (Component.js#_initialState-adjacent config model init) keeps the UI
+     * usable with the last-known-good client-side defaults.
+     * @private
+     */
+    _loadMailingConfig() {
+      const oComponent = this.getOwnerComponent();
+      Service.getMailingConfig(oComponent)
+        .then((oData) => {
+          const iMaxRecipients = parseInt(oData.MaxRecipients, 10);
+          const iSubjectMaxLen = parseInt(oData.SubjectMaxLen, 10);
+          if (iMaxRecipients > 0) {
+            this._oConfig.setProperty("/maxRecipients", iMaxRecipients);
+            oComponent.setStateSizeLimit(iMaxRecipients);
+          }
+          if (iSubjectMaxLen > 0) {
+            this._oConfig.setProperty("/subjectMaxLen", iSubjectMaxLen);
+          }
+        })
+        .catch((e) => {
+          Log.warning("[emailbuilder] Mailing config load failed, using client-side fallback: " + e.message);
         });
     }
   }));

@@ -17,10 +17,12 @@ sap.ui.define([], () => {
       EMAIL_PATTERN: /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/u,
       LOCAL_ID_PATTERN: /^[A-Za-z0-9_\-.]{1,40}$/,
 
-      // Mirrors zcl_eb_mailing_dpc_ext=>c_validation-max_subject_len (SO_OBJ_DES
-      // length — outbound BCS document truncates above this). Bound to
-      // subjectInput's maxLength so the limit is enforced before submit,
-      // not only rejected by the backend after a full compose cycle.
+      // Pre-load fallback ONLY. The single source of truth is the backend's
+      // MailingConfigSet (zcl_eb_mailing_dpc_ext#build_mailing_config, mirrors
+      // c_validation-max_subject_len / SO_OBJ_DES length), loaded into the
+      // "config" model at startup (App.controller#_loadMailingConfig) and bound
+      // to subjectInput's maxLength there. This literal only covers the brief
+      // window before that resolves, or a load failure.
       SUBJECT_MAX_LEN: 50
     },
 
@@ -28,10 +30,10 @@ sap.ui.define([], () => {
       DEFAULT_TOP: 100,
       MAX_COLLECTION_SIZE: 5000,
 
-      // Mirrors zcl_eb_mailing_dpc_ext=>c_validation-max_recipients (ABAP).
-      // Must stay >= the "state" JSONModel's sizeLimit (Component.js), or
-      // the "Добавлено" recipients list in RecipientSearch silently
-      // truncates past this many entries instead of just rendering slowly.
+      // Pre-load fallback ONLY — see SUBJECT_MAX_LEN comment above; the
+      // single source of truth is MailingConfigSet's MaxRecipients, applied
+      // to the "state" JSONModel's sizeLimit via Component#setStateSizeLimit
+      // once App.controller#_loadMailingConfig resolves.
       MAX_RECIPIENTS_PER_MAILING: 10000
     },
 

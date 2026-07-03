@@ -153,7 +153,7 @@
           <VBox class="ebSubjectCard">
             <Label text="{i18n>SUBJECT}" class="ebCardLabel" />
             <Input id="subjectInput" value="{state>/viewingSubject}" placeholder="{i18n>SUBJECT_PLACEHOLDER}"
-              liveChange="onSubjectChange" maxLength="{= ${constants>/VALIDATION/SUBJECT_MAX_LEN} }" class="ebSubjectInput" />
+              liveChange="onSubjectChange" maxLength="{= ${config>/subjectMaxLen} }" class="ebSubjectInput" />
           </VBox>
 
           <VBox id="editorContainer" class="ebEditorContainer" />
