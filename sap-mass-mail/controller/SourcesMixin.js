@@ -22,7 +22,6 @@ sap.ui.define([
     onAttachmentDeleted(oEvent) {
       const oCtx = oEvent.getSource().getBindingContext("state");
       if (!oCtx) { return; }
-      // Attachments are identified by generated id, not by (non-unique) name.
       const sId = oCtx.getProperty("id");
       const aAttachments = (this._oState.getProperty("/attachments") || [])
         .filter((a) => a.id !== sId);
@@ -30,11 +29,6 @@ sap.ui.define([
       this._updateHeaderBadges();
     },
 
-    /**
-     * Handles dropped/picked source files with a small concurrency window.
-     *
-     * @param {FileList|File[]} fileList files to process
-     */
     _handleSourceDrop(fileList) {
       const aFiles = Array.from(fileList || []);
       if (!aFiles.length) { return; }
@@ -82,14 +76,6 @@ sap.ui.define([
       this._addSourceToList(sSourceId, "file", sName);
     },
 
-    /**
-     * Prompts the user for a PDF import mode via the PdfModeDialog fragment.
-     * Resolves with the selected mode ("text" | "images"), rejects on cancel.
-     *
-     * @param {string} sFileName file name (informational)
-     * @returns {Promise<string>} chosen mode
-     * @private
-     */
     _promptPdfMode(sFileName) {
       if (this._fnPdfResolve) {
         this._fnPdfResolve("text");
@@ -152,7 +138,6 @@ sap.ui.define([
 
     _addSourceToList(sSourceId, sType, sName) {
       const sExt = Config.getFileExt(sName);
-      // Copy-on-write: bindings always receive a new array reference.
       const aSources = (this._oState.getProperty("/sources") || []).slice();
       aSources.push({
         id: sSourceId, type: sType, name: sName, ext: sExt,
@@ -176,17 +161,6 @@ sap.ui.define([
       this._updateHeaderBadges();
     },
 
-    /**
-     * Keeps the sidebar source/news lists in sync when the user invalidates
-     * a source block by hand directly in the editor (backspacing its text
-     * away, or deleting it outright) instead of using its sidebar "remove"
-     * button — the reverse direction of onRemoveSource/onRemoveNewsItem.
-     * Drops any tracked source/news entry whose block is no longer among
-     * the currently-valid ids reported by the editor's watch.
-     *
-     * @param {string[]} aValidIds ids the editor confirms are still present
-     * @private
-     */
     _reconcileSourcesWithEditor(aValidIds) {
       const mValid = {};
       (aValidIds || []).forEach((sId) => { mValid[sId] = true; });
@@ -204,19 +178,10 @@ sap.ui.define([
       this._updateHeaderBadges();
     },
 
-    /**
-     * Adds a selected news item as its own tracked entry (state>/newsItems),
-     * fully decoupled from file sources — mirrors how recipients are tracked
-     * separately from attachments. The HTML is still inserted into the editor
-     * as a removable source block so onRemoveNewsItem can cleanly retract it.
-     *
-     * @param {object} oObj news entity ({ Title, Content })
-     * @private
-     */
     _addNewsAsSource(oObj) {
       const sClean = Sanitize.forImport(oObj.Content || "");
       const sSourceId = Config.generateSourceId();
-      this._oEditor.insert(SourceBlock.wrap(sSourceId, "news", oObj.Title, sClean));
+      this._oEditor.insert(SourceBlock.wrap(sSourceId, "news", sClean));
 
       const aNews = (this._oState.getProperty("/newsItems") || []).slice();
       aNews.push({
@@ -242,8 +207,6 @@ sap.ui.define([
 
     onClearAllNews() {
       const aNews = this._oState.getProperty("/newsItems") || [];
-      // Keep editor content and news list in sync: remove the inserted
-      // blocks from the editor as well (was: list cleared, HTML left behind).
       aNews.forEach((n) => this._oEditor.removeSource(n.id));
       this._oState.setProperty("/newsItems", []);
       this._updateHeaderBadges();
@@ -291,7 +254,7 @@ sap.ui.define([
           && typeof navigator.clipboard.writeText === "function") {
         navigator.clipboard.writeText(sText)
           .then(() => Toast.success(this._t("MSG_LOCALID_COPIED")))
-          .catch(() => { /* clipboard blocked; ignore silently */ });
+          .catch(() => { });
       }
     }
   };

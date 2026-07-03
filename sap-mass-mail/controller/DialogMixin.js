@@ -11,14 +11,6 @@ sap.ui.define([
     Log, Service) => {
   "use strict";
 
-  /**
-   * Applies a filter array to a table's "items" ODataListBinding. Server-side
-   * paging is handled by the binding — no result set is materialised here.
-   *
-   * @param {sap.m.Table} oTable table whose items binding to filter
-   * @param {sap.ui.model.Filter[]} aFilters filters to apply
-   * @private
-   */
   function applyItemsFilter(oTable, aFilters) {
     const oBinding = oTable && oTable.getBinding("items");
     if (oBinding) { oBinding.filter(aFilters); }
@@ -57,13 +49,11 @@ sap.ui.define([
 
         this._setRecipientDialogDefaultTab();
 
-        // FIXED: Store handler reference for cleanup
-        this._oRecipDialogOpenHandler = () => {
+        oDialog.attachAfterOpen(() => {
           if (oModel.getProperty("/selectedMode") !== "added") {
             this._searchRecipients();
           }
-        };
-        oDialog.attachAfterOpen(this._oRecipDialogOpenHandler);
+        });
 
         oDialog.open();
       }).catch((err) => {
@@ -112,12 +102,11 @@ sap.ui.define([
 
         this._setNewsDialogDefaultTab();
 
-        this._oNewsDialogOpenHandler = () => {
+        oDialog.attachAfterOpen(() => {
           if (oModel.getProperty("/selectedMode") !== "added") {
             this._searchNews();
           }
-        };
-        oDialog.attachAfterOpen(this._oNewsDialogOpenHandler);
+        });
 
         oDialog.open();
       }).catch((err) => {
@@ -257,19 +246,6 @@ sap.ui.define([
       this._openHistoryView(oMailing);
     },
 
-    /**
-     * Opens the mailing-history detail dialog. Fully self-contained: every
-     * field lives on the dialog's own "history" model, never on the shared
-     * "state" model the main compose screen is bound to. Viewing a
-     * historical mailing must never change what the compose screen shows —
-     * it previously overwrote /viewingSubject (the same property backing
-     * the Subject input) and toggled a "back to current" button into
-     * existence on the main screen, i.e. browsing history silently
-     * hijacked the screen you were composing on.
-     *
-     * @param {object} mailing mailing entity from the history list
-     * @private
-     */
     _openHistoryView(mailing) {
       const oData = {
         mailingId: mailing.Key,
@@ -285,10 +261,9 @@ sap.ui.define([
         this._applyMailingStatusToHud(oModel, mailing);
         this._loadStatusHud(oModel, mailing.Key);
 
-        // LOB travels only on demand: MailHistorySet no longer carries Content.
         Service.getMailingContent(this.getOwnerComponent(), mailing.Key)
           .then((oEntry) => oModel.setProperty("/content", oEntry.Content || ""))
-          .catch(() => { /* preview stays empty; counts remain available */ });
+          .catch(() => { });
 
         this._oHistoryViewDialog.open();
       };
@@ -316,14 +291,6 @@ sap.ui.define([
       if (this._oHistoryViewDialog) { this._oHistoryViewDialog.close(); }
     },
 
-    /**
-     * Pushes the status breakdown from the history row counts into the
-     * given history dialog model.
-     *
-     * @param {sap.ui.model.json.JSONModel} oModel target "history" model
-     * @param {object} mailing mailing entity
-     * @private
-     */
     _applyMailingStatusToHud(oModel, mailing) {
       const iTotal   = mailing.TotalCount || 0;
       const iSent    = mailing.SentCount  || 0;
@@ -336,16 +303,6 @@ sap.ui.define([
       oModel.setProperty("/hud", { statuses: aStatuses, total: iTotal });
     },
 
-    /**
-     * Refreshes the given history dialog model with live aggregated
-     * statuses. ZI_Mailing_Status maps receiver codes to the unified
-     * display domain in CDS, so the payload uses the same dictionary as
-     * _applyMailingStatusToHud.
-     *
-     * @param {sap.ui.model.json.JSONModel} oModel target "history" model
-     * @param {string} sId mailing key
-     * @private
-     */
     _loadStatusHud(oModel, sId) {
       Service.getMailingStatus(this.getOwnerComponent(), sId)
         .then((aStatuses) => {
@@ -357,7 +314,7 @@ sap.ui.define([
             });
           }
         })
-        .catch(() => { /* keep counts-based HUD data */ });
+        .catch(() => { });
     },
 
     onCopyViewingMailing() {

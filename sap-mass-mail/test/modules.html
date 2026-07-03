@@ -104,7 +104,7 @@
   .then(() => t("F-1 fix: removeSource handles nested divs via DOMParser fallback", () => {
     const ed = new Editor({ byId: () => null, createId: (s) => s }, "editorContainer");
     ed._oRte = new (sap.ui.require("sap/ui/richtexteditor/RichTextEditor"))("rte", {});
-    const block = SourceBlock.wrap("abc123", "file", "t.pdf",
+    const block = SourceBlock.wrap("abc123", "file",
       '<div class="pdf-page-text" data-page="1">P1</div><div class="pdf-page-text" data-page="2">P2</div>');
     ed._oRte.setValue("<p>before</p>" + block + "<p>after</p>");
     ed.removeSource("abc123");

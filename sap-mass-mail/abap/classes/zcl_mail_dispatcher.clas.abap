@@ -1,59 +1,118 @@
-CLASS zcl_mail_dispatcher DEFINITION PUBLIC FINAL CREATE PUBLIC.
+CLASS zcl_mail_dispatcher DEFINITION
+  PUBLIC
+  FINAL
+  CREATE PUBLIC.
+
   PUBLIC SECTION.
     CLASS-METHODS run
       IMPORTING iv_max_runtime_s TYPE i DEFAULT 300.
 
   PRIVATE SECTION.
     TYPES:
+      tt_recipient_node  TYPE STANDARD TABLE OF /bobf/if_znewsletter_bo_c=>sc_node_data-receivers WITH EMPTY KEY,
+      tt_attachment_node TYPE STANDARD TABLE OF /bobf/if_znewsletter_bo_c=>sc_node_data-attachment_folder WITH EMPTY KEY,
+
       BEGIN OF tys_payload,
-        root_key    TYPE sysuuid_c36,
-        subject     TYPE so_obj_des,
+        root_key    TYPE /bobf/conf_key,
+        subject     TYPE c LENGTH 255,
         content     TYPE string,
         sender      TYPE ad_smtpadr,
-        attachments TYPE STANDARD TABLE OF zmail_att WITH DEFAULT KEY,
-        recipients  TYPE STANDARD TABLE OF zmail_rec WITH DEFAULT KEY,
+        attachments TYPE tt_attachment_node,
+        recipients  TYPE tt_recipient_node,
       END OF tys_payload,
+
       BEGIN OF tys_stats,
+        total   TYPE i,
         sent_ok TYPE i,
         errors  TYPE i,
-        total   TYPE i,
       END OF tys_stats.
 
     CONSTANTS:
-      c_chunk_size     TYPE i VALUE 50,  " Размер пачки для COMMIT WORK
       c_max_retries    TYPE i VALUE 3,
       c_backoff_base_s TYPE i VALUE 2,
-      c_stuck_timeout  TYPE i VALUE 600. " 10 минут
+      c_max_stuck_rows TYPE i VALUE 100.
 
     CLASS-METHODS:
-      requeue_stuck_mailings,
+      process_one
+        IMPORTING io_srv_mgr          TYPE REF TO /bobf/if_frw_service_manager
+                  iv_log_handle       TYPE balloghndl
+                  iv_started_ts       TYPE timestampl
+                  iv_max_runtime      TYPE i
+        RETURNING VALUE(rv_processed) TYPE abap_bool,
 
-      pick_and_lock_mailing
-        RETURNING VALUE(rv_root_key) TYPE sysuuid_c36,
+      pick_next_mailing
+        RETURNING VALUE(rv_root_key) TYPE /bobf/conf_key,
+
+      requeue_stuck_mailings
+        IMPORTING io_srv_mgr TYPE REF TO /bobf/if_frw_service_manager,
+
+      acquire_mailing
+        IMPORTING io_srv_mgr    TYPE REF TO /bobf/if_frw_service_manager
+                  iv_root_key   TYPE /bobf/conf_key
+                  iv_log_handle TYPE balloghndl
+        RETURNING VALUE(rv_ok)  TYPE abap_bool,
+
+      transition_status
+        IMPORTING io_srv_mgr  TYPE REF TO /bobf/if_frw_service_manager
+                  iv_root_key TYPE /bobf/conf_key
+                  iv_status   TYPE zcl_newsletter_constants=>ty_status,
 
       fetch_mailing_data
-        IMPORTING iv_root_key       TYPE sysuuid_c36
+        IMPORTING io_srv_mgr        TYPE REF TO /bobf/if_frw_service_manager
+                  iv_root_key       TYPE /bobf/conf_key
         RETURNING VALUE(rs_payload) TYPE tys_payload,
 
       resolve_sender
-        RETURNING VALUE(rv_sender) TYPE ad_smtpadr,
+        IMPORTING io_srv_mgr        TYPE REF TO /bobf/if_frw_service_manager
+        RETURNING VALUE(rv_sender)  TYPE ad_smtpadr,
 
-      send_emails
-        IMPORTING is_payload      TYPE tys_payload
+      send_all
+        IMPORTING io_srv_mgr      TYPE REF TO /bobf/if_frw_service_manager
+                  is_payload      TYPE tys_payload
                   iv_log_handle   TYPE balloghndl
                   iv_started_ts   TYPE timestampl
                   iv_max_runtime  TYPE i
         RETURNING VALUE(rs_stats) TYPE tys_stats,
 
+      send_chunk
+        IMPORTING io_document   TYPE REF TO cl_document_bcs
+                  iv_sender     TYPE ad_smtpadr
+                  it_recipients TYPE tt_recipient_node
+        RAISING   cx_bcs_send,
+
+      send_chunk_with_retry
+        IMPORTING io_document   TYPE REF TO cl_document_bcs
+                  iv_sender     TYPE ad_smtpadr
+                  it_recipients TYPE tt_recipient_node
+                  iv_log_handle TYPE balloghndl
+        RETURNING VALUE(rv_ok)  TYPE abap_bool,
+
+      apply_chunk_status
+        IMPORTING io_srv_mgr    TYPE REF TO /bobf/if_frw_service_manager
+                  it_recipients TYPE tt_recipient_node
+                  iv_status     TYPE zcl_newsletter_constants=>ty_status,
+
+      finalize_mailing
+        IMPORTING io_srv_mgr    TYPE REF TO /bobf/if_frw_service_manager
+                  iv_root_key   TYPE /bobf/conf_key
+                  is_stats      TYPE tys_stats
+                  iv_log_handle TYPE balloghndl,
+
       build_document
         IMPORTING is_payload    TYPE tys_payload
         RETURNING VALUE(ro_doc) TYPE REF TO cl_document_bcs
-        RAISING   cx_bcs,
+        RAISING   cx_bcs_send,
 
-      finalize_mailing
-        IMPORTING iv_root_key   TYPE sysuuid_c36
-                  is_stats      TYPE tys_stats
-                  iv_log_handle TYPE balloghndl,
+      save_bopf
+        IMPORTING io_srv_mgr TYPE REF TO /bobf/if_frw_service_manager,
+
+      stuck_cutoff
+        RETURNING VALUE(rv_cutoff) TYPE timestampl,
+
+      runtime_exceeded
+        IMPORTING iv_started_ts    TYPE timestampl
+                  iv_max_runtime   TYPE i
+        RETURNING VALUE(rv_yes)    TYPE abap_bool,
 
       init_log
         RETURNING VALUE(rv_handle) TYPE balloghndl,
@@ -74,204 +133,307 @@ ENDCLASS.
 CLASS zcl_mail_dispatcher IMPLEMENTATION.
 
   METHOD run.
-    DATA: lv_log_handle TYPE balloghndl,
-          lv_started    TYPE timestampl.
+    DATA(lo_srv_mgr)    = /bobf/cl_tra_serv_mgr_factory=>get_service_manager( /bobf/if_znewsletter_bo_c=>sc_bo_key ).
+    DATA(lv_log_handle) = init_log( ).
+    GET TIME STAMP FIELD DATA(lv_started).
 
-    lv_log_handle = init_log( ).
-    GET TIME STAMP FIELD lv_started.
+    requeue_stuck_mailings( lo_srv_mgr ).
 
-    requeue_stuck_mailings( ).
-
-    WHILE abap_true.
-      " 1. Контроль времени жизни джоба на уровне цикла рассылок
-      GET TIME STAMP FIELD DATA(lv_now).
-      IF cl_abap_tstmp=>subtract( tstmp1 = lv_now tstmp2 = lv_started ) >= iv_max_runtime_s.
-        EXIT.
-      ENDIF.
-
-      " 2. Атомарный захват рассылки (без BOPF, напрямую в БД)
-      DATA(lv_root_key) = pick_and_lock_mailing( ).
-      IF lv_root_key IS INITIAL.
-        EXIT. " Очередь пуста
-      ENDIF.
-
-      " 3. Сбор данных (3 изолированных SELECT-а, без раздувания памяти)
-      DATA(ls_payload) = fetch_mailing_data( lv_root_key ).
-      ls_payload-root_key = lv_root_key.
-      ls_payload-sender   = resolve_sender( ).
-
-      " 4. Отправка (с передачей параметров времени для Graceful Shutdown)
-      DATA(ls_stats) = send_emails( is_payload    = ls_payload
-                                    iv_log_handle = lv_log_handle
-                                    iv_started_ts = lv_started
-                                    iv_max_runtime = iv_max_runtime_s ).
-
-      " 5. Финализация рассылки
-      finalize_mailing( iv_root_key   = lv_root_key
-                        is_stats      = ls_stats
-                        iv_log_handle = lv_log_handle ).
-
-      " 6. Периодическая переотправка зависших рассылок
-      requeue_stuck_mailings( ).
+    WHILE process_one( io_srv_mgr     = lo_srv_mgr
+                       iv_log_handle  = lv_log_handle
+                       iv_started_ts  = lv_started
+                       iv_max_runtime = iv_max_runtime_s ) = abap_true
+      AND runtime_exceeded( iv_started_ts = lv_started iv_max_runtime = iv_max_runtime_s ) = abap_false.
     ENDWHILE.
 
     persist_log( lv_log_handle ).
   ENDMETHOD.
 
-  METHOD pick_and_lock_mailing.
-    " Атомарный захват через подзапрос. Исключает race condition.
-    UPDATE zmail_hdr
-      SET status = 'PROC', changed_at = @sy-timestampl
-      WHERE key = ( SELECT key FROM zmail_hdr
-                    WHERE status = 'QUEUE'
-                    ORDER BY created_at ASCENDING
-                    LIMIT 1 )
-        AND status = 'QUEUE'.
-    COMMIT WORK.
-
-    IF sy-dbcnt = 1.
-      SELECT SINGLE key FROM zmail_hdr 
-        WHERE status = 'PROC' 
-        ORDER BY changed_at DESCENDING 
-        INTO @rv_root_key.
-    ENDIF.
+  METHOD runtime_exceeded.
+    GET TIME STAMP FIELD DATA(lv_now).
+    rv_yes = xsdbool( cl_abap_tstmp=>subtract( tstmp1 = lv_now tstmp2 = iv_started_ts ) >= iv_max_runtime ).
   ENDMETHOD.
 
-  METHOD requeue_stuck_mailings.
-    DATA(lv_cutoff) = cl_abap_tstmp=>subtractsecs( tstmp = sy-timestampl
-                                                    secs  = c_stuck_timeout ).
+  METHOD process_one.
+    rv_processed = abap_false.
 
-    UPDATE zmail_hdr
-      SET status = 'QUEUE', changed_at = @sy-timestampl
-      WHERE status = 'PROC'
-        AND changed_at < @lv_cutoff.
-    COMMIT WORK.
-  ENDMETHOD.
-
-  METHOD fetch_mailing_data.
-    " 1. Шапка + Текст за 1 SELECT (1 строка)
-    SELECT SINGLE h~subject, t~content
-      FROM zmail_hdr AS h
-      LEFT JOIN zmail_txt AS t ON t~root_key = h~key
-      WHERE h~key = @iv_root_key
-      INTO ( @rs_payload-subject, @rs_payload-content ).
-
-    IF sy-subrc <> 0. RETURN. ENDIF.
-
-    " 2. Аттачи (N строк, без дублирования Base64 на получателей)
-    SELECT * FROM zmail_att
-      INTO TABLE @rs_payload-attachments
-      WHERE root_key = @iv_root_key.
-
-    " 3. Получатели (M строк, только необработанные)
-    SELECT * FROM zmail_rec
-      INTO TABLE @rs_payload-recipients
-      WHERE root_key = @iv_root_key
-        AND status = 'NEW'.
-  ENDMETHOD.
-
-  METHOD resolve_sender.
-    SELECT SINGLE host
-      FROM zcds_allowed_hosts
-      WHERE is_noreply = @abap_true
-      INTO @rv_sender.
-
-    IF sy-subrc <> 0.
-      rv_sender = 'noreply@default-domain.com'.
-    ENDIF.
-  ENDMETHOD.
-
-  METHOD send_emails.
-    rs_stats-total = lines( is_payload-recipients ).
-
-    IF is_payload-recipients IS INITIAL.
-      log_msg( iv_log_handle = iv_log_handle iv_msgty = 'W' iv_msgno = '005' ).
+    DATA(lv_root_key) = pick_next_mailing( ).
+    IF lv_root_key IS INITIAL.
+      log_msg( iv_log_handle = iv_log_handle iv_msgno = '003' ).
       RETURN.
     ENDIF.
 
+    IF acquire_mailing( io_srv_mgr    = io_srv_mgr
+                        iv_root_key   = lv_root_key
+                        iv_log_handle = iv_log_handle ) = abap_false.
+      rv_processed = abap_true.
+      RETURN.
+    ENDIF.
+
+    DATA(ls_payload) = fetch_mailing_data( io_srv_mgr = io_srv_mgr iv_root_key = lv_root_key ).
+    ls_payload-root_key = lv_root_key.
+    ls_payload-sender   = resolve_sender( io_srv_mgr ).
+
+    DATA ls_stats TYPE tys_stats.
+    ls_stats-total = lines( ls_payload-recipients ).
+
+    IF ls_payload-recipients IS INITIAL.
+      log_msg( iv_log_handle = iv_log_handle iv_msgno = '005' ).
+    ELSE.
+      ls_stats = send_all( io_srv_mgr     = io_srv_mgr
+                           is_payload     = ls_payload
+                           iv_log_handle  = iv_log_handle
+                           iv_started_ts  = iv_started_ts
+                           iv_max_runtime = iv_max_runtime ).
+    ENDIF.
+
+    finalize_mailing( io_srv_mgr    = io_srv_mgr
+                      iv_root_key   = lv_root_key
+                      is_stats      = ls_stats
+                      iv_log_handle = iv_log_handle ).
+
+    rv_processed = abap_true.
+  ENDMETHOD.
+
+  METHOD pick_next_mailing.
+    SELECT FROM zmail_hdr
+      FIELDS key
+      WHERE status = @zcl_newsletter_constants=>root_status-in_queue
+      ORDER BY created_at ASCENDING
+      INTO @rv_root_key
+      UP TO 1 ROWS.
+    ENDSELECT.
+  ENDMETHOD.
+
+  METHOD requeue_stuck_mailings.
+    DATA(lv_cutoff) = stuck_cutoff( ).
+
+    SELECT FROM zmail_hdr
+      FIELDS key
+      WHERE status     = @zcl_newsletter_constants=>root_status-processing
+        AND changed_at < @lv_cutoff
+      INTO TABLE @DATA(lt_stuck)
+      UP TO @c_max_stuck_rows ROWS.
+
+    IF lt_stuck IS INITIAL.
+      RETURN.
+    ENDIF.
+
+    io_srv_mgr->modify( VALUE #(
+      FOR lv_key IN lt_stuck
+      ( node        = /bobf/if_znewsletter_bo_c=>sc_node-root
+        key         = lv_key
+        change_mode = /bobf/cl_frw_factory=>sc_modify_update
+        data        = VALUE #( status     = zcl_newsletter_constants=>root_status-in_queue
+                               changed_at = sy-timestampl ) ) ) ).
+    save_bopf( io_srv_mgr ).
+  ENDMETHOD.
+
+  METHOD acquire_mailing.
+    rv_ok = abap_false.
+
     TRY.
-        " Документ создается 1 раз на всю рассылку
+        io_srv_mgr->lock(
+          EXPORTING iv_node  = /bobf/if_znewsletter_bo_c=>sc_node-root
+                    iv_key   = iv_root_key
+                    iv_mode  = /bobf/if_frw_service_manager=>sc_lock-exclusive
+                    iv_scope = /bobf/if_frw_service_manager=>sc_lock_scope-luw ).
+      CATCH /bobf/cx_frw_lock.
+        log_msg( iv_log_handle = iv_log_handle iv_msgty = 'W' iv_msgno = '004' iv_msgv1 = |{ iv_root_key }| ).
+        RETURN.
+    ENDTRY.
+
+    io_srv_mgr->read(
+      EXPORTING iv_node      = /bobf/if_znewsletter_bo_c=>sc_node-root
+                iv_key       = iv_root_key
+                iv_with_data = abap_true
+      IMPORTING es_data      = DATA(ls_root) ).
+
+    IF ls_root-status <> zcl_newsletter_constants=>root_status-in_queue.
+      RETURN.
+    ENDIF.
+
+    transition_status( io_srv_mgr = io_srv_mgr iv_root_key = iv_root_key iv_status = zcl_newsletter_constants=>root_status-processing ).
+    rv_ok = abap_true.
+  ENDMETHOD.
+
+  METHOD transition_status.
+    io_srv_mgr->modify( VALUE #(
+      ( node        = /bobf/if_znewsletter_bo_c=>sc_node-root
+        key         = iv_root_key
+        change_mode = /bobf/cl_frw_factory=>sc_modify_update
+        data        = VALUE #( status     = iv_status
+                               changed_at = sy-timestampl ) ) ) ).
+    save_bopf( io_srv_mgr ).
+  ENDMETHOD.
+
+  METHOD fetch_mailing_data.
+    io_srv_mgr->read(
+      EXPORTING iv_node      = /bobf/if_znewsletter_bo_c=>sc_node-root
+                iv_key       = iv_root_key
+                iv_with_data = abap_true
+      IMPORTING es_data      = DATA(ls_root) ).
+    rs_payload-subject = ls_root-subject.
+
+    io_srv_mgr->get_child_nodes(
+      EXPORTING iv_parent_key = iv_root_key
+                iv_child_node = /bobf/if_znewsletter_bo_c=>sc_node-text_collection
+      IMPORTING et_key_list   = DATA(lt_text_keys) ).
+
+    IF lt_text_keys IS NOT INITIAL.
+      io_srv_mgr->read(
+        EXPORTING iv_node      = /bobf/if_znewsletter_bo_c=>sc_node-text_collection
+                  iv_key       = lt_text_keys[ 1 ]-key
+                  iv_with_data = abap_true
+        IMPORTING es_data      = DATA(ls_text) ).
+      rs_payload-content = ls_text-content.
+    ENDIF.
+
+    io_srv_mgr->get_child_nodes(
+      EXPORTING iv_parent_key = iv_root_key
+                iv_child_node = /bobf/if_znewsletter_bo_c=>sc_node-attachment_folder
+      IMPORTING et_key_list   = DATA(lt_att_keys) ).
+
+    IF lt_att_keys IS NOT INITIAL.
+      io_srv_mgr->read(
+        EXPORTING iv_node      = /bobf/if_znewsletter_bo_c=>sc_node-attachment_folder
+                  it_key       = CORRESPONDING #( lt_att_keys )
+                  iv_with_data = abap_true
+        IMPORTING et_data      = DATA(lt_att_data) ).
+      rs_payload-attachments = CORRESPONDING #( lt_att_data ).
+    ENDIF.
+
+    DATA(lt_rec_filter) = VALUE /bobf/t_frw_filter(
+      ( property = /bobf/if_znewsletter_bo_c=>sc_node_property-receivers-status
+        option   = /bobf/if_frw_query=>sc_filter_option-eq
+        value    = zcl_newsletter_constants=>rec_status-new ) ).
+
+    io_srv_mgr->query(
+      EXPORTING iv_query_key  = /bobf/if_znewsletter_bo_c=>sc_query-receivers-by_parent_status
+                it_filter     = lt_rec_filter
+                iv_parent_key = iv_root_key
+                iv_node_key   = /bobf/if_znewsletter_bo_c=>sc_node-receivers
+      IMPORTING et_key_list   = DATA(lt_rec_keys) ).
+
+    IF lt_rec_keys IS NOT INITIAL.
+      io_srv_mgr->read(
+        EXPORTING iv_node      = /bobf/if_znewsletter_bo_c=>sc_node-receivers
+                  it_key       = CORRESPONDING #( lt_rec_keys )
+                  iv_with_data = abap_true
+        IMPORTING et_data      = DATA(lt_rec_data) ).
+      rs_payload-recipients = CORRESPONDING #( lt_rec_data ).
+    ENDIF.
+  ENDMETHOD.
+
+  METHOD resolve_sender.
+    SELECT SINGLE host FROM zcds_allowed_hosts WHERE is_noreply = @abap_true INTO @rv_sender.
+    IF sy-subrc <> 0.
+      rv_sender = zcl_newsletter_constants=>behavior-default_sender.
+    ENDIF.
+  ENDMETHOD.
+
+  METHOD send_all.
+    TRY.
         DATA(lo_document) = build_document( is_payload ).
-      CATCH cx_bcs INTO DATA(lx_bcs).
+      CATCH cx_bcs_send INTO DATA(lx_doc).
         log_msg( iv_log_handle = iv_log_handle iv_msgty = 'E' iv_msgno = '001'
-                 iv_msgv1 = 'Doc build failed' iv_msgv2 = lx_bcs->get_text( ) ).
-        " Массово валим всех получателей
-        MODIFY zmail_rec FROM TABLE @( VALUE #( FOR r IN is_payload-recipients
-                                                ( key = r-key status = 'ERROR' ) ) ).
-        COMMIT WORK.
+                 iv_msgv1 = |Document build failed| iv_msgv2 = lx_doc->get_text( ) ).
+        apply_chunk_status( io_srv_mgr = io_srv_mgr it_recipients = is_payload-recipients
+                            iv_status = zcl_newsletter_constants=>rec_status-error ).
+        rs_stats-total  = lines( is_payload-recipients ).
         rs_stats-errors = rs_stats-total.
         RETURN.
     ENDTRY.
 
-    DATA(lo_sender_addr) = cl_cam_address_bcs=>create_internet_address( is_payload-sender ).
-    
-    " Таблица для батчирования статусов
-    DATA(lt_rec_updates) = VALUE TABLE OF zmail_rec( ).
+    DATA(lv_total) = lines( is_payload-recipients ).
+    DATA(lv_chunk) = zcl_newsletter_constants=>behavior-chunk_size.
+    DATA(lv_from)  = 1.
+    rs_stats-total = lv_total.
 
-    " Индивидуальная отправка (TO:) через Field-Symbols (0 аллокаций памяти)
-    LOOP AT is_payload-recipients ASSIGNING FIELD-SYMBOL(<rec>).
-      
-      " === GRACEFUL SHUTDOWN (Защита от таймаута джоба) ===
-      " Проверяем время при накоплении пачки, чтобы не дергать timestamp на каждой итерации
-      IF lines( lt_rec_updates ) = c_chunk_size OR sy-tabix = 1.
-        GET TIME STAMP FIELD DATA(lv_now).
-        IF cl_abap_tstmp=>subtract( tstmp1 = lv_now tstmp2 = iv_started_ts ) >= iv_max_runtime.
-          " Время вышло! Докоммитываем то, что уже отправили, и выходим.
-          IF lt_rec_updates IS NOT INITIAL.
-            MODIFY zmail_rec FROM TABLE @lt_rec_updates.
-            COMMIT WORK.
-          ENDIF.
-          EXIT. " Рассылка останется в PROC, её подберет следующий запуск
-        ENDIF.
+    WHILE lv_from <= lv_total.
+      IF runtime_exceeded( iv_started_ts = iv_started_ts iv_max_runtime = iv_max_runtime ) = abap_true.
+        EXIT.
       ENDIF.
 
-      DATA(lv_retry) = 1.
-      DATA(lv_success) = abap_false.
+      DATA(lv_to) = nmin( val1 = lv_from + lv_chunk - 1 val2 = lv_total ).
+      DATA(lt_chunk) = VALUE tt_recipient_node( FOR r IN is_payload-recipients FROM lv_from TO lv_to ( r ) ).
 
-      WHILE lv_retry <= c_max_retries AND lv_success = abap_false.
-        TRY.
-            DATA(lo_req) = cl_bcs=>create_persistent( ).
-            lo_req->set_document( lo_document ).
-            lo_req->set_sender( lo_sender_addr ).
-
-            lo_req->add_recipient( i_recipient = cl_cam_address_bcs=>create_internet_address( CONV #( <rec>-email ) )
-                                   i_blind_copy = abap_false ).
-
-            lo_req->set_send_immediately( abap_true ).
-            lo_req->send( iv_commit = abap_false ).
-            lv_success = abap_true.
-
-            rs_stats-sent_ok += 1.
-            APPEND VALUE #( key = <rec>-key status = 'SENT' ) TO lt_rec_updates.
-
-          CATCH cx_bcs INTO DATA(lx_send).
-            ROLLBACK WORK.
-            IF lv_retry < c_max_retries.
-              WAIT UP TO ipow( base = c_backoff_base_s exp = lv_retry ) SECONDS.
-            ELSE.
-              log_msg( iv_log_handle = iv_log_handle iv_msgty = 'E' iv_msgno = '001'
-                       iv_msgv1 = |Send to { <rec>-email } failed|
-                       iv_msgv2 = lx_send->get_text( ) ).
-              rs_stats-errors += 1.
-              APPEND VALUE #( key = <rec>-key status = 'ERROR' ) TO lt_rec_updates.
-            ENDIF.
-            lv_retry += 1.
-        ENDTRY.
-      ENDWHILE.
-
-      " Батчим обновление БД: коммитим каждые c_chunk_size писем
-      IF lines( lt_rec_updates ) = c_chunk_size.
-        MODIFY zmail_rec FROM TABLE @lt_rec_updates.
-        COMMIT WORK.
-        CLEAR lt_rec_updates.
+      IF send_chunk_with_retry( io_document = lo_document iv_sender = is_payload-sender
+                                it_recipients = lt_chunk iv_log_handle = iv_log_handle ) = abap_true.
+        apply_chunk_status( io_srv_mgr = io_srv_mgr it_recipients = lt_chunk
+                            iv_status = zcl_newsletter_constants=>rec_status-sent ).
+        rs_stats-sent_ok += lines( lt_chunk ).
+      ELSE.
+        apply_chunk_status( io_srv_mgr = io_srv_mgr it_recipients = lt_chunk
+                            iv_status = zcl_newsletter_constants=>rec_status-error ).
+        rs_stats-errors += lines( lt_chunk ).
       ENDIF.
+
+      lv_from = lv_to + 1.
+    ENDWHILE.
+  ENDMETHOD.
+
+  METHOD send_chunk.
+    DATA(lo_req) = cl_bcs=>create_persistent( ).
+    lo_req->set_document( io_document ).
+    lo_req->set_sender( cl_cam_address_bcs=>create_internet_address( iv_sender ) ).
+
+    LOOP AT it_recipients ASSIGNING FIELD-SYMBOL(<rec>).
+      lo_req->add_recipient( i_recipient = cl_cam_address_bcs=>create_internet_address( CONV #( <rec>-email ) )
+                             i_blind_copy = abap_true ).
     ENDLOOP.
 
-    " Докоммитываем остатки, если цикл завершился нормально
-    IF lt_rec_updates IS NOT INITIAL.
-      MODIFY zmail_rec FROM TABLE @lt_rec_updates.
-      COMMIT WORK.
+    lo_req->send( iv_commit = abap_false ).
+  ENDMETHOD.
+
+  METHOD send_chunk_with_retry.
+    rv_ok = abap_false.
+
+    IF it_recipients IS INITIAL.
+      rv_ok = abap_true.
+      RETURN.
     ENDIF.
+
+    DO c_max_retries TIMES.
+      TRY.
+          send_chunk( io_document = io_document iv_sender = iv_sender it_recipients = it_recipients ).
+          rv_ok = abap_true.
+          RETURN.
+        CATCH cx_bcs_send INTO DATA(lx_send).
+          ROLLBACK WORK.
+          IF sy-index < c_max_retries.
+            WAIT UP TO ipow( base = c_backoff_base_s exp = sy-index ) SECONDS.
+          ELSE.
+            log_msg( iv_log_handle = iv_log_handle iv_msgty = 'E' iv_msgno = '001'
+                     iv_msgv1 = |Chunk of { lines( it_recipients ) } recipients failed|
+                     iv_msgv2 = lx_send->get_text( ) ).
+          ENDIF.
+      ENDTRY.
+    ENDDO.
+  ENDMETHOD.
+
+  METHOD apply_chunk_status.
+    IF it_recipients IS INITIAL.
+      RETURN.
+    ENDIF.
+    io_srv_mgr->modify( VALUE #(
+      FOR <rec> IN it_recipients
+      ( node        = /bobf/if_znewsletter_bo_c=>sc_node-receivers
+        key         = <rec>-key
+        change_mode = /bobf/cl_frw_factory=>sc_modify_update
+        data        = VALUE #( status = iv_status ) ) ) ).
+    save_bopf( io_srv_mgr ).
+  ENDMETHOD.
+
+  METHOD finalize_mailing.
+    DATA(lv_final) = COND #( WHEN is_stats-errors = 0 THEN zcl_newsletter_constants=>root_status-sent_ok
+                                                       ELSE zcl_newsletter_constants=>root_status-sent_err ).
+
+    transition_status( io_srv_mgr = io_srv_mgr iv_root_key = iv_root_key iv_status = lv_final ).
+
+    log_msg( iv_log_handle = iv_log_handle iv_msgno = '002'
+             iv_msgv1 = |{ iv_root_key }|
+             iv_msgv2 = |Total: { is_stats-total }, Sent: { is_stats-sent_ok }, Errors: { is_stats-errors }| ).
   ENDMETHOD.
 
   METHOD build_document.
@@ -280,64 +442,39 @@ CLASS zcl_mail_dispatcher IMPLEMENTATION.
     ro_doc = cl_document_bcs=>create_document(
                iv_type    = 'HTM'
                iv_text    = lt_body
-               iv_subject = is_payload-subject ).
+               iv_subject = CONV so_obj_des( is_payload-subject ) ).
 
     LOOP AT is_payload-attachments ASSIGNING FIELD-SYMBOL(<att>).
-      TRY.
-          DATA(lv_xstr) = cl_http_utility=>if_http_utility~decode_x_base64( <att>-content_base64 ).
-          ro_doc->add_attachment(
-            iv_attachment_name    = <att>-file_name
-            iv_attachment_type    = <att>-mime_type
-            iv_attachment_size    = xstrlen( lv_xstr )
-            iv_attachment_content = cl_bcs_convert=>xstring_to_solix( lv_xstr ) ).
-        CATCH cx_root.
-          " Игнорируем битый аттач, чтобы отправить хотя бы текст
-      ENDTRY.
+      ro_doc->add_attachment(
+        iv_attachment_name    = <att>-file_name
+        iv_attachment_type    = <att>-mime_type
+        iv_attachment_content = cl_http_utility=>if_http_utility~decode_x_base64( <att>-content_base64 ) ).
     ENDLOOP.
   ENDMETHOD.
 
-  METHOD finalize_mailing.
-    " Точные статусы рассылки
-    DATA(lv_final_status) = COND #( WHEN is_stats-sent_ok = 0 AND is_stats-errors > 0 THEN 'ERROR'
-                                    WHEN is_stats-errors > 0 THEN 'PARTIAL'
-                                    WHEN is_stats-total = 0 THEN 'EMPTY'
-                                    ELSE 'OK' ).
+  METHOD save_bopf.
+    /bobf/cl_tra_trans_mgr_factory=>get_transaction_manager( )->save( /bobf/if_znewsletter_bo_c=>sc_bo_key ).
+    COMMIT WORK.
+  ENDMETHOD.
 
-    UPDATE zmail_hdr
-      SET status     = @lv_final_status,
-          changed_at = @sy-timestampl
-      WHERE key = @iv_root_key.
-
-    COMMIT WORK AND WAIT.
-
-    log_msg( iv_log_handle = iv_log_handle
-             iv_msgty      = COND #( WHEN lv_final_status = 'OK' THEN 'I' ELSE 'W' )
-             iv_msgno      = '002'
-             iv_msgv1      = |Mailing { iv_root_key } finalized as { lv_final_status }|
-             iv_msgv2      = |Sent: { is_stats-sent_ok }, Errors: { is_stats-errors }| ).
+  METHOD stuck_cutoff.
+    rv_cutoff = cl_abap_tstmp=>subtract( tstmp = sy-timestampl secs = zcl_newsletter_constants=>behavior-stuck_timeout_s ).
   ENDMETHOD.
 
   METHOD init_log.
     CALL FUNCTION 'BAL_LOG_CREATE'
-      EXPORTING i_s_log      = VALUE bal_s_log( object    = 'ZMAIL'
-                                                subobject = 'DISP'
-                                                aluser    = sy-uname
-                                                alprog    = sy-repid )
+      EXPORTING i_s_log      = VALUE bal_s_log( object = 'ZMAIL' subobject = 'DISP' aluser = sy-uname alprog = sy-repid )
       IMPORTING e_log_handle = rv_handle.
   ENDMETHOD.
 
   METHOD log_msg.
-    " Усекаем до 50 символов, чтобы не словить CONVT_OVERFLOW в BAL
     DATA(lv_v1) = COND #( WHEN iv_msgv1 IS SUPPLIED THEN substring( val = |{ iv_msgv1 }| len = 50 ) ELSE '' ).
     DATA(lv_v2) = COND #( WHEN iv_msgv2 IS SUPPLIED THEN substring( val = |{ iv_msgv2 }| len = 50 ) ELSE '' ).
 
     CALL FUNCTION 'BAL_LOG_MSG_ADD'
       EXPORTING i_log_handle = iv_log_handle
-                i_s_msg      = VALUE bal_s_msg( msgty = iv_msgty
-                                                msgid = 'ZMAIL'
-                                                msgno = iv_msgno
-                                                msgv1 = lv_v1
-                                                msgv2 = lv_v2 ).
+                i_s_msg      = VALUE bal_s_msg( msgty = iv_msgty msgid = 'ZMAIL' msgno = iv_msgno
+                                                msgv1 = lv_v1 msgv2 = lv_v2 ).
   ENDMETHOD.
 
   METHOD persist_log.

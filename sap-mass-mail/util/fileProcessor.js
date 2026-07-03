@@ -8,22 +8,10 @@ sap.ui.define([
 ], (encodeXML, Config, FileTypes, SourceBlock, Sanitize, LibLoader) => {
   "use strict";
 
-  /**
-   * Resolves an app-local path through the UI5 resource roots, so lazy
-   * loading works from any document URL (standalone AND Fiori Launchpad,
-   * where the page URL is the shell, not the app folder).
-   *
-   * @param {string} sPath path relative to the app root
-   * @returns {string} resolved URL
-   * @private
-   */
   function libUrl(sPath) {
     return sap.ui.require.toUrl("emailbuilder/" + sPath);
   }
 
-  /**
-   * Third-party libraries, lazy-loaded on first use (~2 MB off cold start).
-   */
   const LIBS = {
     jszip: {
       path: "lib/docx-preview/jszip.min.js",
@@ -52,13 +40,6 @@ sap.ui.define([
     });
   }
 
-  /**
-   * docx-preview's UMD bundle reads the JSZip global directly (not via
-   * AMD/CommonJS in a plain <script> context), so JSZip must already be on
-   * window before docx-preview.min.js executes — load it first.
-   *
-   * @returns {Promise<void>} resolves once window.docx is usable
-   */
   function ensureDocxPreview() {
     return ensureLib("jszip").then(() => ensureLib("docxpreview"));
   }
@@ -90,32 +71,13 @@ sap.ui.define([
     });
   }
 
-  /**
-   * Translates a key via the given resource bundle (defensive).
-   *
-   * @param {sap.base.i18n.ResourceBundle} oBundle resource bundle
-   * @param {string} sKey i18n key
-   * @param {Array} [aArgs] format arguments
-   * @returns {string} translated text or the key when missing
-   * @private
-   */
   function t(oBundle, sKey, aArgs) {
     if (oBundle && typeof oBundle.getText === "function") {
-      try { return oBundle.getText(sKey, aArgs); } catch (e) { /* ignore */ }
+      try { return oBundle.getText(sKey, aArgs); } catch (e) { }
     }
     return sKey;
   }
 
-  /**
-   * Processes a file and returns HTML to insert into the editor.
-   * Dispatch is driven by the fileTypes registry (SSOT).
-   *
-   * @param {File} file file to process
-   * @param {string} sSourceId unique source id
-   * @param {string|null} sPdfMode "text" | "images" | null
-   * @param {sap.base.i18n.ResourceBundle} oBundle i18n bundle
-   * @returns {Promise<string>} HTML content
-   */
   function process(file, sSourceId, sPdfMode, oBundle) {
     if (!file || file.size === 0) {
       return Promise.reject(new Error(t(oBundle, "FILE_EMPTY")));
@@ -139,7 +101,7 @@ sap.ui.define([
 
   function processText(file, sSourceId) {
     return readAsText(file).then((sText) => SourceBlock.wrap(
-      sSourceId, "file", file.name,
+      sSourceId, "file",
       "<p>" + encodeXML(sText).replace(/\n/g, "<br>") + "</p>"
     ));
   }
@@ -147,7 +109,7 @@ sap.ui.define([
   function processMarkdown(file, sSourceId) {
     return Promise.all([ensureLib("marked"), readAsText(file)])
       .then((aResults) => SourceBlock.wrap(
-        sSourceId, "file", file.name,
+        sSourceId, "file",
         Sanitize.forImport(window.marked.parse(aResults[1]))
       ));
   }
@@ -156,7 +118,7 @@ sap.ui.define([
     return readAsText(file).then((sText) => {
       const mBody = sText.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
       const sBody = Sanitize.forImport(mBody ? mBody[1] : sText);
-      return SourceBlock.wrap(sSourceId, "file", file.name, sBody);
+      return SourceBlock.wrap(sSourceId, "file", sBody);
     });
   }
 
@@ -165,19 +127,10 @@ sap.ui.define([
       const sSafeName = encodeXML(file.name || "");
       const sHtml = '<p><img src="' + sDataUrl + '" alt="' + sSafeName
         + '" style="max-width:100%;height:auto;" /></p>';
-      return SourceBlock.wrap(sSourceId, "file", file.name, sHtml);
+      return SourceBlock.wrap(sSourceId, "file", sHtml);
     });
   }
 
-  /**
-   * Adds inline styles to a table imported from a source file (bare,
-   * borderless browser default otherwise). Inline, not a CSS class: the
-   * resulting HTML is also what gets mailed out, and only inline styles
-   * survive most email clients.
-   *
-   * @param {string} sHtml sanitized source HTML, possibly containing tables
-   * @returns {string} same HTML with table/td/th inline styles applied
-   */
   function styleImportedTables(sHtml) {
     if (!sHtml || sHtml.indexOf("<table") === -1) { return sHtml; }
     try {
@@ -202,23 +155,6 @@ sap.ui.define([
     }
   }
 
-  /**
-   * Renders a docx into a detached container via docx-preview and returns
-   * just its content markup (the outer page-simulation chrome — gray
-   * background, page shadow, @font-face/list-numbering <style> blocks —
-   * is deliberately dropped; none of it survives into an email anyway).
-   *
-   * Chosen over mammoth for DnD import: mammoth only converts document
-   * *structure* (headings, bold, lists) and never reads direct formatting
-   * like text color or paragraph alignment at all — a hard limitation, not
-   * a config gap. docx-preview renders those as inline styles on each
-   * element, which is exactly what survives both TinyMCE and an outgoing
-   * email (verified against a real user document: extracted colors matched
-   * the source docx's RGB values exactly, headings/alignment intact).
-   *
-   * @param {File} file docx file
-   * @returns {Promise<string>} sanitized, table-styled content HTML
-   */
   function renderDocxContent(file) {
     const oContainer = document.createElement("div");
     return window.docx.renderAsync(file, oContainer, null, {
@@ -236,7 +172,7 @@ sap.ui.define([
   function processDocx(file, sSourceId, oBundle) {
     return ensureDocxPreview()
       .then(() => renderDocxContent(file))
-      .then((sClean) => SourceBlock.wrap(sSourceId, "file", file.name, sClean))
+      .then((sClean) => SourceBlock.wrap(sSourceId, "file", sClean))
       .catch(() => {
         return Promise.reject(new Error(t(oBundle, "MSG_LIB_NOT_LOADED", ["docx-preview"])));
       });
@@ -245,9 +181,6 @@ sap.ui.define([
   function processPdf(file, sSourceId, sMode, oBundle) {
     return Promise.all([ensureLib("pdfjs"), readAsArrayBuffer(file)])
       .then((aResults) => {
-        // getDocument() returns a PDFDocumentLoadingTask, not a Promise —
-        // chaining .then() on the task itself resolves immediately with the
-        // task object (0 pages rendered). Must use .promise.
         return window.pdfjsLib.getDocument({ data: aResults[1] }).promise;
       })
       .then((oPdf) => {
@@ -264,7 +197,7 @@ sap.ui.define([
               + encodeXML(t(oBundle, "PDF_PAGES_TRUNCATED", [iPages, iTotal]))
               + '</p>';
           }
-          return SourceBlock.wrap(sSourceId, "file", file.name, sResult);
+          return SourceBlock.wrap(sSourceId, "file", sResult);
         });
       });
   }
@@ -311,7 +244,6 @@ sap.ui.define([
       const sImgAlt = encodeXML(t(oBundle, "PDF_PAGE", [iPageNum]));
       const sImg = '<img src="' + sDataUrl + '" style="max-width:100%;height:auto;" alt="'
         + sImgAlt + '"/>';
-      // Free canvas backing store so the bitmap memory is released promptly.
       oCanvas.width = 0;
       oCanvas.height = 0;
       return SourceBlock.wrapPdfPage("", iPageNum, "images", sHeader + sImg);
