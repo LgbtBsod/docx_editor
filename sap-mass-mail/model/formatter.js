@@ -83,6 +83,29 @@ sap.ui.define([
     return sFallback !== undefined ? sFallback : sKey;
   }
 
+  /**
+   * Picks the grammatically correct noun form for a count, Russian plural
+   * rules (1 / 2-4 / 5-20,0 exceptions) vs. simple English singular/plural.
+   *
+   * @param {number} n count
+   * @param {string} sOne RU form for n=1 (e.g. "получатель")
+   * @param {string} sFew RU form for n=2..4 (e.g. "получателя")
+   * @param {string} sMany RU form for n=0,5-20,... (e.g. "получателей")
+   * @param {string} sSingularEn EN singular (e.g. "recipient")
+   * @param {string} sPluralEn EN plural (e.g. "recipients")
+   * @returns {string} noun in the correct form for the active language
+   */
+  function pluralNoun(n, sOne, sFew, sMany, sSingularEn, sPluralEn) {
+    if (sap.ui.getCore().getConfiguration().getLanguage() !== "ru") {
+      return n === 1 ? sSingularEn : sPluralEn;
+    }
+    const iMod10 = n % 10;
+    const iMod100 = n % 100;
+    if (iMod10 === 1 && iMod100 !== 11) { return sOne; }
+    if (iMod10 >= 2 && iMod10 <= 4 && (iMod100 < 10 || iMod100 >= 20)) { return sFew; }
+    return sMany;
+  }
+
   const Formatter = {
 
     setResourceBundle(oBundle) {
@@ -135,6 +158,19 @@ sap.ui.define([
       return m ? m.icon : "sap-icon://hint";
     },
 
+    /**
+     * Combined "Label (Count)" text for a status chip.
+     *
+     * @param {string} sStatus status code
+     * @param {number} iCount count for that status
+     * @returns {string} chip text
+     */
+    statusChipText(sStatus, iCount) {
+      const m = statusMeta(sStatus);
+      const sLabel = m ? getText(m.key, null, m.fallback) : "—";
+      return sLabel + " (" + (iCount || 0) + ")";
+    },
+
     statusWidth(iCount, iTotal) {
       const c = Number(iCount) || 0;
       const t = Number(iTotal) || 0;
@@ -147,7 +183,8 @@ sap.ui.define([
       if (c <= 0) {
         return getText("RECIPIENTS_SUMMARY_EMPTY", null, "Нет получателей — нажмите, чтобы добавить");
       }
-      return getText("RECIPIENTS_SUMMARY", [c], c + " получателей — нажмите для просмотра");
+      const sNoun = pluralNoun(c, "получатель", "получателя", "получателей", "recipient", "recipients");
+      return getText("RECIPIENTS_SUMMARY", [c, sNoun], c + " " + sNoun + " — нажмите для просмотра");
     },
 
     newsSummary(aNews) {
@@ -155,7 +192,8 @@ sap.ui.define([
       if (c <= 0) {
         return getText("NEWS_SUMMARY_EMPTY", null, "Нет новостей — нажмите, чтобы добавить");
       }
-      return getText("NEWS_SUMMARY", [c], c + " новостей — нажмите для просмотра");
+      const sNoun = pluralNoun(c, "новость", "новости", "новостей", "news item", "news items");
+      return getText("NEWS_SUMMARY", [c, sNoun], c + " " + sNoun + " — нажмите для просмотра");
     },
 
     /**

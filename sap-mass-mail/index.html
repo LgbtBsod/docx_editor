@@ -20,8 +20,8 @@
     data-sap-ui-frameOptions="trusted"
   ></script>
   <!-- DOMPurify stays eager: the sanitizer must exist before any HTML rendering
-       (fail-closed policy in util/sanitize.js). mammoth / pdf.js / marked are
-       lazy-loaded by util/fileProcessor.js on first use (~2 MB off cold start). -->
+       (fail-closed policy in util/sanitize.js). docx-preview / pdf.js / marked
+       are lazy-loaded by util/fileProcessor.js on first use (~2 MB off cold start). -->
   <script src="lib/dompurify/purify.min.js" defer></script>
 </head>
 <body class="sapUiBody">

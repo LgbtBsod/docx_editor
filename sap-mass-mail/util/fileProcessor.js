@@ -25,9 +25,13 @@ sap.ui.define([
    * Third-party libraries, lazy-loaded on first use (~2 MB off cold start).
    */
   const LIBS = {
-    mammoth: {
-      path: "lib/mammoth/mammoth.browser.min.js",
-      check: () => !!(window.mammoth && typeof window.mammoth.convertToHtml === "function")
+    jszip: {
+      path: "lib/docx-preview/jszip.min.js",
+      check: () => !!window.JSZip
+    },
+    docxpreview: {
+      path: "lib/docx-preview/docx-preview.min.js",
+      check: () => !!(window.docx && typeof window.docx.renderAsync === "function")
     },
     marked: {
       path: "lib/marked/marked.min.js",
@@ -49,21 +53,15 @@ sap.ui.define([
   }
 
   /**
-   * mammoth.js style map: preserves headings and emphasis without the former
-   * hand-written ZIP/OOXML parser (~450 lines removed; mammoth also embeds
-   * package-internal images as data URLs by default).
+   * docx-preview's UMD bundle reads the JSZip global directly (not via
+   * AMD/CommonJS in a plain <script> context), so JSZip must already be on
+   * window before docx-preview.min.js executes — load it first.
+   *
+   * @returns {Promise<void>} resolves once window.docx is usable
    */
-  const DOCX_OPTIONS = {
-    styleMap: [
-      "p[style-name='Title'] => h1:fresh",
-      "p[style-name='Heading 1'] => h1:fresh",
-      "p[style-name='Heading 2'] => h2:fresh",
-      "p[style-name='Heading 3'] => h3:fresh",
-      "p[style-name='Heading 4'] => h4:fresh",
-      "r[style-name='Strong'] => strong"
-    ],
-    includeDefaultStyleMap: true
-  };
+  function ensureDocxPreview() {
+    return ensureLib("jszip").then(() => ensureLib("docxpreview"));
+  }
 
   function readAsText(file) {
     return new Promise((resolve, reject) => {
@@ -171,15 +169,76 @@ sap.ui.define([
     });
   }
 
+  /**
+   * Adds inline styles to a table imported from a source file (bare,
+   * borderless browser default otherwise). Inline, not a CSS class: the
+   * resulting HTML is also what gets mailed out, and only inline styles
+   * survive most email clients.
+   *
+   * @param {string} sHtml sanitized source HTML, possibly containing tables
+   * @returns {string} same HTML with table/td/th inline styles applied
+   */
+  function styleImportedTables(sHtml) {
+    if (!sHtml || sHtml.indexOf("<table") === -1) { return sHtml; }
+    try {
+      const oDoc = new DOMParser().parseFromString(sHtml, "text/html");
+      oDoc.querySelectorAll("table").forEach((oTable) => {
+        oTable.style.borderCollapse = "collapse";
+        oTable.style.width = "100%";
+        oTable.style.margin = "8px 0";
+      });
+      oDoc.querySelectorAll("table td, table th").forEach((oCell) => {
+        oCell.style.border = "1px solid #d9dde3";
+        oCell.style.padding = "6px 10px";
+      });
+      oDoc.querySelectorAll("table th").forEach((oHeader) => {
+        oHeader.style.background = "#fafbfc";
+        oHeader.style.fontWeight = "600";
+        oHeader.style.textAlign = "left";
+      });
+      return oDoc.body.innerHTML;
+    } catch (e) {
+      return sHtml;
+    }
+  }
+
+  /**
+   * Renders a docx into a detached container via docx-preview and returns
+   * just its content markup (the outer page-simulation chrome — gray
+   * background, page shadow, @font-face/list-numbering <style> blocks —
+   * is deliberately dropped; none of it survives into an email anyway).
+   *
+   * Chosen over mammoth for DnD import: mammoth only converts document
+   * *structure* (headings, bold, lists) and never reads direct formatting
+   * like text color or paragraph alignment at all — a hard limitation, not
+   * a config gap. docx-preview renders those as inline styles on each
+   * element, which is exactly what survives both TinyMCE and an outgoing
+   * email (verified against a real user document: extracted colors matched
+   * the source docx's RGB values exactly, headings/alignment intact).
+   *
+   * @param {File} file docx file
+   * @returns {Promise<string>} sanitized, table-styled content HTML
+   */
+  function renderDocxContent(file) {
+    const oContainer = document.createElement("div");
+    return window.docx.renderAsync(file, oContainer, null, {
+      inWrapper: false,
+      ignoreWidth: true,
+      ignoreHeight: true,
+      ignoreFonts: true
+    }).then(() => {
+      const oSection = oContainer.querySelector("section.docx");
+      const sRaw = oSection ? oSection.innerHTML : oContainer.innerHTML;
+      return styleImportedTables(Sanitize.forImport(sRaw));
+    });
+  }
+
   function processDocx(file, sSourceId, oBundle) {
-    return Promise.all([ensureLib("mammoth"), readAsArrayBuffer(file)])
-      .then((aResults) => window.mammoth.convertToHtml({ arrayBuffer: aResults[1] }, DOCX_OPTIONS))
-      .then((oResult) => SourceBlock.wrap(
-        sSourceId, "file", file.name,
-        Sanitize.forImport((oResult && oResult.value) || "")
-      ))
+    return ensureDocxPreview()
+      .then(() => renderDocxContent(file))
+      .then((sClean) => SourceBlock.wrap(sSourceId, "file", file.name, sClean))
       .catch(() => {
-        return Promise.reject(new Error(t(oBundle, "MSG_LIB_NOT_LOADED", ["mammoth"])));
+        return Promise.reject(new Error(t(oBundle, "MSG_LIB_NOT_LOADED", ["docx-preview"])));
       });
   }
 

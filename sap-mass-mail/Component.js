@@ -21,8 +21,6 @@ sap.ui.define([
       // Client-side limits live in util/config.js only (single source).
       this.setModel(new JSONModel({ allowedHosts: [] }), "config");
 
-      this.setModel(new JSONModel({ statuses: [], total: 0 }), "hud");
-
       UIComponent.prototype.init.apply(this, arguments);
 
       const oODataModel = this.getModel();
@@ -42,11 +40,7 @@ sap.ui.define([
     _initialState() {
       return {
         localId: Config.generateLocalId(),
-        viewingMailingId: null,
         viewingSubject: "",
-        viewingLocalId: "",
-        viewingCreatedAt: "",
-        historyContent: "",
         isSending: false,
         pdfModeIndex: 0,
         recipientCount: "",
@@ -70,7 +64,7 @@ sap.ui.define([
 
     destroy() {
       // FIXED: Explicit cleanup of all created models
-      ["state", "config", "hud"].forEach((sModelName) => {
+      ["state", "config"].forEach((sModelName) => {
         const oModel = this.getModel(sModelName);
         if (oModel && !oModel.isDestroyed()) {
           oModel.destroy();

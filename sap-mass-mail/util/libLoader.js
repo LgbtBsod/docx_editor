@@ -4,7 +4,7 @@ sap.ui.define([
   "use strict";
 
   /**
-   * Lazy loader for third-party browser libraries (mammoth, pdf.js, marked).
+   * Lazy loader for third-party browser libraries (docx-preview, pdf.js, marked).
    * Each URL is injected at most once; concurrent callers share one Promise.
    */
   const mPending = {};

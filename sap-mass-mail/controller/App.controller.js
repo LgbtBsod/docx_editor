@@ -1,6 +1,6 @@
 sap.ui.define([
   "emailbuilder/controller/BaseController",
-  "sap/m/MessageToast",
+  "emailbuilder/util/toast",
   "sap/m/MessageBox",
   "sap/base/Log",
   "emailbuilder/util/service",
@@ -13,7 +13,7 @@ sap.ui.define([
   "emailbuilder/controller/SourcesMixin",
   "emailbuilder/util/constants"
 ], (
-  BaseController, MessageToast, MessageBox, Log,
+  BaseController, Toast, MessageBox, Log,
   Service, DraftManager, Editor, DnDManager, EmailComposer, Formatter,
   DialogMixin, SourcesMixin, Constants
 ) => {
@@ -28,15 +28,18 @@ sap.ui.define([
       const oComp = this.getOwnerComponent();
       const oView = this.getView();
 
-      ["state", "config", "hud", "i18n"].forEach((sName) => {
+      // Inject the resource bundle before any model is attached to the view —
+      // attaching "state" triggers an immediate formatter evaluation
+      // (e.g. recipientsSummary/newsSummary), which would otherwise run with
+      // no bundle and permanently stick to the hardcoded fallback text.
+      Formatter.setResourceBundle(oComp.getModel("i18n").getResourceBundle());
+
+      ["state", "config", "i18n"].forEach((sName) => {
         oView.setModel(oComp.getModel(sName), sName);
       });
 
-      Formatter.setResourceBundle(oComp.getModel("i18n").getResourceBundle());
-
       this._oState  = oComp.getModel("state");
       this._oConfig = oComp.getModel("config");
-      this._oHud    = oComp.getModel("hud");
       this._oEditor = new Editor(oView, "editorContainer");
       this._oDnD    = new DnDManager();
       this._bFirstRenderDone = false;
@@ -64,6 +67,7 @@ sap.ui.define([
       this._oEditor.create().then((bReady) => {
         if (bReady) {
           this._oEditor.setupDnD((aFiles) => this._handleSourceDrop(aFiles));
+          this._oEditor.setupSourceSyncWatch((aValidIds) => this._reconcileSourcesWithEditor(aValidIds));
         }
       });
 
@@ -94,7 +98,7 @@ sap.ui.define([
 
       if (this._oDnD)    { this._oDnD.destroy();    this._oDnD = null; }
       if (this._oEditor) { this._oEditor.destroy(); this._oEditor = null; }
-      this._oState = this._oConfig = this._oHud = null;
+      this._oState = this._oConfig = null;
       this._sUserId = null;
 
       BaseController.prototype.onExit.apply(this, arguments);
@@ -174,19 +178,30 @@ sap.ui.define([
         oComponent
       );
 
+      const aAttachments = this._oState.getProperty("/attachments") || [];
+
+      // Test sends omit ToRecipients on the wire — the backend targets the
+      // test send at the calling user itself, it doesn't need the mailing
+      // list. The local mock record keeps the real recipient list (plus an
+      // IsTest flag) purely so /preview can show what a test send actually
+      // looked like; it's never sent to the OData service.
       const oPayload = {
         LocalId:      this._oState.getProperty("/localId"),
         Subject:      sSubject,
         Content:      sEmailHtml,
         ToRecipients: bIsTest ? [] : aRecipients,
-        Attachments:  this._oState.getProperty("/attachments") || []
+        Attachments:  aAttachments
       };
 
       Service.sendMailing(oComponent, oPayload, bIsTest)
         .then((data) => {
           // Save to backend in mock mode
           if (window.USE_MOCK) {
-            return Service.saveEmailToBackend(oPayload).then(() => data);
+            const oMockRecord = Object.assign({}, oPayload, {
+              ToRecipients: aRecipients,
+              IsTest: bIsTest
+            });
+            return Service.saveEmailToBackend(oMockRecord).then(() => data);
           }
           return data;
         })
@@ -208,16 +223,14 @@ sap.ui.define([
     },
 
     /**
-     * Resets the composer to a pristine draft (fresh LocalId, empty editor,
-     * empty HUD). Single implementation for "after send", "clear template"
-     * and "back to current".
+     * Resets the composer to a pristine draft (fresh LocalId, empty editor).
+     * Single implementation for "after send" and "clear template".
      *
      * @private
      */
     _resetComposer() {
       this._oEditor.setValue("");
       this.getOwnerComponent().resetState();
-      this._oHud.setData({ statuses: [], total: 0 });
       DraftManager.clear(this._sUserId);  // FIXED: User-isolated cleanup
     },
 
@@ -227,7 +240,7 @@ sap.ui.define([
         onClose: (action) => {
           if (action === MessageBox.Action.OK) {
             this._resetComposer();
-            MessageToast.show(this._t("MSG_TEMPLATE_CLEARED"));
+            Toast.success(this._t("MSG_TEMPLATE_CLEARED"));
           }
         }
       });
@@ -248,7 +261,7 @@ sap.ui.define([
       this._updateHeaderBadges();
 
       if (oDraft.content) { this._oEditor.setValue(oDraft.content); }
-      MessageToast.show(this._t("DRAFT_RESTORED"));
+      Toast.success(this._t("DRAFT_RESTORED"));
     },
 
     _saveDraft() {
@@ -262,7 +275,7 @@ sap.ui.define([
           sources:     this._oState.getProperty("/sources")     || [],
           newsItems:   this._oState.getProperty("/newsItems")   || []
         }, this._sUserId);  // FIXED: User-isolated save
-        MessageToast.show(this._t("DRAFT_SAVED"));
+        Toast.success(this._t("DRAFT_SAVED"));
       } catch (e) {
         Log.error("[emailbuilder] Draft save failed: " + e.message);
         MessageBox.error(this._t("ERR_DRAFT_SAVE"), { title: this._t("ERR_TITLE") });

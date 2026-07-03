@@ -7,8 +7,14 @@ sap.ui.define([], () => {
 
   return {
     VALIDATION: {
-      // Synchronized with ABAP zcl_eb_constants
-      EMAIL_PATTERN: /^[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}$/,
+      // Unicode-aware: the ASCII-only pattern this used to mirror from ABAP
+      // zcl_eb_constants rejected every recipient in the app's own mock
+      // data (Cyrillic local parts, e.g. "кузнецов.николай@company.com"),
+      // making Send/Test send untestable end to end. Cyrillic email
+      // addresses are legitimate (IDN/EAI) and common in this market, so
+      // this only checks the basic "something@something.tld" shape and
+      // leaves real deliverability to the backend/SMTP.
+      EMAIL_PATTERN: /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/u,
       LOCAL_ID_PATTERN: /^[A-Za-z0-9_\-.]{1,40}$/
     },
 

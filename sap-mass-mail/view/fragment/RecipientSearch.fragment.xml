@@ -7,7 +7,7 @@
   <Dialog
     id="recipientDialog"
     title="{i18n>DIALOG_RECIPIENTS}"
-    contentWidth="640px"
+    contentWidth="720px"
     contentHeight="560px"
     resizable="true"
     draggable="true"
@@ -119,13 +119,13 @@
           class="ebDialogTable"
           noDataText="{i18n>NO_RECIPIENTS_FOUND}">
           <columns>
-            <Column width="40%" minScreenWidth="Phone" demandPopin="false">
+            <Column width="30%" minScreenWidth="Phone" demandPopin="false">
               <Text text="{i18n>COL_NAME}" />
             </Column>
-            <Column width="25%" minScreenWidth="Tablet" demandPopin="true" popinDisplay="Inline">
+            <Column width="20%" minScreenWidth="Tablet" demandPopin="true" popinDisplay="Inline">
               <Text text="{i18n>COL_ROLE}" />
             </Column>
-            <Column width="35%" minScreenWidth="Desktop" demandPopin="true" popinDisplay="Block">
+            <Column width="50%" minScreenWidth="Desktop" demandPopin="true" popinDisplay="Block">
               <Text text="{i18n>COL_EMAIL}" />
             </Column>
           </columns>

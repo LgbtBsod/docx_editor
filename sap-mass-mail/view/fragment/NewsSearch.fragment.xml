@@ -6,7 +6,7 @@
   <Dialog
     id="newsDialog"
     title="{i18n>DIALOG_NEWS}"
-    contentWidth="640px"
+    contentWidth="680px"
     contentHeight="560px"
     resizable="true"
     draggable="true"
@@ -60,10 +60,14 @@
                   <Select selectedKey="{dialog>/area}" change="onSearchNews">
                     <items>
                       <core:Item key="" text="{i18n>ALL}" />
-                      <core:Item key="Technical" text="Technical" />
-                      <core:Item key="Business" text="Business" />
-                      <core:Item key="Strategic" text="Strategic" />
-                      <core:Item key="Operations" text="Operations" />
+                      <core:Item key="Маркетинг" text="{i18n>AREA_MARKETING}" />
+                      <core:Item key="Юридический" text="{i18n>AREA_LEGAL}" />
+                      <core:Item key="Производство" text="{i18n>AREA_PRODUCTION}" />
+                      <core:Item key="Финансы" text="{i18n>AREA_FINANCE}" />
+                      <core:Item key="HR" text="{i18n>AREA_HR}" />
+                      <core:Item key="IT" text="{i18n>AREA_IT}" />
+                      <core:Item key="Логистика" text="{i18n>AREA_LOGISTICS}" />
+                      <core:Item key="Безопасность" text="{i18n>AREA_SECURITY}" />
                     </items>
                     <layoutData>
                       <layout:GridData span="L3 M6 S12" />
@@ -95,13 +99,13 @@
           class="ebDialogTable"
           noDataText="{i18n>NO_NEWS_RESULTS}">
           <columns>
-            <Column width="65%" minScreenWidth="Phone" demandPopin="false">
+            <Column width="55%" minScreenWidth="Phone" demandPopin="false">
               <Text text="{i18n>NEWS_TITLE}" />
             </Column>
             <Column width="15%" minScreenWidth="Tablet" demandPopin="true" popinDisplay="Inline">
               <Text text="{i18n>YEAR}" />
             </Column>
-            <Column width="20%" minScreenWidth="Tablet" demandPopin="true" popinDisplay="Block">
+            <Column width="30%" minScreenWidth="Tablet" demandPopin="true" popinDisplay="Block">
               <Text text="{i18n>AREA}" />
             </Column>
           </columns>

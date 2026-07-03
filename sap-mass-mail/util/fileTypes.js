@@ -36,12 +36,12 @@ sap.ui.define([], () => {
     ".html": {
       handler: "html",
       mimes: ["text/html"],
-      icon: "sap-icon://document-html", color: "#e76500"
+      icon: "sap-icon://internet-browser", color: "#e76500"
     },
     ".htm": {
       handler: "html",
       mimes: ["text/html"],
-      icon: "sap-icon://document-html", color: "#e76500"
+      icon: "sap-icon://internet-browser", color: "#e76500"
     },
     ".png": {
       handler: "image",

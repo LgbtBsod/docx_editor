@@ -41,9 +41,26 @@ sap.ui.define([
     wrap(sSourceId, sType, sTitle, sContent) {
       const sSafeId = this._toSafeId(sSourceId);
       const sClass = "eb-src-block source-" + (sType === "news" ? "news" : "file");
+
+      // Two structural paragraphs bracket every block, each guarding a
+      // different TinyMCE editing quirk:
+      //  - inside the div, trailing: guarantees a normal (non-table,
+      //    non-image) caret position at the end of this block's own
+      //    content. Without it, a source ending in a <table>/<img> (e.g. a
+      //    docx with a layout table) leaves nowhere valid to place the
+      //    cursor, so the *next* inserted source lands inside the last
+      //    table cell instead of after the block.
+      //  - after the div, standalone: without a real paragraph between two
+      //    adjacent source-block divs, deleting this block's text right up
+      //    to its edge makes TinyMCE merge the *next* block's content into
+      //    this one instead of just emptying it (confirmed empirically —
+      //    happens even for a single-character backspace). This separator
+      //    absorbs that merge instead.
       return '<div id="' + sSafeId + '" class="' + sClass + '">'
         + (sContent || "")
-        + '</div>';
+        + '<p>&nbsp;</p>'
+        + '</div>'
+        + '<p>&nbsp;</p>';
     },
 
     /**

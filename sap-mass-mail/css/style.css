@@ -602,44 +602,6 @@
 }
 
 /* ============================================================
-   STATUS HUD
-   ============================================================ */
-.emailBuilderPage .statusHudBox {
-  padding: var(--eb-space-md) var(--eb-space-lg);
-  background: var(--eb-surface);
-  border-radius: var(--eb-radius-md);
-  border: 1px solid var(--eb-border);
-  box-shadow: var(--eb-shadow-xs);
-  margin-top: var(--eb-space-md);
-  flex-shrink: 0;
-}
-
-.ebHudLabel {
-  font-size: 13px !important;
-  font-weight: 500 !important;
-  color: var(--eb-text) !important;
-}
-
-.ebHudItem {
-  gap: var(--eb-space-md) !important;
-  padding: var(--eb-space-xs) 0 !important;
-}
-
-.ebHudStatus .sapMObjStatusText {
-  font-weight: 500 !important;
-}
-
-.ebHudCount {
-  font-size: 14px !important;
-  font-weight: 600 !important;
-  color: var(--eb-text) !important;
-}
-
-.ebHudList .sapMLIB {
-  border-bottom: none !important;
-}
-
-/* ============================================================
    DIALOGS
    ============================================================ */
 /* Scoped to app dialogs (ebDialog) so styling does not leak to MessageBox
@@ -798,30 +760,24 @@
   margin-bottom: var(--eb-space-md) !important;
 }
 
-/* HUD styles (HistoryView dialog) */
-.statusHudLabel {
-  font-size: 13px !important;
-  font-weight: 500 !important;
-  color: var(--eb-text) !important;
-}
-
-.statusHudList {
+/* Status chips (HistoryView dialog) — a wrapped row of pills instead of a
+   vertical list, each colored by sap.m.ObjectStatus's own semantic state. */
+.ebStatusChipsRow {
+  gap: var(--eb-space-sm) !important;
   margin-top: var(--eb-space-sm) !important;
 }
 
-.statusHudItem {
-  gap: var(--eb-space-md) !important;
-  padding: var(--eb-space-xs) 0 !important;
+.ebStatusChip {
+  background: var(--eb-surface-alt) !important;
+  border: 1px solid var(--eb-border) !important;
+  border-radius: var(--eb-radius-pill) !important;
+  padding: 4px 12px !important;
+  margin: 0 !important;
 }
 
-.statusHudStatus .sapMObjStatusText {
-  font-weight: 500 !important;
-}
-
-.statusHudCount {
-  font-size: 14px !important;
+.ebStatusChip .sapMObjStatusText {
   font-weight: 600 !important;
-  color: var(--eb-text) !important;
+  font-size: 13px !important;
 }
 
 /* Local ID input styling — explicit radius/width so it never depends on
@@ -862,11 +818,25 @@
 .ebHistoryContent ul, .ebHistoryContent ol { margin: 6px 0; padding-left: 24px; }
 .ebHistoryContent img { max-width: 100%; height: auto; }
 
-.ebHistorySubject {
-  font-size: 18px !important;
-  font-weight: 600 !important;
+.ebHistorySubjectHeading {
+  font-size: 20px !important;
+  font-weight: 700 !important;
   color: var(--eb-text) !important;
-  margin-top: var(--eb-space-xs) !important;
+}
+
+.ebHistoryMetaRow {
+  gap: var(--eb-space-xs) !important;
+  margin: var(--eb-space-xs) 0 var(--eb-space-sm) !important;
+}
+
+.ebHistoryMetaItem {
+  font-size: 12px !important;
+  color: var(--eb-text-secondary) !important;
+  font-family: "72mono", Consolas, monospace !important;
+}
+
+.ebHistoryMetaSep {
+  color: var(--eb-text-muted) !important;
 }
 
 /* ============================================================
@@ -904,17 +874,29 @@
 }
 
 @media (max-width: 600px) {
+  /* Below 600px there's no room for a side-by-side layout: stack the
+     source/recipient panel above the compose panel and let the page
+     scroll, instead of the desktop fixed-height/overflow:hidden shell. */
+  .emailBuilderPage .sapMPageContent {
+    overflow: auto !important;
+  }
+  .emailBuilderPage .ebMainHBox {
+    height: auto !important;
+    flex-direction: column;
+  }
   .emailBuilderPage .leftPanel {
-    position: absolute;
-    z-index: 50;
-    width: 280px;
-    min-width: 280px;
-    max-width: 280px;
-    height: 100%;
-    box-shadow: var(--eb-shadow-lg);
+    position: static;
+    width: 100%;
+    min-width: 100%;
+    max-width: 100%;
+    height: 50vh;
+    border-right: none;
+    border-bottom: 1px solid var(--eb-border);
+    box-shadow: none;
   }
   .emailBuilderPage .ebCenterPanel {
     padding: var(--eb-space-sm) !important;
+    min-height: 60vh;
   }
   .emailBuilderPage #mainPage > header .ebHeader .sapMBarRight {
     display: none !important;
@@ -1012,4 +994,24 @@
 /* Ensure toolbar spacer pushes buttons right */
 .ebFooter .sapMOTBSpacer {
   flex: 1 1 auto !important;
+}
+
+/* ============================================================
+   SEMANTIC TOAST COLORS — util/toast.js tags the toast DOM node
+   with one of these classes so severity is visible at a glance.
+   ============================================================ */
+.sapMMessageToast.ebToastSuccess {
+  background-color: var(--eb-success) !important;
+  border: 1px solid rgba(255, 255, 255, 0.25) !important;
+}
+.sapMMessageToast.ebToastWarning {
+  background-color: var(--eb-warning) !important;
+  border: 1px solid rgba(255, 255, 255, 0.25) !important;
+}
+.sapMMessageToast.ebToastError {
+  background-color: var(--eb-error) !important;
+  border: 1px solid rgba(255, 255, 255, 0.25) !important;
+}
+.sapMMessageToast.ebToastInfo {
+  background-color: var(--eb-text) !important;
 }

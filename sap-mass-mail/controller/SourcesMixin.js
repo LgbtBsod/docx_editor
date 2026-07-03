@@ -1,13 +1,13 @@
 sap.ui.define([
   "sap/ui/core/Fragment",
-  "sap/m/MessageToast",
+  "emailbuilder/util/toast",
   "emailbuilder/util/config",
   "emailbuilder/util/sanitize",
   "emailbuilder/util/sourceBlock",
   "emailbuilder/util/fileProcessor",
   "emailbuilder/util/sourceTypes",
   "emailbuilder/model/formatter"
-], (Fragment, MessageToast, Config, Sanitize, SourceBlock, FileProcessor,
+], (Fragment, Toast, Config, Sanitize, SourceBlock, FileProcessor,
     SourceTypes, Formatter) => {
   "use strict";
 
@@ -47,7 +47,7 @@ sap.ui.define([
             .then(() => { iActive--; processNext(); })
             .catch((err) => {
               if (err && err.message && err.message !== "PDF import cancelled") {
-                MessageToast.show(err.message);
+                Toast.warning(err.message);
               }
               iActive--; processNext();
             });
@@ -65,7 +65,7 @@ sap.ui.define([
         return Promise.reject(new Error(this._t("MSG_FILE_TOO_LARGE", [file.name])));
       }
       if (!Config.mimeMatchesExt(sExt, file.type)) {
-        MessageToast.show(this._t("MSG_MIME_MISMATCH", [file.name, file.type]));
+        Toast.warning(this._t("MSG_MIME_MISMATCH", [file.name, file.type]));
       }
 
       if (sExt === ".pdf") {
@@ -177,6 +177,34 @@ sap.ui.define([
     },
 
     /**
+     * Keeps the sidebar source/news lists in sync when the user invalidates
+     * a source block by hand directly in the editor (backspacing its text
+     * away, or deleting it outright) instead of using its sidebar "remove"
+     * button — the reverse direction of onRemoveSource/onRemoveNewsItem.
+     * Drops any tracked source/news entry whose block is no longer among
+     * the currently-valid ids reported by the editor's watch.
+     *
+     * @param {string[]} aValidIds ids the editor confirms are still present
+     * @private
+     */
+    _reconcileSourcesWithEditor(aValidIds) {
+      const mValid = {};
+      (aValidIds || []).forEach((sId) => { mValid[sId] = true; });
+
+      const aSources = this._oState.getProperty("/sources") || [];
+      const aNews = this._oState.getProperty("/newsItems") || [];
+      const aKeptSources = aSources.filter((s) => mValid[s.id]);
+      const aKeptNews = aNews.filter((n) => mValid[n.id]);
+
+      if (aKeptSources.length === aSources.length && aKeptNews.length === aNews.length) {
+        return;
+      }
+      this._oState.setProperty("/sources", aKeptSources);
+      this._oState.setProperty("/newsItems", aKeptNews);
+      this._updateHeaderBadges();
+    },
+
+    /**
      * Adds a selected news item as its own tracked entry (state>/newsItems),
      * fully decoupled from file sources — mirrors how recipients are tracked
      * separately from attachments. The HTML is still inserted into the editor
@@ -219,20 +247,20 @@ sap.ui.define([
       aNews.forEach((n) => this._oEditor.removeSource(n.id));
       this._oState.setProperty("/newsItems", []);
       this._updateHeaderBadges();
-      MessageToast.show(this._t("MSG_NEWS_CLEARED"));
+      Toast.success(this._t("MSG_NEWS_CLEARED"));
     },
 
     onAttachmentChange(oEvent) {
       const aFiles = Array.from(oEvent.getParameter("files") || []);
       aFiles.forEach((file) => {
         if (file.size > Config.MAX_ATTACHMENT_SIZE) {
-          MessageToast.show(this._t("MSG_ATTACHMENT_TOO_LARGE", [file.name]));
+          Toast.warning(this._t("MSG_ATTACHMENT_TOO_LARGE", [file.name]));
           return;
         }
         FileProcessor.readAsDataURL(file).then((sDataUrl) => {
           const aAttachments = (this._oState.getProperty("/attachments") || []).slice();
           if (aAttachments.length >= Config.MAX_ATTACHMENTS) {
-            MessageToast.show(this._t("MSG_MAX_ATTACHMENTS"));
+            Toast.warning(this._t("MSG_MAX_ATTACHMENTS"));
             return;
           }
           aAttachments.push({
@@ -246,7 +274,7 @@ sap.ui.define([
           this._oState.setProperty("/attachments", aAttachments);
           this._updateHeaderBadges();
         }).catch(() => {
-          MessageToast.show(this._t("MSG_FILE_READ_ERROR") + ": " + file.name);
+          Toast.error(this._t("MSG_FILE_READ_ERROR") + ": " + file.name);
         });
       });
     },
@@ -254,7 +282,7 @@ sap.ui.define([
     onClearAllRecipients() {
       this._oState.setProperty("/recipients", []);
       this._updateHeaderBadges();
-      MessageToast.show(this._t("MSG_RECIPIENTS_CLEARED"));
+      Toast.success(this._t("MSG_RECIPIENTS_CLEARED"));
     },
 
     onCopyLocalId() {
@@ -262,7 +290,7 @@ sap.ui.define([
       if (sText && navigator && navigator.clipboard
           && typeof navigator.clipboard.writeText === "function") {
         navigator.clipboard.writeText(sText)
-          .then(() => MessageToast.show(this._t("MSG_LOCALID_COPIED")))
+          .then(() => Toast.success(this._t("MSG_LOCALID_COPIED")))
           .catch(() => { /* clipboard blocked; ignore silently */ });
       }
     }

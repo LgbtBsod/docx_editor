@@ -176,7 +176,7 @@
       assert(html.indexOf('src="data:image/png;base64') >= 0, "no data url: " + html.slice(0, 120));
     });
   }))
-  .then(() => t("fileProcessor: real user DOCX via mammoth (lazy)", () => {
+  .then(() => t("fileProcessor: real user DOCX via docx-preview (lazy)", () => {
     return fetch("fixtures/sample.docx").then((r) => r.arrayBuffer()).then((ab) => {
       const f = new File([ab], "Анонс.docx", { type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" });
       return FileProcessor.process(f, "src5", null, null);

@@ -3,11 +3,11 @@ sap.ui.define([
   "sap/ui/model/json/JSONModel",
   "sap/ui/model/Filter",
   "sap/ui/model/FilterOperator",
-  "sap/m/MessageToast",
+  "emailbuilder/util/toast",
   "sap/m/MessageBox",
   "sap/base/Log",
   "emailbuilder/util/service"
-], (Fragment, JSONModel, Filter, FilterOperator, MessageToast, MessageBox,
+], (Fragment, JSONModel, Filter, FilterOperator, Toast, MessageBox,
     Log, Service) => {
   "use strict";
 
@@ -191,7 +191,7 @@ sap.ui.define([
         .map((oObj) => ({ id: oObj.RecipientId, name: oObj.FullName, email: oObj.Email, role: oObj.Role }));
 
       if (aNew.length === 0) {
-        MessageToast.show(this._t("WARN_NO_RECIPIENTS"));
+        Toast.warning(this._t("WARN_NO_RECIPIENTS"));
         return;
       }
 
@@ -204,7 +204,7 @@ sap.ui.define([
 
       this._oState.setProperty("/recipients", aMerged);
       this._updateHeaderBadges();
-      MessageToast.show(this._t("MSG_RECIPIENTS_ADDED", [aNew.length]));
+      Toast.success(this._t("MSG_RECIPIENTS_ADDED", [aNew.length]));
       this._closeDialog(this._oRecipDialog);
     },
 
@@ -241,7 +241,7 @@ sap.ui.define([
         .filter(Boolean);
       aSelected.forEach((oObj) => this._addNewsAsSource(oObj));
       if (aSelected.length > 0) {
-        MessageToast.show(this._t("MSG_NEWS_ADDED", [aSelected.length]));
+        Toast.success(this._t("MSG_NEWS_ADDED", [aSelected.length]));
       }
       this._closeDialog(this._oNewsDialog);
     },
@@ -257,22 +257,46 @@ sap.ui.define([
       this._openHistoryView(oMailing);
     },
 
+    /**
+     * Opens the mailing-history detail dialog. Fully self-contained: every
+     * field lives on the dialog's own "history" model, never on the shared
+     * "state" model the main compose screen is bound to. Viewing a
+     * historical mailing must never change what the compose screen shows —
+     * it previously overwrote /viewingSubject (the same property backing
+     * the Subject input) and toggled a "back to current" button into
+     * existence on the main screen, i.e. browsing history silently
+     * hijacked the screen you were composing on.
+     *
+     * @param {object} mailing mailing entity from the history list
+     * @private
+     */
     _openHistoryView(mailing) {
-      this._oState.setProperty("/viewingMailingId", mailing.Key);
-      this._oState.setProperty("/viewingSubject", mailing.Subject);
-      this._oState.setProperty("/viewingLocalId", mailing.LocalID || mailing.LocalId || "");
-      this._oState.setProperty("/viewingCreatedAt", this.formatter.dateTime(mailing.CreatedAt));
+      const oData = {
+        mailingId: mailing.Key,
+        subject: mailing.Subject,
+        localId: mailing.LocalID || mailing.LocalId || "",
+        createdAt: this.formatter.dateTime(mailing.CreatedAt),
+        content: "",
+        hud: { statuses: [], total: 0 }
+      };
 
-      // LOB travels only on demand: MailHistorySet no longer carries Content.
-      this._oState.setProperty("/historyContent", "");
-      Service.getMailingContent(this.getOwnerComponent(), mailing.Key)
-        .then((oEntry) => this._oState.setProperty("/historyContent", oEntry.Content || ""))
-        .catch(() => { /* preview stays empty; counts remain available */ });
+      const openWithModel = (oModel) => {
+        oModel.setData(oData);
+        this._applyMailingStatusToHud(oModel, mailing);
+        this._loadStatusHud(oModel, mailing.Key);
 
-      this._applyMailingStatusToHud(mailing);
-      this._loadStatusHud(mailing.Key);
+        // LOB travels only on demand: MailHistorySet no longer carries Content.
+        Service.getMailingContent(this.getOwnerComponent(), mailing.Key)
+          .then((oEntry) => oModel.setProperty("/content", oEntry.Content || ""))
+          .catch(() => { /* preview stays empty; counts remain available */ });
 
-      if (this._oHistoryViewDialog) { this._oHistoryViewDialog.open(); return; }
+        this._oHistoryViewDialog.open();
+      };
+
+      if (this._oHistoryViewDialog) {
+        openWithModel(this._oHistoryViewDialog.getModel("history"));
+        return;
+      }
 
       Fragment.load({
         id: this.getView().getId(),
@@ -280,8 +304,9 @@ sap.ui.define([
         controller: this
       }).then((oDialog) => {
         this._oHistoryViewDialog = oDialog;
+        oDialog.setModel(new JSONModel(oData), "history");
         this.getView().addDependent(oDialog);
-        oDialog.open();
+        openWithModel(oDialog.getModel("history"));
       }).catch((err) => {
         Log.error("[emailbuilder] Failed to load HistoryView fragment: " + err.message);
       });
@@ -292,12 +317,14 @@ sap.ui.define([
     },
 
     /**
-     * Pushes the status breakdown from the history row counts to the HUD.
+     * Pushes the status breakdown from the history row counts into the
+     * given history dialog model.
      *
+     * @param {sap.ui.model.json.JSONModel} oModel target "history" model
      * @param {object} mailing mailing entity
      * @private
      */
-    _applyMailingStatusToHud(mailing) {
+    _applyMailingStatusToHud(oModel, mailing) {
       const iTotal   = mailing.TotalCount || 0;
       const iSent    = mailing.SentCount  || 0;
       const iError   = mailing.ErrorCount || 0;
@@ -306,23 +333,25 @@ sap.ui.define([
       if (iSent > 0)    { aStatuses.push({ Status: "040", Count: iSent }); }
       if (iError > 0)   { aStatuses.push({ Status: "050", Count: iError }); }
       if (iPending > 0) { aStatuses.push({ Status: "020", Count: iPending }); }
-      this._oHud.setData({ statuses: aStatuses, total: iTotal });
+      oModel.setProperty("/hud", { statuses: aStatuses, total: iTotal });
     },
 
     /**
-     * Refreshes the HUD with live aggregated statuses. ZI_Mailing_Status maps
-     * receiver codes to the unified display domain in CDS, so the payload
-     * uses the same dictionary as _applyMailingStatusToHud.
+     * Refreshes the given history dialog model with live aggregated
+     * statuses. ZI_Mailing_Status maps receiver codes to the unified
+     * display domain in CDS, so the payload uses the same dictionary as
+     * _applyMailingStatusToHud.
      *
+     * @param {sap.ui.model.json.JSONModel} oModel target "history" model
      * @param {string} sId mailing key
      * @private
      */
-    _loadStatusHud(sId) {
+    _loadStatusHud(oModel, sId) {
       Service.getMailingStatus(this.getOwnerComponent(), sId)
         .then((aStatuses) => {
           if (aStatuses && aStatuses.length > 0) {
             const iTotal = aStatuses.reduce((acc, s) => acc + (s.Count || s.Cnt || 0), 0);
-            this._oHud.setData({
+            oModel.setProperty("/hud", {
               statuses: aStatuses.map((s) => ({ Status: s.Status, Count: s.Count || s.Cnt || 0 })),
               total: iTotal
             });
@@ -332,7 +361,8 @@ sap.ui.define([
     },
 
     onCopyViewingMailing() {
-      const sId = this._oState.getProperty("/viewingMailingId");
+      const oModel = this._oHistoryViewDialog && this._oHistoryViewDialog.getModel("history");
+      const sId = oModel && oModel.getProperty("/mailingId");
       if (!sId) { return; }
       MessageBox.confirm(this._t("CONFIRM_COPY"), {
         title: this._t("CONFIRM_COPY_TITLE"),
@@ -340,19 +370,16 @@ sap.ui.define([
           if (action !== MessageBox.Action.OK) { return; }
           Service.copyMailing(this.getOwnerComponent(), sId)
             .then((data) => {
+              this._closeDialog(this._oHistoryViewDialog);
               this._resetComposer();
               this._oState.setProperty("/viewingSubject", data.Subject || "");
               this._oState.setProperty("/localId", data.LocalId);
               if (data.Content) { this._oEditor.setValue(data.Content); }
-              MessageToast.show(this._t("MSG_MAILING_COPIED", [data.LocalId]));
+              Toast.success(this._t("MSG_MAILING_COPIED", [data.LocalId]));
             })
-            .catch(() => { MessageToast.show(this._t("MSG_SEND_ERROR")); });
+            .catch(() => { Toast.error(this._t("MSG_SEND_ERROR")); });
         }
       });
-    },
-
-    onNavigateToCurrent() {
-      this._resetComposer();
     }
   };
 });

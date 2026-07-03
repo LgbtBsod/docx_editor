@@ -5,10 +5,28 @@ sap.ui.define([
 ], (RichTextEditor, richtexteditorLibrary, Log) => {
   "use strict";
 
+  /** How often the maintenance loop re-checks the live iframe (ms). */
+  const MAINTENANCE_INTERVAL_MS = 1500;
+
   /**
    * Editor API wrapper around sap.ui.richtexteditor.RichTextEditor (TinyMCE).
-   * Isolates all iframe-level access required for drag&drop and source-block
-   * removal; every attached listener is tracked and removed in destroy().
+   *
+   * Everything that reaches into the editor's iframe is funneled through
+   * two places:
+   *  - _getTinymceEditor(): resolved fresh via the global tinymce registry
+   *    on every call, used by the synchronous API (insert/getValue/
+   *    removeSource/setValue). Cheap, and correct by construction — there
+   *    is no stale-reference class of bug possible here.
+   *  - the maintenance loop (_runMaintenanceTick): anything that needs a
+   *    *standing* attachment to the iframe document (drag&drop listeners,
+   *    the source-block validity scan) goes through this single poll
+   *    instead of attaching once at "ready" time. The RichTextEditor
+   *    control can replace its internal iframe/tinymce instance shortly
+   *    after "ready" fires (custom-toolbar setup finishes asynchronously),
+   *    which silently orphans anything bound to the iframe/instance
+   *    captured at that moment — confirmed empirically. Re-resolving the
+   *    iframe on every tick and re-binding only when it actually changed
+   *    sidesteps chasing the exact moment of replacement.
    *
    * @param {sap.ui.core.mvc.View} oView the view owning the editor
    * @param {string} sContainerId the id of the container control
@@ -20,10 +38,14 @@ sap.ui.define([
     this._sContainerId = sContainerId;
     this._oRte = null;
     this._bReady = false;
-    /** @type {Array<{target:EventTarget,type:string,fn:EventListener}>} */
-    this._aTrackedListeners = [];
-    this._oEditorDoc = null;
     this._bDestroyed = false;
+
+    // Maintenance loop state.
+    this._iMaintenanceTimer = null;
+    this._oBoundDoc = null;          // iframe document DnD listeners are bound to
+    this._aBoundDnDListeners = [];   // [{type, fn}] currently attached to _oBoundDoc
+    this._fnDnDHandler = null;       // caller's drop(files) callback
+    this._fnSourceSyncHandler = null; // caller's sync(validIds) callback
   }
 
   Editor.prototype.create = function () {
@@ -49,9 +71,14 @@ sap.ui.define([
           showGroupClipboard: true,
           showGroupStructure: true,
           showGroupTextAlign: true,
+          showGroupUndo: true,
           ready: () => {
             this._bReady = true;
-            this._setupEditorDnDIfPending();
+            // Paragraph-style dropdown (Normal/Heading 1-6) and table
+            // insertion aren't exposed via showGroupXxx — the control's
+            // own shorthand for its "styleselect"/"table" button groups.
+            oRte.addButtonGroup("styleselect");
+            oRte.addButtonGroup("table");
             resolve(true);
           }
         });
@@ -71,66 +98,132 @@ sap.ui.define([
     });
   };
 
-  Editor.prototype._trackListener = function (oTarget, sType, fn) {
-    this._aTrackedListeners.push({ target: oTarget, type: sType, fn: fn });
+  // ------------------------------------------------------------------
+  // Maintenance loop: keeps drag&drop bound to the live iframe and
+  // reports which source blocks are still valid. Started lazily by
+  // whichever of setupDnD()/setupSourceSyncWatch() is called first.
+  // ------------------------------------------------------------------
+
+  /**
+   * Resolves the editor's current iframe document, or null if the editor
+   * isn't rendered (yet, or anymore). Always re-reads from the live DOM —
+   * never cached across calls.
+   *
+   * @returns {Document|null} the iframe's document
+   * @private
+   */
+  Editor.prototype._resolveEditorDoc = function () {
+    if (!this._oRte || !this._oRte.getDomRef) { return null; }
+    const oDom = this._oRte.getDomRef();
+    const oIframe = oDom && oDom.querySelector("iframe");
+    return (oIframe && oIframe.contentDocument) || null;
   };
 
-  Editor.prototype._setupEditorDnDIfPending = function () {
-    if (this._fnPendingDropHandler) {
-      const fn = this._fnPendingDropHandler;
-      this._fnPendingDropHandler = null;
-      this._attachEditorDnD(fn);
+  /**
+   * (Re-)binds the drag&drop listeners to the given iframe document,
+   * detaching them from whatever document they were previously bound to.
+   * A no-op when already bound to this exact document.
+   *
+   * @param {Document} oDoc the iframe document to bind to
+   * @private
+   */
+  Editor.prototype._rebindDnD = function (oDoc) {
+    if (oDoc === this._oBoundDoc) { return; }
+
+    if (this._oBoundDoc) {
+      this._aBoundDnDListeners.forEach((oEntry) => {
+        try { this._oBoundDoc.removeEventListener(oEntry.type, oEntry.fn, false); } catch (e) { /* ignore */ }
+      });
     }
+    this._aBoundDnDListeners = [];
+    this._oBoundDoc = oDoc;
+    if (!oDoc || !this._fnDnDHandler) { return; }
+
+    const fnHandler = this._fnDnDHandler;
+    const onDragOver = (e) => {
+      e.preventDefault();
+      if (e.dataTransfer) { e.dataTransfer.dropEffect = "copy"; }
+      if (oDoc.body) { oDoc.body.classList.add("mce-drag-over"); }
+    };
+    const onDragLeave = (e) => {
+      e.preventDefault();
+      if (oDoc.body) { oDoc.body.classList.remove("mce-drag-over"); }
+    };
+    const onDrop = (e) => {
+      e.preventDefault();
+      if (oDoc.body) { oDoc.body.classList.remove("mce-drag-over"); }
+      const files = (e.dataTransfer && e.dataTransfer.files) || [];
+      if (files.length > 0) { fnHandler(files); }
+    };
+
+    [["dragover", onDragOver], ["dragleave", onDragLeave], ["drop", onDrop]].forEach(([sType, fn]) => {
+      oDoc.addEventListener(sType, fn, false);
+      this._aBoundDnDListeners.push({ type: sType, fn: fn });
+    });
   };
 
-  Editor.prototype._attachEditorDnD = function (fnHandler) {
-    if (!this._oRte) { return; }
-    try {
-      const oDom = this._oRte.getDomRef ? this._oRte.getDomRef() : null;
-      if (!oDom) { return; }
-      const oIframe = oDom.querySelector("iframe");
-      if (!oIframe || !oIframe.contentWindow) { return; }
-      const oDoc = oIframe.contentWindow.document;
-
-      const onDragOver = (e) => {
-        e.preventDefault();
-        if (e.dataTransfer) { e.dataTransfer.dropEffect = "copy"; }
-        if (oDoc.body) { oDoc.body.classList.add("mce-drag-over"); }
-      };
-      const onDragLeave = (e) => {
-        e.preventDefault();
-        if (oDoc.body) { oDoc.body.classList.remove("mce-drag-over"); }
-      };
-      const onDrop = (e) => {
-        e.preventDefault();
-        if (oDoc.body) { oDoc.body.classList.remove("mce-drag-over"); }
-        const files = (e.dataTransfer && e.dataTransfer.files) || [];
-        if (files.length > 0 && fnHandler) {
-          fnHandler(files);
-        }
-      };
-
-      oDoc.addEventListener("dragover", onDragOver, false);
-      oDoc.addEventListener("dragleave", onDragLeave, false);
-      oDoc.addEventListener("drop", onDrop, false);
-
-      this._trackListener(oDoc, "dragover", onDragOver);
-      this._trackListener(oDoc, "dragleave", onDragLeave);
-      this._trackListener(oDoc, "drop", onDrop);
-      this._oEditorDoc = oDoc;
-    } catch (e) {
-      Log.warning("[emailbuilder] Editor DnD attach failed: " + e.message);
-    }
+  /**
+   * Scans for source blocks (<div id="eb-src-{id}">) still holding real
+   * content and reports their ids to the source-sync handler. A block
+   * counts as valid while it has text besides SourceBlock.wrap()'s
+   * trailing filler paragraph, or media (image/table) of its own — used
+   * by the caller to detect blocks the user emptied or deleted by hand
+   * directly in the editor, keeping the sidebar source list in sync.
+   *
+   * @param {Document} oDoc the iframe document to scan
+   * @private
+   */
+  Editor.prototype._scanSourceBlocks = function (oDoc) {
+    if (!oDoc || !oDoc.body || !this._fnSourceSyncHandler) { return; }
+    const aValidIds = [];
+    oDoc.body.querySelectorAll(".eb-src-block[id]").forEach((oBlock) => {
+      const sText = (oBlock.textContent || "").replace(/ /g, "").trim();
+      if (sText || oBlock.querySelector("img, table")) {
+        aValidIds.push(oBlock.id.replace(/^eb-src-/, ""));
+      }
+    });
+    this._fnSourceSyncHandler(aValidIds);
   };
 
+  Editor.prototype._runMaintenanceTick = function () {
+    const oDoc = this._resolveEditorDoc();
+    this._rebindDnD(oDoc);
+    this._scanSourceBlocks(oDoc);
+  };
+
+  Editor.prototype._ensureMaintenanceLoop = function () {
+    if (this._iMaintenanceTimer) { return; }
+    this._runMaintenanceTick();
+    this._iMaintenanceTimer = setInterval(() => this._runMaintenanceTick(), MAINTENANCE_INTERVAL_MS);
+  };
+
+  /**
+   * Registers a handler for files dropped directly onto the editor body.
+   *
+   * @param {function(FileList)} fnHandler called with the dropped files
+   */
   Editor.prototype.setupDnD = function (fnHandler) {
-    if (!this._oRte) { return; }
-    if (this._bReady) {
-      this._attachEditorDnD(fnHandler);
-    } else {
-      this._fnPendingDropHandler = fnHandler;
-    }
+    if (!this._oRte || typeof fnHandler !== "function") { return; }
+    this._fnDnDHandler = fnHandler;
+    this._ensureMaintenanceLoop();
   };
+
+  /**
+   * Registers a handler that's told, every maintenance tick, which source
+   * block ids are still valid (see _scanSourceBlocks). The caller
+   * reconciles its own source/news lists against that set.
+   *
+   * @param {function(string[])} fnHandler called with the still-valid ids
+   */
+  Editor.prototype.setupSourceSyncWatch = function (fnHandler) {
+    if (!this._oRte || typeof fnHandler !== "function") { return; }
+    this._fnSourceSyncHandler = fnHandler;
+    this._ensureMaintenanceLoop();
+  };
+
+  // ------------------------------------------------------------------
+  // Content API
+  // ------------------------------------------------------------------
 
   /**
    * Returns the editor's current HTML content.
@@ -180,7 +273,7 @@ sap.ui.define([
    * top-level `window.tinymce` singleton, so the iframe copy's
    * `.activeEditor` is always null. Using it silently forced insert() onto
    * its setValue()-concatenation fallback for every call, which corrupts
-   * large data: URI images (observed: a mammoth-embedded PNG's whole `src`
+   * large data: URI images (observed: a docx-embedded PNG's whole `src`
    * attribute gets dropped, leaving only `alt`) instead of using TinyMCE's
    * own insertContent(), which correctly converts data: URIs to a
    * blob: reference backed by its blob cache.
@@ -197,11 +290,28 @@ sap.ui.define([
     }
   };
 
+  /**
+   * Inserts HTML for a newly added source/news block.
+   *
+   * Always appends at the very end of the document rather than at
+   * whatever the current selection happens to be: uploads are additive
+   * ("add another source"), not cursor-targeted edits, and leaving this
+   * to insertContent()'s default selection is actively wrong when the
+   * previous source's content ends in a block element with nothing after
+   * it (e.g. a docx that renders as a wrapping <table>) — the browser has
+   * nowhere valid to park the caret except *inside* that table's last
+   * cell, so the next insertContent() call would land there instead of
+   * after it.
+   *
+   * @param {string} sHtml HTML to append
+   */
   Editor.prototype.insert = function (sHtml) {
     if (!this._oRte || !sHtml) { return; }
     const oTinymce = this._getTinymceEditor();
     if (oTinymce && typeof oTinymce.insertContent === "function") {
       try {
+        oTinymce.selection.select(oTinymce.getBody(), true);
+        oTinymce.selection.collapse(false);
         oTinymce.insertContent(sHtml);
         return;
       } catch (e) {
@@ -219,8 +329,8 @@ sap.ui.define([
   /**
    * Removes the source block <div id="eb-src-{id}"> from the editor.
    * Primary path: TinyMCE DOM API. Fallback: DOMParser on the RTE value —
-   * a real HTML parser handles nested <div>s correctly (the former regex
-   * fallback truncated blocks at the first closing tag).
+   * a real HTML parser handles nested <div>s correctly (a regex-based
+   * fallback would truncate blocks at the first closing tag).
    *
    * @param {string} sSourceId source id to remove
    */
@@ -257,20 +367,25 @@ sap.ui.define([
     if (this._bDestroyed) { return; }
     this._bDestroyed = true;
 
-    this._aTrackedListeners.forEach((oEntry) => {
-      try {
-        oEntry.target.removeEventListener(oEntry.type, oEntry.fn, false);
-      } catch (e) { /* ignore */ }
-    });
-    this._aTrackedListeners = [];
-    this._oEditorDoc = null;
+    if (this._iMaintenanceTimer) {
+      clearInterval(this._iMaintenanceTimer);
+      this._iMaintenanceTimer = null;
+    }
+    if (this._oBoundDoc) {
+      this._aBoundDnDListeners.forEach((oEntry) => {
+        try { this._oBoundDoc.removeEventListener(oEntry.type, oEntry.fn, false); } catch (e) { /* ignore */ }
+      });
+    }
+    this._aBoundDnDListeners = [];
+    this._oBoundDoc = null;
+    this._fnDnDHandler = null;
+    this._fnSourceSyncHandler = null;
 
     if (this._oRte) {
       try { this._oRte.destroy(); } catch (e) { /* ignore */ }
       this._oRte = null;
     }
     this._bReady = false;
-    this._fnPendingDropHandler = null;
     this._oView = null;
   };
 

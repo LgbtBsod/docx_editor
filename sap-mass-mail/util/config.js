@@ -42,7 +42,7 @@ sap.ui.define([
       rnd = Math.random().toString(36).slice(2, 10);
     }
 
-    return `${LOCAL_ID_PREFIX}-${date}-${time}-${ms}-${rnd}`;
+    return `${LOCAL_ID_PREFIX}-${date}-${time}-${ms}-${rnd}`.toUpperCase();
   }
 
   /**
