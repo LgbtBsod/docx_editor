@@ -6,6 +6,12 @@
       "runtimeExecutable": "node",
       "runtimeArgs": ["server.js"],
       "port": 8001
+    },
+    {
+      "name": "email-builder-dist",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "8002", "--directory", "dist"],
+      "port": 8002
     }
   ]
 }

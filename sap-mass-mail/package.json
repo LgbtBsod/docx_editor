@@ -1,0 +1,19 @@
+{
+  "name": "emailbuilder",
+  "version": "2.1.0",
+  "private": true,
+  "description": "SAP Mass Mail Email Builder (SAPUI5 1.71 LTS) — UI5 app sources; ABAP-side artifacts live under abap/.",
+  "scripts": {
+    "start": "node server.js",
+    "start:mock": "node server.js",
+    "build": "ui5 build --clean-dest --dest dist",
+    "serve": "ui5 serve --open index.html?mock=true",
+    "test": "echo \"Open test/modules.html and test/behavior.html in a browser (no CLI runner wired up yet)\" && exit 0"
+  },
+  "devDependencies": {
+    "@ui5/cli": "^3.9.2"
+  },
+  "ui5": {
+    "dependencies": []
+  }
+}

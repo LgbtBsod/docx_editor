@@ -11,11 +11,12 @@ sap.ui.define([
   "emailbuilder/model/formatter",
   "emailbuilder/controller/DialogMixin",
   "emailbuilder/controller/SourcesMixin",
-  "emailbuilder/util/constants"
+  "emailbuilder/util/constants",
+  "emailbuilder/util/mockBackend"
 ], (
   BaseController, Toast, MessageBox, Log,
   Service, DraftManager, Editor, DnDManager, EmailComposer, Formatter,
-  DialogMixin, SourcesMixin, Constants
+  DialogMixin, SourcesMixin, Constants, MockBackend
 ) => {
   "use strict";
 
@@ -34,7 +35,7 @@ sap.ui.define([
       // no bundle and permanently stick to the hardcoded fallback text.
       Formatter.setResourceBundle(oComp.getModel("i18n").getResourceBundle());
 
-      ["state", "config", "i18n"].forEach((sName) => {
+      ["state", "config", "i18n", "constants"].forEach((sName) => {
         oView.setModel(oComp.getModel(sName), sName);
       });
 
@@ -194,17 +195,7 @@ sap.ui.define([
       };
 
       Service.sendMailing(oComponent, oPayload, bIsTest)
-        .then((data) => {
-          // Save to backend in mock mode
-          if (window.USE_MOCK) {
-            const oMockRecord = Object.assign({}, oPayload, {
-              ToRecipients: aRecipients,
-              IsTest: bIsTest
-            });
-            return Service.saveEmailToBackend(oMockRecord).then(() => data);
-          }
-          return data;
-        })
+        .then((data) => MockBackend.recordSend(oPayload, aRecipients, bIsTest).then(() => data))
         .then((data) => {
           // MSG_SENT carries a {0} placeholder for the LocalId
           MessageBox.success(this._t(data.messageKey, [data.localId]), {
@@ -254,7 +245,9 @@ sap.ui.define([
 
       this._oState.setProperty("/localId", oDraft.localId);
       this._oState.setProperty("/viewingSubject", oDraft.subject || "");
-      this._oState.setProperty("/recipients", oDraft.recipients || []);
+      // Recipients are never persisted (see draftManager.js#save) — a
+      // restored draft always starts with an empty recipient list.
+      this._oState.setProperty("/recipients", []);
       this._oState.setProperty("/attachments", oDraft.attachments || []);
       this._oState.setProperty("/sources", oDraft.sources || []);
       this._oState.setProperty("/newsItems", oDraft.newsItems || []);
@@ -266,11 +259,11 @@ sap.ui.define([
 
     _saveDraft() {
       try {
+        // Recipients intentionally excluded — see draftManager.js#save.
         DraftManager.save({
           localId:     this._oState.getProperty("/localId"),
           subject:     this._oState.getProperty("/viewingSubject") || "",
           content:     this._oEditor.getValue() || "",
-          recipients:  this._oState.getProperty("/recipients")  || [],
           attachments: this._oState.getProperty("/attachments") || [],
           sources:     this._oState.getProperty("/sources")     || [],
           newsItems:   this._oState.getProperty("/newsItems")   || []
@@ -291,8 +284,11 @@ sap.ui.define([
         })
         .catch(() => {
           // Fail closed: an empty allowlist rejects every external host
-          // (see util/sanitize.js) instead of silently allowing all.
+          // (see util/sanitize.js) instead of silently allowing all — but
+          // that's a silent behavior change for the user (their own
+          // company images/links now vanish on send) unless we say so.
           this._oConfig.setProperty("/allowedHosts", []);
+          Toast.warning(this._t("MSG_ALLOWED_HOSTS_LOAD_FAILED"));
         });
     }
   }));

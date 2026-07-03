@@ -2,7 +2,8 @@
   xmlns="sap.m"
   xmlns:core="sap.ui.core"
   xmlns:f="sap.f"
-  xmlns:layout="sap.ui.layout">
+  xmlns:layout="sap.ui.layout"
+  xmlns:search="emailbuilder.control">
 
   <Dialog
     id="recipientDialog"
@@ -25,85 +26,99 @@
             <IconTabFilter icon="sap-icon://accept" text="{i18n>TAB_ADDED}" key="added"
               count="{= ${state>/recipients}.length || '' }" />
             <IconTabFilter icon="sap-icon://person" text="{i18n>TAB_BY_NAME}" key="name">
-              <HBox width="100%" alignItems="Center" justifyContent="SpaceBetween" class="sapUiSmallMarginBottom">
-                <Input
-                  id="nameSearchInput"
-                  placeholder="{i18n>SEARCH_NAME}"
-                  value="{dialog>/nameSearchValue}"
-                  class="ebSearchInput"
-                  width="100%"
-                  submit="onSearchRecipients" />
-                <Button
-                  icon="sap-icon://search"
-                  press="onSearchRecipients"
-                  type="Emphasized"
-                  tooltip="{i18n>DIALOG_RECIPIENTS}" />
-              </HBox>
-            </IconTabFilter>
-            <IconTabFilter icon="sap-icon://role" text="{i18n>TAB_BY_ROLE}" key="role">
-              <HBox width="100%" alignItems="Center" justifyContent="SpaceBetween" class="sapUiSmallMarginBottom">
-                <Input
-                  id="roleSearchInput"
-                  placeholder="{i18n>SEARCH_ROLE}"
-                  value="{dialog>/roleSearchValue}"
-                  class="ebSearchInput"
-                  width="100%"
-                  submit="onSearchRecipients" />
-                <Button
-                  icon="sap-icon://search"
-                  press="onSearchRecipients"
-                  type="Emphasized"
-                  tooltip="{i18n>DIALOG_RECIPIENTS}" />
-              </HBox>
-            </IconTabFilter>
-            <IconTabFilter icon="sap-icon://key" text="{i18n>TAB_BY_AUTH}" key="authField">
-              <VBox width="100%" class="sapUiSmallMarginBottom">
-                <Label text="{i18n>AUTH_LABEL}" class="ebFieldLabel" />
-                <layout:Grid
-                  defaultSpan="L3 M6 S12"
-                  containerQuery="false"
-                  width="100%">
+              <layout:Grid defaultSpan="L9 M9 S12" containerQuery="false" width="100%" class="sapUiSmallMarginBottom">
+                <search:SearchField label="{i18n>COL_NAME}">
+                  <search:layoutData>
+                    <layout:GridData span="L9 M9 S12" />
+                  </search:layoutData>
                   <Input
-                    id="authObjInput"
-                    placeholder="{i18n>SEARCH_AUTH_OBJ}"
-                    value="{dialog>/authObject}"
-                    class="ebSearchInput"
-                    submit="onSearchRecipients">
-                    <layoutData>
-                      <layout:GridData span="L3 M6 S12" />
-                    </layoutData>
-                  </Input>
-                  <Input
-                    id="authFieldInput"
-                    placeholder="{i18n>SEARCH_AUTH_FIELD}"
-                    value="{dialog>/authField}"
-                    class="ebSearchInput"
-                    submit="onSearchRecipients">
-                    <layoutData>
-                      <layout:GridData span="L3 M6 S12" />
-                    </layoutData>
-                  </Input>
-                  <Input
-                    id="authValueInput"
-                    placeholder="{i18n>SEARCH_AUTH_VALUE}"
-                    value="{dialog>/authValue}"
-                    class="ebSearchInput"
-                    submit="onSearchRecipients">
-                    <layoutData>
-                      <layout:GridData span="L3 M6 S12" />
-                    </layoutData>
-                  </Input>
+                    id="nameSearchInput"
+                    placeholder="{i18n>SEARCH_NAME}"
+                    value="{dialog>/nameSearchValue}"
+                    submit="onSearchRecipients" />
+                </search:SearchField>
+                <search:SearchField>
+                  <search:layoutData>
+                    <layout:GridData span="L3 M3 S12" />
+                  </search:layoutData>
                   <Button
                     icon="sap-icon://search"
                     press="onSearchRecipients"
                     type="Emphasized"
-                    tooltip="{i18n>DIALOG_RECIPIENTS}">
-                    <layoutData>
-                      <layout:GridData span="L3 M12 S12" />
-                    </layoutData>
-                  </Button>
-                </layout:Grid>
-              </VBox>
+                    width="100%"
+                    tooltip="{i18n>DIALOG_RECIPIENTS}" />
+                </search:SearchField>
+              </layout:Grid>
+            </IconTabFilter>
+            <IconTabFilter icon="sap-icon://role" text="{i18n>TAB_BY_ROLE}" key="role">
+              <layout:Grid defaultSpan="L9 M9 S12" containerQuery="false" width="100%" class="sapUiSmallMarginBottom">
+                <search:SearchField label="{i18n>COL_ROLE}">
+                  <search:layoutData>
+                    <layout:GridData span="L9 M9 S12" />
+                  </search:layoutData>
+                  <Input
+                    id="roleSearchInput"
+                    placeholder="{i18n>SEARCH_ROLE}"
+                    value="{dialog>/roleSearchValue}"
+                    submit="onSearchRecipients" />
+                </search:SearchField>
+                <search:SearchField>
+                  <search:layoutData>
+                    <layout:GridData span="L3 M3 S12" />
+                  </search:layoutData>
+                  <Button
+                    icon="sap-icon://search"
+                    press="onSearchRecipients"
+                    type="Emphasized"
+                    width="100%"
+                    tooltip="{i18n>DIALOG_RECIPIENTS}" />
+                </search:SearchField>
+              </layout:Grid>
+            </IconTabFilter>
+            <IconTabFilter icon="sap-icon://key" text="{i18n>TAB_BY_AUTH}" key="authField">
+              <layout:Grid defaultSpan="L3 M6 S12" containerQuery="false" width="100%" class="sapUiSmallMarginBottom">
+                <search:SearchField label="{i18n>SEARCH_AUTH_OBJ}">
+                  <search:layoutData>
+                    <layout:GridData span="L3 M6 S12" />
+                  </search:layoutData>
+                  <Input
+                    id="authObjInput"
+                    placeholder="{i18n>SEARCH_AUTH_OBJ}"
+                    value="{dialog>/authObject}"
+                    submit="onSearchRecipients" />
+                </search:SearchField>
+                <search:SearchField label="{i18n>SEARCH_AUTH_FIELD}">
+                  <search:layoutData>
+                    <layout:GridData span="L3 M6 S12" />
+                  </search:layoutData>
+                  <Input
+                    id="authFieldInput"
+                    placeholder="{i18n>SEARCH_AUTH_FIELD}"
+                    value="{dialog>/authField}"
+                    submit="onSearchRecipients" />
+                </search:SearchField>
+                <search:SearchField label="{i18n>SEARCH_AUTH_VALUE}">
+                  <search:layoutData>
+                    <layout:GridData span="L3 M6 S12" />
+                  </search:layoutData>
+                  <Input
+                    id="authValueInput"
+                    placeholder="{i18n>SEARCH_AUTH_VALUE}"
+                    value="{dialog>/authValue}"
+                    submit="onSearchRecipients" />
+                </search:SearchField>
+                <search:SearchField>
+                  <search:layoutData>
+                    <layout:GridData span="L3 M12 S12" />
+                  </search:layoutData>
+                  <Button
+                    icon="sap-icon://search"
+                    press="onSearchRecipients"
+                    type="Emphasized"
+                    width="100%"
+                    tooltip="{i18n>DIALOG_RECIPIENTS}" />
+                </search:SearchField>
+              </layout:Grid>
             </IconTabFilter>
           </items>
         </IconTabBar>
@@ -146,6 +161,9 @@
           id="addedRecipientsList"
           visible="{= ${dialog>/selectedMode} === 'added' }"
           items="{state>/recipients}"
+          growing="true"
+          growingThreshold="50"
+          growingScrollToLoad="true"
           noDataText="{i18n>NO_RECIPIENTS}"
           class="ebDialogTable"
           inset="false">

@@ -1,8 +1,9 @@
 sap.ui.define([
   "sap/ui/core/format/DateFormat",
   "sap/base/Log",
-  "emailbuilder/util/sanitize"
-], (DateFormat, Log, Sanitize) => {
+  "emailbuilder/util/sanitize",
+  "emailbuilder/util/sourceBlock"
+], (DateFormat, Log, Sanitize, SourceBlock) => {
   "use strict";
 
   let oDateTimeFormat = null;
@@ -123,10 +124,11 @@ sap.ui.define([
     },
 
     sourceMeta(sType, sAddedAt) {
+      const bIsNews = sType === SourceBlock.TYPE.NEWS;
       const sTypeLabel = getText(
-        sType === "news" ? "SOURCE_LABEL_NEWS" : "SOURCE_LABEL_FILE",
+        bIsNews ? "SOURCE_LABEL_NEWS" : "SOURCE_LABEL_FILE",
         null,
-        sType === "news" ? "Новость" : "Файл"
+        bIsNews ? "Новость" : "Файл"
       );
       if (!sAddedAt) { return sTypeLabel; }
       const oDate = parseDate(sAddedAt);

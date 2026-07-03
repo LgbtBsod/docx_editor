@@ -69,7 +69,8 @@
                   class="ebHiddenUploader" />
                 <Button text="{i18n>BROWSE}" press="onSourceBrowse" type="Transparent" class="ebDropZoneBrowseBtn" />
               </VBox>
-              <List id="sourceList" items="{state>/sources}" noDataText="{i18n>NO_SOURCES}" class="ebSourceList" inset="false">
+              <List id="sourceList" items="{state>/sources}" growing="true" growingThreshold="50" growingScrollToLoad="true"
+                noDataText="{i18n>NO_SOURCES}" class="ebSourceList" inset="false">
                 <items>
                   <CustomListItem class="ebSourceItem">
                     <HBox alignItems="Center" width="100%" class="ebSourceItemRow">
@@ -103,7 +104,8 @@
                   class="ebHiddenUploader" />
                 <Button text="{i18n>BROWSE}" press="onAttachmentBrowse" type="Transparent" class="ebDropZoneBrowseBtn" />
               </VBox>
-              <List id="attachmentList" items="{state>/attachments}" noDataText="{i18n>NO_ATTACHMENTS}" class="ebSourceList" inset="false">
+              <List id="attachmentList" items="{state>/attachments}" growing="true" growingThreshold="50" growingScrollToLoad="true"
+                noDataText="{i18n>NO_ATTACHMENTS}" class="ebSourceList" inset="false">
                 <items>
                   <CustomListItem class="ebSourceItem">
                     <HBox alignItems="Center" width="100%" class="ebSourceItemRow">
@@ -150,7 +152,8 @@
         <VBox class="ebCenterPanel">
           <VBox class="ebSubjectCard">
             <Label text="{i18n>SUBJECT}" class="ebCardLabel" />
-            <Input id="subjectInput" value="{state>/viewingSubject}" placeholder="{i18n>SUBJECT_PLACEHOLDER}" liveChange="onSubjectChange" class="ebSubjectInput" />
+            <Input id="subjectInput" value="{state>/viewingSubject}" placeholder="{i18n>SUBJECT_PLACEHOLDER}"
+              liveChange="onSubjectChange" maxLength="{= ${constants>/VALIDATION/SUBJECT_MAX_LEN} }" class="ebSubjectInput" />
           </VBox>
 
           <VBox id="editorContainer" class="ebEditorContainer" />

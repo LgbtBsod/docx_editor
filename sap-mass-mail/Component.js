@@ -2,8 +2,9 @@ sap.ui.define([
   "sap/ui/core/UIComponent",
   "sap/ui/model/json/JSONModel",
   "sap/base/Log",
-  "emailbuilder/util/config"
-], (UIComponent, JSONModel, Log, Config) => {
+  "emailbuilder/util/config",
+  "emailbuilder/util/constants"
+], (UIComponent, JSONModel, Log, Config, Constants) => {
   "use strict";
 
   return UIComponent.extend("emailbuilder.Component", {
@@ -14,12 +15,20 @@ sap.ui.define([
       // Flat schema — single source of truth; every path below matches the
       // paths read by controllers, mixins and the view (no ui/data nesting).
       const oAppStateModel = new JSONModel(this._initialState());
-      oAppStateModel.setSizeLimit(1000);
+      // Must cover the backend's max recipients per mailing (see the
+      // constant's own comment) — a lower limit here would silently
+      // truncate the "Добавлено" recipients list well before that cap.
+      oAppStateModel.setSizeLimit(Constants.PERFORMANCE.MAX_RECIPIENTS_PER_MAILING);
       this.setModel(oAppStateModel, "state");
 
       // Runtime configuration delivered by the backend (AllowedHostSet).
       // Client-side limits live in util/config.js only (single source).
       this.setModel(new JSONModel({ allowedHosts: [] }), "config");
+
+      // Exposes util/constants.js to XML bindings (e.g. subjectInput's
+      // maxLength) so a view-level literal never has to duplicate a value
+      // already defined there. Read-only: no controller ever writes to it.
+      this.setModel(new JSONModel(Constants), "constants");
 
       UIComponent.prototype.init.apply(this, arguments);
 
@@ -64,7 +73,7 @@ sap.ui.define([
 
     destroy() {
       // FIXED: Explicit cleanup of all created models
-      ["state", "config"].forEach((sModelName) => {
+      ["state", "config", "constants"].forEach((sModelName) => {
         const oModel = this.getModel(sModelName);
         if (oModel && !oModel.isDestroyed()) {
           oModel.destroy();

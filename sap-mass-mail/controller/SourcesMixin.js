@@ -73,7 +73,7 @@ sap.ui.define([
 
     _finalizeSource(sHtml, sSourceId, sExt, sName) {
       this._oEditor.insert(sHtml);
-      this._addSourceToList(sSourceId, "file", sName);
+      this._addSourceToList(sSourceId, SourceBlock.TYPE.FILE, sName);
     },
 
     _promptPdfMode(sFileName) {
@@ -181,7 +181,7 @@ sap.ui.define([
     _addNewsAsSource(oObj) {
       const sClean = Sanitize.forImport(oObj.Content || "");
       const sSourceId = Config.generateSourceId();
-      this._oEditor.insert(SourceBlock.wrap(sSourceId, "news", sClean));
+      this._oEditor.insert(SourceBlock.wrap(sSourceId, SourceBlock.TYPE.NEWS, sClean));
 
       const aNews = (this._oState.getProperty("/newsItems") || []).slice();
       aNews.push({

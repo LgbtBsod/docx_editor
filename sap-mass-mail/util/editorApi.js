@@ -1,12 +1,13 @@
 sap.ui.define([
   "sap/ui/richtexteditor/RichTextEditor",
   "sap/ui/richtexteditor/library",
-  "sap/base/Log"
-], (RichTextEditor, richtexteditorLibrary, Log) => {
+  "sap/base/Log",
+  "emailbuilder/util/sourceBlock"
+], (RichTextEditor, richtexteditorLibrary, Log, SourceBlock) => {
   "use strict";
 
-  /** How often the maintenance loop re-checks the live iframe (ms). */
-  const MAINTENANCE_INTERVAL_MS = 1500;
+  /** Debounce for the source-block scan after the iframe body mutates (ms). */
+  const SCAN_DEBOUNCE_MS = 300;
 
   /**
    * Editor API wrapper around sap.ui.richtexteditor.RichTextEditor (TinyMCE).
@@ -17,16 +18,16 @@ sap.ui.define([
    *    on every call, used by the synchronous API (insert/getValue/
    *    removeSource/setValue). Cheap, and correct by construction — there
    *    is no stale-reference class of bug possible here.
-   *  - the maintenance loop (_runMaintenanceTick): anything that needs a
-   *    *standing* attachment to the iframe document (drag&drop listeners,
-   *    the source-block validity scan) goes through this single poll
-   *    instead of attaching once at "ready" time. The RichTextEditor
-   *    control can replace its internal iframe/tinymce instance shortly
-   *    after "ready" fires (custom-toolbar setup finishes asynchronously),
-   *    which silently orphans anything bound to the iframe/instance
-   *    captured at that moment — confirmed empirically. Re-resolving the
-   *    iframe on every tick and re-binding only when it actually changed
-   *    sidesteps chasing the exact moment of replacement.
+   *  - a pair of MutationObservers: the RichTextEditor control can replace
+   *    its internal iframe/tinymce instance shortly after "ready" fires
+   *    (custom-toolbar setup finishes asynchronously), which silently
+   *    orphans anything bound to the iframe/instance captured at that
+   *    moment — confirmed empirically. A container-level observer
+   *    (_oContainerObserver) watches for that swap and re-resolves the
+   *    live iframe the instant it happens; a body-level observer
+   *    (_oBodyObserver) re-attached to whichever iframe is currently live
+   *    reports content edits for the source-block validity scan. Both are
+   *    event-driven — no background timer running while the user is idle.
    *
    * @param {sap.ui.core.mvc.View} oView the view owning the editor
    * @param {string} sContainerId the id of the container control
@@ -40,8 +41,10 @@ sap.ui.define([
     this._bReady = false;
     this._bDestroyed = false;
 
-    // Maintenance loop state.
-    this._iMaintenanceTimer = null;
+    // Iframe-swap / content-edit observation state.
+    this._oContainerObserver = null; // watches the RTE's own DOM for iframe replacement
+    this._oBodyObserver = null;      // watches the *live* iframe's body for content edits
+    this._iScanDebounce = null;
     this._oBoundDoc = null;          // iframe document DnD listeners are bound to
     this._aBoundDnDListeners = [];   // [{type, fn}] currently attached to _oBoundDoc
     this._fnDnDHandler = null;       // caller's drop(files) callback
@@ -83,6 +86,8 @@ sap.ui.define([
           }
         });
 
+        this._configureTabKey(oRte);
+
         if (typeof oContainer.addContent === "function") {
           oContainer.addContent(oRte);
         } else if (typeof oContainer.addItem === "function") {
@@ -98,10 +103,45 @@ sap.ui.define([
     });
   };
 
+  /**
+   * Makes Tab useful inside the editor instead of the default TinyMCE
+   * "tabfocus" plugin behaviour, which moves focus to the next page
+   * control the instant Tab is pressed anywhere in the content — a jarring
+   * surprise for anyone typing prose and hitting Tab out of habit.
+   *
+   * Hooks TinyMCE's own setup(editor) callback (via beforeEditorInit,
+   * chaining rather than replacing the control's existing setup) to insert
+   * an indent and swallow the key everywhere except inside a table, where
+   * TinyMCE's own table plugin already owns Tab for cell-to-cell
+   * navigation and must run undisturbed.
+   *
+   * @param {sap.ui.richtexteditor.RichTextEditor} oRte the editor control,
+   *   not yet rendered
+   * @private
+   */
+  Editor.prototype._configureTabKey = function (oRte) {
+    oRte.attachBeforeEditorInit((oEvent) => {
+      const mConfig = oEvent.getParameter("configuration");
+      const fnOrigSetup = mConfig.setup;
+      mConfig.setup = (editor) => {
+        if (typeof fnOrigSetup === "function") { fnOrigSetup(editor); }
+        editor.on("keydown", (e) => {
+          if (e.keyCode !== 9) { return; }
+          const oNode = editor.selection && editor.selection.getNode();
+          if (oNode && editor.dom.getParent(oNode, "table")) { return; }
+          e.preventDefault();
+          e.stopImmediatePropagation();
+          editor.execCommand("mceInsertContent", false, "&emsp;&emsp;");
+        });
+      };
+    });
+  };
+
   // ------------------------------------------------------------------
-  // Maintenance loop: keeps drag&drop bound to the live iframe and
-  // reports which source blocks are still valid. Started lazily by
-  // whichever of setupDnD()/setupSourceSyncWatch() is called first.
+  // Iframe-swap / content-edit observation: keeps drag&drop bound to the
+  // live iframe and reports which source blocks are still valid. Started
+  // lazily by whichever of setupDnD()/setupSourceSyncWatch() is called
+  // first.
   // ------------------------------------------------------------------
 
   /**
@@ -176,25 +216,81 @@ sap.ui.define([
   Editor.prototype._scanSourceBlocks = function (oDoc) {
     if (!oDoc || !oDoc.body || !this._fnSourceSyncHandler) { return; }
     const aValidIds = [];
-    oDoc.body.querySelectorAll(".eb-src-block[id]").forEach((oBlock) => {
+    oDoc.body.querySelectorAll("." + SourceBlock.CSS_CLASS + "[id]").forEach((oBlock) => {
       const sText = (oBlock.textContent || "").replace(/ /g, "").trim();
       if (sText || oBlock.querySelector("img, table")) {
-        aValidIds.push(oBlock.id.replace(/^eb-src-/, ""));
+        aValidIds.push(SourceBlock.fromDomId(oBlock.id));
       }
     });
     this._fnSourceSyncHandler(aValidIds);
   };
 
-  Editor.prototype._runMaintenanceTick = function () {
+  /**
+   * Reacts to a possible iframe swap: re-resolves the live iframe document
+   * and, only when it actually differs from the one currently bound,
+   * rebinds drag&drop and re-attaches the body observer to the new one.
+   *
+   * @private
+   */
+  Editor.prototype._checkIframeSwap = function () {
     const oDoc = this._resolveEditorDoc();
+    if (oDoc === this._oBoundDoc) { return; }
     this._rebindDnD(oDoc);
-    this._scanSourceBlocks(oDoc);
+    this._rebindBodyObserver(oDoc);
   };
 
-  Editor.prototype._ensureMaintenanceLoop = function () {
-    if (this._iMaintenanceTimer) { return; }
-    this._runMaintenanceTick();
-    this._iMaintenanceTimer = setInterval(() => this._runMaintenanceTick(), MAINTENANCE_INTERVAL_MS);
+  /**
+   * (Re-)attaches the body-content observer to the given iframe document,
+   * disconnecting it from whatever document it was previously watching.
+   * Also runs one immediate scan so callers see the current state right
+   * away instead of waiting for the first future edit.
+   *
+   * @param {Document} oDoc the iframe document to watch
+   * @private
+   */
+  Editor.prototype._rebindBodyObserver = function (oDoc) {
+    if (this._oBodyObserver) {
+      this._oBodyObserver.disconnect();
+      this._oBodyObserver = null;
+    }
+    if (!oDoc || !oDoc.body || !this._fnSourceSyncHandler) { return; }
+
+    this._scanSourceBlocks(oDoc);
+
+    this._oBodyObserver = new MutationObserver(() => this._scheduleScan(oDoc));
+    this._oBodyObserver.observe(oDoc.body, { childList: true, subtree: true, characterData: true });
+  };
+
+  /**
+   * Debounces _scanSourceBlocks so a burst of edit mutations (e.g. typing)
+   * triggers one scan shortly after the user pauses, not one per keystroke.
+   *
+   * @param {Document} oDoc the iframe document to scan once settled
+   * @private
+   */
+  Editor.prototype._scheduleScan = function (oDoc) {
+    if (this._iScanDebounce) { clearTimeout(this._iScanDebounce); }
+    this._iScanDebounce = setTimeout(() => {
+      this._iScanDebounce = null;
+      this._scanSourceBlocks(oDoc);
+    }, SCAN_DEBOUNCE_MS);
+  };
+
+  /**
+   * Starts the container-level observer that detects the RichTextEditor
+   * replacing its internal iframe (see the class doc comment). Idempotent.
+   *
+   * @private
+   */
+  Editor.prototype._ensureContainerObserver = function () {
+    if (this._oContainerObserver || !this._oRte || !this._oRte.getDomRef) { return; }
+    const oContainerDom = this._oRte.getDomRef();
+    if (!oContainerDom) { return; }
+
+    this._checkIframeSwap();
+
+    this._oContainerObserver = new MutationObserver(() => this._checkIframeSwap());
+    this._oContainerObserver.observe(oContainerDom, { childList: true, subtree: true });
   };
 
   /**
@@ -205,20 +301,21 @@ sap.ui.define([
   Editor.prototype.setupDnD = function (fnHandler) {
     if (!this._oRte || typeof fnHandler !== "function") { return; }
     this._fnDnDHandler = fnHandler;
-    this._ensureMaintenanceLoop();
+    this._ensureContainerObserver();
   };
 
   /**
-   * Registers a handler that's told, every maintenance tick, which source
-   * block ids are still valid (see _scanSourceBlocks). The caller
-   * reconciles its own source/news lists against that set.
+   * Registers a handler that's told, on every content edit inside the live
+   * iframe (debounced), which source block ids are still valid (see
+   * _scanSourceBlocks). The caller reconciles its own source/news lists
+   * against that set.
    *
    * @param {function(string[])} fnHandler called with the still-valid ids
    */
   Editor.prototype.setupSourceSyncWatch = function (fnHandler) {
     if (!this._oRte || typeof fnHandler !== "function") { return; }
     this._fnSourceSyncHandler = fnHandler;
-    this._ensureMaintenanceLoop();
+    this._ensureContainerObserver();
   };
 
   // ------------------------------------------------------------------
@@ -337,7 +434,7 @@ sap.ui.define([
   Editor.prototype.removeSource = function (sSourceId) {
     if (!this._oRte || !sSourceId) { return; }
     try {
-      const sDomId = "eb-src-" + String(sSourceId).replace(/[^a-zA-Z0-9-]/g, "-");
+      const sDomId = SourceBlock.toDomId(sSourceId);
 
       const oTinymce = this._getTinymceEditor();
       if (oTinymce && oTinymce.dom) {
@@ -367,9 +464,17 @@ sap.ui.define([
     if (this._bDestroyed) { return; }
     this._bDestroyed = true;
 
-    if (this._iMaintenanceTimer) {
-      clearInterval(this._iMaintenanceTimer);
-      this._iMaintenanceTimer = null;
+    if (this._oContainerObserver) {
+      this._oContainerObserver.disconnect();
+      this._oContainerObserver = null;
+    }
+    if (this._oBodyObserver) {
+      this._oBodyObserver.disconnect();
+      this._oBodyObserver = null;
+    }
+    if (this._iScanDebounce) {
+      clearTimeout(this._iScanDebounce);
+      this._iScanDebounce = null;
     }
     if (this._oBoundDoc) {
       this._aBoundDnDListeners.forEach((oEntry) => {

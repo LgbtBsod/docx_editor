@@ -61,6 +61,19 @@
 }
 
 /* ============================================================
+   DOCUMENT ROOT — never let a stray absolutely-positioned overlay grow
+   the page. TinyMCE's floating table row/column controls (and any other
+   sap-ui-static-area popup) are appended to <body> as siblings of
+   .emailBuilderPage, so nothing scoped to the app shell can contain them;
+   only the document root can. Only reproduces when the page isn't
+   scrolled to the bottom — the floating panel's position math is based on
+   viewport scroll, and can land past the right edge before that.
+   ============================================================ */
+html, body {
+  overflow-x: hidden;
+}
+
+/* ============================================================
    PAGE LAYOUT — flex column, sticky header/footer
    ============================================================ */
 .emailBuilderPage {
@@ -494,11 +507,14 @@
 /* ============================================================
    SELECT FIELDS — rounded corners everywhere
    ============================================================ */
-.emailBuilderPage .sapMSelect,
-.emailBuilderPage .sapMSelectList,
-.emailBuilderPage .sapMSelectTrigger,
+/* sap.m.Select's actual root class is .sapMSlt (not .sapMSelect/
+   .sapMSelectTrigger — those don't exist on this control; .sapMSelectList
+   is the popup's option list, a separate DOM subtree). The theme already
+   applies a 2px radius and overflow:hidden to .sapMSlt on its own, which
+   reads as square next to our 8px design-system radius elsewhere. */
+.emailBuilderPage .sapMSlt,
 .emailBuilderPage .sapMComboBox .sapMInputBase {
-  border-radius: var(--eb-radius-sm);
+  border-radius: var(--eb-radius-sm) !important;
 }
 
 /* ============================================================
@@ -586,6 +602,13 @@
   background: var(--eb-tint-06) !important;
   border-color: var(--eb-tint-12) !important;
 }
+
+/* Toolbar dropdowns (Paragraph/font-family/font-size) and the color-picker
+   split buttons are NOT TinyMCE-skin widgets here: customToolbar:true
+   makes sap.ui.richtexteditor.RichTextEditor build its own toolbar out of
+   sap.m.Select (.sapMSlt) and sap.m.Button/MenuButton (.sapMBtn) — already
+   rounded by the app-wide .sapMSlt/.sapMBtn rules above, nothing
+   TinyMCE-specific needed. */
 
 .emailBuilderPage .mce-edit-area,
 .emailBuilderPage .mce-content-body {
@@ -955,11 +978,18 @@
   border-radius: var(--eb-radius-sm) var(--eb-radius-sm) 0 0 !important;
 }
 
-/* Dialog internal controls rounded (scoped to app dialogs) */
+/* Dialog internal controls rounded (scoped to app dialogs).
+   sap.m.Dialog renders into the UI5 "static" area — a sibling of
+   .emailBuilderPage in the DOM, not a descendant — so none of the
+   .emailBuilderPage-scoped rules above (inputs, selects, buttons...) ever
+   reach anything inside a dialog. .ebDialog is applied directly on the
+   Dialog root itself, so it works regardless of where UI5 mounts it. */
 .ebDialog .sapMBtn,
 .ebDialog .sapMBtnInner,
 .ebDialog .sapMInputBase,
-.ebDialog .sapMInputBaseInner {
+.ebDialog .sapMInputBaseInner,
+.ebDialog .sapMInputBaseContentWrapper,
+.ebDialog .sapMSlt {
   border-radius: var(--eb-radius-sm) !important;
 }
 
@@ -969,8 +999,9 @@
   border-radius: var(--eb-radius-sm) !important;
 }
 
-/* Select dropdown rounded */
-.emailBuilderPage .sapMSelectTrigger {
+/* Select dropdown rounded — see .sapMSlt rule above for why not
+   .sapMSelectTrigger (kept only so this section isn't silently empty). */
+.emailBuilderPage .sapMSlt {
   border-radius: var(--eb-radius-sm) !important;
 }
 

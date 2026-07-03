@@ -1,7 +1,8 @@
 <core:FragmentDefinition
   xmlns="sap.m"
   xmlns:core="sap.ui.core"
-  xmlns:layout="sap.ui.layout">
+  xmlns:layout="sap.ui.layout"
+  xmlns:search="emailbuilder.control">
 
   <Dialog
     id="newsDialog"
@@ -29,19 +30,19 @@
                 containerQuery="false"
                 width="100%"
                 class="sapUiSmallMarginBottom">
-                <VBox class="ebSearchInput">
-                  <Label text="{i18n>YEAR}" class="ebFieldLabel" />
+                <search:SearchField label="{i18n>YEAR}">
+                  <search:layoutData>
+                    <layout:GridData span="L3 M6 S12" />
+                  </search:layoutData>
                   <Input
                     placeholder="{i18n>YEAR_PLACEHOLDER}"
                     value="{dialog>/year}"
-                    submit="onSearchNews">
-                    <layoutData>
-                      <layout:GridData span="L3 M6 S12" />
-                    </layoutData>
-                  </Input>
-                </VBox>
-                <VBox class="ebSearchInput">
-                  <Label text="{i18n>QUARTER}" class="ebFieldLabel" />
+                    submit="onSearchNews" />
+                </search:SearchField>
+                <search:SearchField label="{i18n>QUARTER}">
+                  <search:layoutData>
+                    <layout:GridData span="L3 M6 S12" />
+                  </search:layoutData>
                   <Select selectedKey="{dialog>/quarter}" change="onSearchNews">
                     <items>
                       <core:Item key="all" text="{i18n>ALL}" />
@@ -50,13 +51,12 @@
                       <core:Item key="3" text="Q3" />
                       <core:Item key="4" text="Q4" />
                     </items>
-                    <layoutData>
-                      <layout:GridData span="L3 M6 S12" />
-                    </layoutData>
                   </Select>
-                </VBox>
-                <VBox class="ebSearchInput">
-                  <Label text="{i18n>AREA}" class="ebFieldLabel" />
+                </search:SearchField>
+                <search:SearchField label="{i18n>AREA}">
+                  <search:layoutData>
+                    <layout:GridData span="L3 M6 S12" />
+                  </search:layoutData>
                   <Select selectedKey="{dialog>/area}" change="onSearchNews">
                     <items>
                       <core:Item key="" text="{i18n>ALL}" />
@@ -69,20 +69,19 @@
                       <core:Item key="Логистика" text="{i18n>AREA_LOGISTICS}" />
                       <core:Item key="Безопасность" text="{i18n>AREA_SECURITY}" />
                     </items>
-                    <layoutData>
-                      <layout:GridData span="L3 M6 S12" />
-                    </layoutData>
                   </Select>
-                </VBox>
-                <Button
-                  icon="sap-icon://search"
-                  press="onSearchNews"
-                  type="Emphasized"
-                  tooltip="{i18n>DIALOG_NEWS}">
-                  <layoutData>
+                </search:SearchField>
+                <search:SearchField>
+                  <search:layoutData>
                     <layout:GridData span="L3 M12 S12" />
-                  </layoutData>
-                </Button>
+                  </search:layoutData>
+                  <Button
+                    icon="sap-icon://search"
+                    press="onSearchNews"
+                    type="Emphasized"
+                    width="100%"
+                    tooltip="{i18n>DIALOG_NEWS}" />
+                </search:SearchField>
               </layout:Grid>
             </IconTabFilter>
           </items>
@@ -126,6 +125,9 @@
           id="addedNewsList"
           visible="{= ${dialog>/selectedMode} === 'added' }"
           items="{state>/newsItems}"
+          growing="true"
+          growingThreshold="50"
+          growingScrollToLoad="true"
           noDataText="{i18n>NO_NEWS}"
           class="ebDialogTable"
           inset="false">

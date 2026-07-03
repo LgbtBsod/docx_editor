@@ -64,6 +64,31 @@ sap.ui.define([
     bHooksRegistered = true;
 
     window.DOMPurify.addHook("afterSanitizeAttributes", (node) => {
+      // ALLOWED_ATTR permits the style attribute (needed for docx/pdf
+      // import to keep direct formatting — color, alignment, borders), but
+      // DOMPurify does not parse CSS values: a raw url(...) inside it
+      // (background-image, cursor, list-style-image) is an unattributable
+      // network request the moment the HTML renders. Same allow/host rules
+      // as <img src> below — a data: URI is always fine, an absolute
+      // http(s) URL only survives when its host is on the allowlist. This
+      // runs unconditionally (not gated on oHookContext.harden) because
+      // isHostAllowed() already fails closed on the empty host list
+      // forImport passes, so import keeps stripping everything while
+      // forEmail keeps only allowlisted hosts — no separate branch needed.
+      if (node.getAttribute && node.hasAttribute("style")) {
+        const sStyle = node.getAttribute("style") || "";
+        if (/url\s*\(/i.test(sStyle)) {
+          const sHosts = (oHookContext && oHookContext.hosts) || [];
+          const sSafeStyle = sStyle.replace(/url\s*\(\s*(['"]?)([^'")]*)\1\s*\)/gi, (sMatch, sQuote, sUrl) => {
+            const sTrimmed = (sUrl || "").trim();
+            if (/^data:/i.test(sTrimmed)) { return sMatch; } // inline, no network request
+            if (!isAllowedProtocol(sTrimmed) || !isHostAllowed(sTrimmed, sHosts)) { return "none"; }
+            return sMatch;
+          });
+          node.setAttribute("style", sSafeStyle);
+        }
+      }
+
       if (!oHookContext || !oHookContext.harden) { return; }
 
       if (node.tagName === "A") {

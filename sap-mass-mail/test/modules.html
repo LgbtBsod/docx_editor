@@ -21,7 +21,17 @@
   }
   function assert(cond, msg) { if (!cond) { throw new Error(msg); } }
 
+  // Spy on XHR.open so tests can assert "no network call was made" (used by
+  // the mockBackend no-op test) without needing a real server behind it.
+  window.__xhrOpenCount = 0;
+  const _fnOrigXhrOpen = XMLHttpRequest.prototype.open;
+  XMLHttpRequest.prototype.open = function () {
+    window.__xhrOpenCount++;
+    return _fnOrigXhrOpen.apply(this, arguments);
+  };
+
   const MODS = [
+    ["emailbuilder/util/constants",     "../util/constants.js"],
     ["emailbuilder/util/fileTypes",     "../util/fileTypes.js"],
     ["emailbuilder/util/config",        "../util/config.js"],
     ["emailbuilder/util/libLoader",     "../util/libLoader.js"],
@@ -33,10 +43,11 @@
     ["emailbuilder/util/fileProcessor", "../util/fileProcessor.js"],
     ["emailbuilder/util/editorApi",     "../util/editorApi.js"],
     ["emailbuilder/util/dndManager",    "../util/dndManager.js"],
-    ["emailbuilder/model/formatter",    "../model/formatter.js"]
+    ["emailbuilder/model/formatter",    "../model/formatter.js"],
+    ["emailbuilder/util/mockBackend",   "../util/mockBackend.js"]
   ];
 
-  let Sanitize, Config, FileTypes, Composer, FileProcessor, Editor, Formatter, SourceBlock, Draft;
+  let Sanitize, Config, FileTypes, Composer, FileProcessor, Editor, Formatter, SourceBlock, Draft, MockBackend;
 
   Promise.all(MODS.map((m) => window.loadAppModule(m[0], m[1])))
   .then(() => {
@@ -49,6 +60,7 @@
     Formatter     = sap.ui.require("emailbuilder/model/formatter");
     SourceBlock   = sap.ui.require("emailbuilder/util/sourceBlock");
     Draft         = sap.ui.require("emailbuilder/util/draftManager");
+    MockBackend   = sap.ui.require("emailbuilder/util/mockBackend");
   })
   .then(() => t("XSS: script stripped", () => {
     const out = Sanitize.forImport('<p>ok</p><script>window.__pwned=1<\/script>');
@@ -85,6 +97,23 @@
     const out = Sanitize.forEmail('<img src="https://anywhere.example/i.png">', []);
     const img = new DOMParser().parseFromString(out, "text/html").querySelector("img");
     assert(img && !img.getAttribute("src"), "external img src survived empty allowlist: " + out);
+  }))
+  .then(() => t("CSS exfil: url() stripped from style attribute (forImport)", () => {
+    const out = Sanitize.forImport('<p style="background-image:url(https://evil.example/track.gif);color:red">x</p>');
+    assert(out.toLowerCase().indexOf("url(") < 0, "url() survived: " + out);
+    assert(out.indexOf("color:red") >= 0 || out.indexOf("color: red") >= 0, "legit style property lost: " + out);
+  }))
+  .then(() => t("CSS exfil: url() stripped from style attribute (forEmail)", () => {
+    const out = Sanitize.forEmail('<div style="cursor:url(https://evil.example/x.png),pointer">x</div>', ["company.com"]);
+    assert(out.toLowerCase().indexOf("evil.example") < 0, "tracking url survived forEmail: " + out);
+  }))
+  .then(() => t("CSS: url() to an allowed host survives forEmail", () => {
+    const out = Sanitize.forEmail('<div style="background-image:url(https://company.com/logo.png)">x</div>', ["company.com"]);
+    assert(out.indexOf("company.com/logo.png") >= 0, "allowlisted background image wrongly stripped: " + out);
+  }))
+  .then(() => t("CSS: data: URI in style survives regardless of allowlist", () => {
+    const out = Sanitize.forEmail('<div style="background-image:url(data:image/png;base64,iVBORw0KGgo=)">x</div>', []);
+    assert(out.indexOf("data:image/png") >= 0, "inline data: background wrongly stripped: " + out);
   }))
   .then(() => t("mailto link kept without target=_blank", () => {
     const out = Sanitize.forEmail('<a href="mailto:a@b.com">m</a>', ["company.com"]);
@@ -138,11 +167,20 @@
   }))
   .then(() => t("draftManager: save/load/clear roundtrip + schema guard", () => {
     Draft.clear();
-    Draft.save({ localId: "MSG-X", subject: "s", content: "<p>c</p>", recipients: [{ id: 1 }], attachments: [], sources: [] });
+    Draft.save({ localId: "MSG-X", subject: "s", content: "<p>c</p>", attachments: [], sources: [] });
     const d = Draft.load();
-    assert(d && d.localId === "MSG-X" && d.recipients.length === 1, "roundtrip failed");
-    localStorage.setItem(Draft.STORAGE_KEY, JSON.stringify({ schemaVersion: 999, localId: "x" }));
+    assert(d && d.localId === "MSG-X" && d.subject === "s", "roundtrip failed");
+    localStorage.setItem(Draft.getStorageKey(), JSON.stringify({ schemaVersion: 999, localId: "x" }));
     assert(Draft.load() === null, "wrong schema accepted");
+    Draft.clear();
+  }))
+  .then(() => t("draftManager: recipients are never persisted, even if passed to save()", () => {
+    Draft.clear();
+    Draft.save({ localId: "MSG-Y", subject: "s", content: "<p>c</p>", recipients: [{ id: 1, email: "a@b.com" }] });
+    const sRaw = localStorage.getItem(Draft.getStorageKey());
+    assert(sRaw.indexOf("a@b.com") < 0, "recipient PII leaked into localStorage: " + sRaw);
+    const d = Draft.load();
+    assert(d && d.recipients === undefined, "recipients field survived into the loaded draft");
     Draft.clear();
   }))
   .then(() => t("fileProcessor: txt import escaped", () => {
@@ -210,6 +248,26 @@
       () => { throw new Error("empty file accepted!"); },
       () => true
     );
+  }))
+  .then(() => t("mockBackend: no-op (no XHR, resolves immediately) when USE_MOCK is off", () => {
+    const bBefore = window.USE_MOCK;
+    window.USE_MOCK = false;
+    const iRequestsBefore = window.__xhrOpenCount || 0;
+    return MockBackend.recordSend({ LocalId: "x" }, [{ email: "a@b.com" }], false).then(() => {
+      assert(MockBackend.isActive() === false, "isActive() true with USE_MOCK=false");
+      assert((window.__xhrOpenCount || 0) === iRequestsBefore, "XHR fired despite USE_MOCK=false");
+      window.USE_MOCK = bBefore;
+    });
+  }))
+  .then(() => t("mockBackend: attempts a save (XHR fired) when USE_MOCK is on", () => {
+    const bBefore = window.USE_MOCK;
+    window.USE_MOCK = true;
+    const iRequestsBefore = window.__xhrOpenCount || 0;
+    return MockBackend.recordSend({ LocalId: "x" }, [{ email: "a@b.com" }], false).then(() => {
+      assert(MockBackend.isActive() === true, "isActive() false with USE_MOCK=true");
+      assert((window.__xhrOpenCount || 0) > iRequestsBefore, "no XHR fired despite USE_MOCK=true");
+      window.USE_MOCK = bBefore;
+    });
   }))
   .then(() => {
     window.__testResults = RESULTS;

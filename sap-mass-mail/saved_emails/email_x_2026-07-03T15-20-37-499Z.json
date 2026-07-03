@@ -1,0 +1,9 @@
+{
+  "LocalId": "x",
+  "ToRecipients": [
+    {
+      "email": "a@b.com"
+    }
+  ],
+  "IsTest": false
+}

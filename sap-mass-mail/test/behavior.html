@@ -57,7 +57,27 @@
     return { getModel: () => oModel };
   }
 
+  // --- Component stub that fails read() iFailCount times with iStatus
+  //     before succeeding, for exercising readWithRetry's retry decision ---
+  function makeFlakyComponentStub(iStatus, iFailCount) {
+    let iAttempts = 0;
+    const oModel = {
+      metadataLoaded: () => Promise.resolve(),
+      read: (sPath, mParams) => {
+        iAttempts++;
+        if (iAttempts <= iFailCount) {
+          mParams.error({ response: { statusCode: iStatus } });
+        } else {
+          mParams.success({ results: [] });
+        }
+      }
+    };
+    return { getModel: () => oModel, getAttempts: () => iAttempts };
+  }
+
   const MODS = [
+    ["emailbuilder/util/constants",     "../util/constants.js"],
+    ["emailbuilder/util/toast",         "../util/toast.js"],
     ["emailbuilder/util/fileTypes",     "../util/fileTypes.js"],
     ["emailbuilder/util/config",        "../util/config.js"],
     ["emailbuilder/util/libLoader",     "../util/libLoader.js"],
@@ -128,6 +148,22 @@
       assert(p.urlParameters && p.urlParameters.$top === "100", "$top missing: " + JSON.stringify(p.urlParameters));
     });
   }))
+  .then(() => t("service: readWithRetry does not retry a 4xx (client error)", () => {
+    const stub = makeFlakyComponentStub(400, 999); // always fails
+    return Service.getAllowedHosts(stub).then(
+      () => { throw new Error("expected rejection on persistent 4xx"); },
+      () => {
+        assert(stub.getAttempts() === 1, "expected exactly 1 attempt for a 4xx, got " + stub.getAttempts());
+      }
+    );
+  }))
+  .then(() => t("service: readWithRetry retries a 5xx and recovers", () => {
+    const stub = makeFlakyComponentStub(503, 1); // fails once, then succeeds
+    return Service.getAllowedHosts(stub).then((aHosts) => {
+      assert(stub.getAttempts() === 2, "expected 2 attempts (1 fail + 1 retry), got " + stub.getAttempts());
+      assert(Array.isArray(aHosts), "expected array result after recovery");
+    });
+  }))
   .then(() => t("service: getMailingStatus filters by MailingId", () => {
     const readLog = [], createLog = [];
     const comp = makeComponentStub(readLog, createLog);
@@ -138,13 +174,16 @@
   }))
 
   // ---------------- SourcesMixin behavior ----------------
-  .then(() => t("W-9 fix: onClearAllNews removes blocks from editor AND list", () => {
+  .then(() => t("W-9 fix: onClearAllNews removes blocks from editor AND newsItems list", () => {
+    // newsItems and sources are separate state arrays (SourcesMixin.js:
+    // _addSourceToList always tags type "file"; news goes through
+    // _addNewsAsSource into /newsItems) — onClearAllNews must only touch
+    // /newsItems and leave /sources untouched.
     const removed = [];
     const ctx = Object.assign({}, SourcesMixin, {
       _oState: new ModelStub({
-        sources: [
-          { id: "n1", type: "news" }, { id: "f1", type: "file", ext: ".txt" }, { id: "n2", type: "news" }
-        ]
+        newsItems: [{ id: "n1" }, { id: "n2" }],
+        sources: [{ id: "f1", type: "file", ext: ".txt" }]
       }),
       _oEditor: { removeSource: (id) => removed.push(id) },
       _t: (k) => k,
@@ -152,8 +191,9 @@
     });
     ctx.onClearAllNews();
     assert(removed.join(",") === "n1,n2", "editor blocks not removed: " + removed);
-    const left = ctx._oState.getProperty("/sources");
-    assert(left.length === 1 && left[0].id === "f1", "list wrong after clear");
+    assert(ctx._oState.getProperty("/newsItems").length === 0, "newsItems not cleared");
+    const aSources = ctx._oState.getProperty("/sources");
+    assert(aSources.length === 1 && aSources[0].id === "f1", "unrelated sources list touched");
     assert(ctx._badges, "badges not refreshed");
   }))
   .then(() => t("F-7 fix: duplicate-named attachments delete only one", () => {
@@ -200,15 +240,35 @@
     assert(before !== after, "array mutated in place");
     assert(after.length === 1 && after[0].iconSrc, "source entry incomplete");
   }))
-  .then(() => t("_refreshPdfModeVisibility hides row only when no pdf left", () => {
+  .then(() => t("PDF mode prompt: onPdfModeConfirm resolves with the tab the user picked", () => {
+    // _promptPdfMode reuses an already-loaded dialog (Fragment.load is
+    // stubbed to always reject in this shim, so the dialog is pre-seeded
+    // here to exercise the reuse branch, same as a real second PDF drop).
     const ctx = Object.assign({}, SourcesMixin, {
-      _oState: new ModelStub({ showPdfMode: true }),
+      _oState: new ModelStub({ pdfModeIndex: 0 }),
+      _oPdfModeDialog: { open: () => {}, close: () => {} },
       _t: (k) => k, _updateHeaderBadges: () => {}
     });
-    ctx._refreshPdfModeVisibility([{ ext: ".pdf" }]);
-    assert(ctx._oState.getProperty("/showPdfMode") === true, "hidden despite pdf present");
-    ctx._refreshPdfModeVisibility([{ ext: ".txt" }]);
-    assert(ctx._oState.getProperty("/showPdfMode") === false, "not hidden when pdf gone");
+    const pPrompt = ctx._promptPdfMode("a.pdf");
+    ctx._oState.setProperty("/pdfModeIndex", 1); // user selects the "Images" tab
+    ctx.onPdfModeConfirm();
+    return pPrompt.then((sMode) => {
+      assert(sMode === "images", "expected images mode for tab index 1, got " + sMode);
+    });
+  }))
+  .then(() => t("PDF mode prompt: a second concurrent prompt auto-resolves the first as text", () => {
+    const ctx = Object.assign({}, SourcesMixin, {
+      _oState: new ModelStub({ pdfModeIndex: 0 }),
+      _oPdfModeDialog: { open: () => {}, close: () => {} },
+      _t: (k) => k, _updateHeaderBadges: () => {}
+    });
+    const pFirst = ctx._promptPdfMode("a.pdf");
+    const pSecond = ctx._promptPdfMode("b.pdf");
+    ctx.onPdfModeConfirm();
+    return Promise.all([pFirst, pSecond]).then(([sFirst, sSecond]) => {
+      assert(sFirst === "text", "superseded prompt should auto-resolve as text, got " + sFirst);
+      assert(sSecond === "text", "live prompt should resolve from confirm (default tab), got " + sSecond);
+    });
   }))
   .then(() => {
     window.__testResults = RESULTS;

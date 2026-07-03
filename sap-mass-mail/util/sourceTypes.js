@@ -1,6 +1,7 @@
 sap.ui.define([
-  "emailbuilder/util/fileTypes"
-], (FileTypes) => {
+  "emailbuilder/util/fileTypes",
+  "emailbuilder/util/sourceBlock"
+], (FileTypes, SourceBlock) => {
   "use strict";
 
   /**
@@ -10,13 +11,13 @@ sap.ui.define([
   return {
 
     icon(sType, sExt) {
-      if (sType === "news") { return "sap-icon://notification"; }
+      if (sType === SourceBlock.TYPE.NEWS) { return "sap-icon://notification"; }
       const oType = FileTypes.get(sExt);
       return oType ? oType.icon : "sap-icon://document";
     },
 
     color(sType, sExt) {
-      if (sType === "news") { return "#0070f2"; }
+      if (sType === SourceBlock.TYPE.NEWS) { return "#0070f2"; }
       const oType = FileTypes.get(sExt);
       return oType ? oType.color : "#5b738b";
     }

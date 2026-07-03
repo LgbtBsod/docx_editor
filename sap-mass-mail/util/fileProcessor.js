@@ -40,6 +40,8 @@ sap.ui.define([
     });
   }
 
+  // docx-preview's UMD bundle reads the JSZip global directly (not via AMD/CommonJS),
+  // so JSZip must already be on window before docx-preview.min.js executes.
   function ensureDocxPreview() {
     return ensureLib("jszip").then(() => ensureLib("docxpreview"));
   }
@@ -101,7 +103,7 @@ sap.ui.define([
 
   function processText(file, sSourceId) {
     return readAsText(file).then((sText) => SourceBlock.wrap(
-      sSourceId, "file",
+      sSourceId, SourceBlock.TYPE.FILE,
       "<p>" + encodeXML(sText).replace(/\n/g, "<br>") + "</p>"
     ));
   }
@@ -109,7 +111,7 @@ sap.ui.define([
   function processMarkdown(file, sSourceId) {
     return Promise.all([ensureLib("marked"), readAsText(file)])
       .then((aResults) => SourceBlock.wrap(
-        sSourceId, "file",
+        sSourceId, SourceBlock.TYPE.FILE,
         Sanitize.forImport(window.marked.parse(aResults[1]))
       ));
   }
@@ -118,7 +120,7 @@ sap.ui.define([
     return readAsText(file).then((sText) => {
       const mBody = sText.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
       const sBody = Sanitize.forImport(mBody ? mBody[1] : sText);
-      return SourceBlock.wrap(sSourceId, "file", sBody);
+      return SourceBlock.wrap(sSourceId, SourceBlock.TYPE.FILE, sBody);
     });
   }
 
@@ -127,7 +129,7 @@ sap.ui.define([
       const sSafeName = encodeXML(file.name || "");
       const sHtml = '<p><img src="' + sDataUrl + '" alt="' + sSafeName
         + '" style="max-width:100%;height:auto;" /></p>';
-      return SourceBlock.wrap(sSourceId, "file", sHtml);
+      return SourceBlock.wrap(sSourceId, SourceBlock.TYPE.FILE, sHtml);
     });
   }
 
@@ -155,6 +157,9 @@ sap.ui.define([
     }
   }
 
+  // docx-preview over mammoth: mammoth only converts document structure and never
+  // reads direct formatting (text color, alignment) — docx-preview renders those as
+  // inline styles, which is what survives both TinyMCE and an outgoing email.
   function renderDocxContent(file) {
     const oContainer = document.createElement("div");
     return window.docx.renderAsync(file, oContainer, null, {
@@ -172,7 +177,7 @@ sap.ui.define([
   function processDocx(file, sSourceId, oBundle) {
     return ensureDocxPreview()
       .then(() => renderDocxContent(file))
-      .then((sClean) => SourceBlock.wrap(sSourceId, "file", sClean))
+      .then((sClean) => SourceBlock.wrap(sSourceId, SourceBlock.TYPE.FILE, sClean))
       .catch(() => {
         return Promise.reject(new Error(t(oBundle, "MSG_LIB_NOT_LOADED", ["docx-preview"])));
       });
@@ -181,6 +186,8 @@ sap.ui.define([
   function processPdf(file, sSourceId, sMode, oBundle) {
     return Promise.all([ensureLib("pdfjs"), readAsArrayBuffer(file)])
       .then((aResults) => {
+        // getDocument() returns a PDFDocumentLoadingTask, not a Promise itself —
+        // chaining .then() directly on it resolves immediately with the task object.
         return window.pdfjsLib.getDocument({ data: aResults[1] }).promise;
       })
       .then((oPdf) => {
@@ -197,7 +204,7 @@ sap.ui.define([
               + encodeXML(t(oBundle, "PDF_PAGES_TRUNCATED", [iPages, iTotal]))
               + '</p>';
           }
-          return SourceBlock.wrap(sSourceId, "file", sResult);
+          return SourceBlock.wrap(sSourceId, SourceBlock.TYPE.FILE, sResult);
         });
       });
   }
@@ -244,6 +251,7 @@ sap.ui.define([
       const sImgAlt = encodeXML(t(oBundle, "PDF_PAGE", [iPageNum]));
       const sImg = '<img src="' + sDataUrl + '" style="max-width:100%;height:auto;" alt="'
         + sImgAlt + '"/>';
+      // Free the canvas backing store so the bitmap memory is released promptly.
       oCanvas.width = 0;
       oCanvas.height = 0;
       return SourceBlock.wrapPdfPage("", iPageNum, "images", sHeader + sImg);

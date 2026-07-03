@@ -15,7 +15,7 @@ CLASS zcl_eb_mailing_dpc_ext DEFINITION
 
     METHODS raise_business_error
       IMPORTING iv_text   TYPE csequence
-                iv_status TYPE i DEFAULT 400
+                iv_status TYPE i DEFAULT zcl_newsletter_constants=>http_status-bad_request
       RAISING   /iwbep/cx_mgw_busi_exception.
 
   PRIVATE SECTION.
@@ -51,6 +51,7 @@ CLASS zcl_eb_mailing_dpc_ext DEFINITION
         local_id_pattern TYPE string VALUE `^[A-Za-z0-9_\-.]{1,40}$`,
         filename_pattern TYPE string VALUE `[/\\:*?"<>|]`,
         max_recipients   TYPE i VALUE 10000,
+        max_subject_len  TYPE i VALUE 50, " so_obj_des length — outbound BCS document truncates above this
       END OF c_validation.
 
     CLASS-DATA:
@@ -92,6 +93,7 @@ CLASS zcl_eb_mailing_dpc_ext DEFINITION
 
       persist_mailing
         IMPORTING it_modification TYPE /bobf/t_frw_modification
+                  iv_local_id     TYPE csequence
         RAISING   /iwbep/cx_mgw_busi_exception,
 
       build_response
@@ -123,10 +125,11 @@ CLASS zcl_eb_mailing_dpc_ext IMPLEMENTATION.
     validate_payload( ls_payload ).
 
     IF mailing_exists( ls_payload-local_id ) = abap_true.
-      raise_business_error( iv_text = |Mailing with LocalId '{ ls_payload-local_id }' already exists.| iv_status = 409 ).
+      raise_business_error( iv_text = |Mailing with LocalId '{ ls_payload-local_id }' already exists.|
+                            iv_status = zcl_newsletter_constants=>http_status-conflict ).
     ENDIF.
 
-    persist_mailing( build_modifications( ls_payload ) ).
+    persist_mailing( it_modification = build_modifications( ls_payload ) iv_local_id = ls_payload-local_id ).
 
     er_deep_entity = build_response( ls_payload ).
   ENDMETHOD.
@@ -151,6 +154,10 @@ CLASS zcl_eb_mailing_dpc_ext IMPLEMENTATION.
 
     IF is_mailing-subject IS INITIAL.
       raise_business_error( 'Subject is required' ).
+    ENDIF.
+
+    IF strlen( is_mailing-subject ) > c_validation-max_subject_len.
+      raise_business_error( |Subject exceeds { c_validation-max_subject_len } characters (outbound mail limit)| ).
     ENDIF.
 
     IF lines( is_mailing-to_recipients ) > c_validation-max_recipients.
@@ -239,8 +246,15 @@ CLASS zcl_eb_mailing_dpc_ext IMPLEMENTATION.
         EXPORTING message_container = mo_context->get_message_container( ) http_status_code = 400.
     ENDIF.
 
-    IF /bobf/cl_tra_trans_mgr_factory=>get_transaction_manager( )->save( /bobf/if_znewsletter_bo_c=>sc_bo_key ) <> 0.
-      raise_business_error( iv_text = 'Failed to save transaction' iv_status = 500 ).
+    DATA(lo_save_msg) = /bobf/cl_tra_trans_mgr_factory=>get_transaction_manager( )->save( /bobf/if_znewsletter_bo_c=>sc_bo_key ).
+
+    IF lo_save_msg IS BOUND AND lo_save_msg->has_errors( ).
+      " The mailing_exists()/CREATE race (TOCTOU) is closed at the DDIC
+      " layer (UNIQUE index on zmail_hdr~local_id), not here: BOPF reports
+      " persistence failures — including a unique-key violation — through
+      " this message object, never as a propagated cx_sy_open_sql_db.
+      raise_business_error( iv_text = |Failed to save mailing '{ iv_local_id }'|
+                            iv_status = zcl_newsletter_constants=>http_status-server_error ).
     ENDIF.
 
     COMMIT WORK.
@@ -269,9 +283,9 @@ CLASS zcl_eb_mailing_dpc_ext IMPLEMENTATION.
     DATA(lv_text) = COND #( WHEN iv_text IS SUPPLIED THEN substring( val = |{ iv_text }| len = 50 ) ELSE '' ).
 
     lo_msg_container->add_message(
-      iv_msg_type   = 'E'
-      iv_msg_id     = 'ZEB_MAIL'
-      iv_msg_number = '001'
+      iv_msg_type   = zcl_newsletter_constants=>msg_type-error
+      iv_msg_id     = zcl_newsletter_constants=>message-zeb_mail_id
+      iv_msg_number = zcl_newsletter_constants=>message-default_no
       iv_msg_text   = lv_text
       iv_add_to_response_header = abap_true ).
 

@@ -4,7 +4,10 @@ sap.ui.define([
 ], (Log, Constants) => {
   "use strict";
 
-  const SCHEMA_VERSION = 1;
+  // v2: recipients are no longer persisted (see save()) — bumped so any
+  // draft saved under v1 (which may carry recipient PII in localStorage)
+  // is discarded by isValidDraft() on next load instead of lingering.
+  const SCHEMA_VERSION = 2;
 
   /**
    * Генерирует уникальный ключ для draft, изолированный по пользователю.
@@ -38,7 +41,6 @@ sap.ui.define([
     if (!oDraft || typeof oDraft !== "object") { return false; }
     if (oDraft.schemaVersion !== SCHEMA_VERSION) { return false; }
     if (typeof oDraft.localId !== "string") { return false; }
-    if (oDraft.recipients && !Array.isArray(oDraft.recipients)) { return false; }
     if (oDraft.attachments && !Array.isArray(oDraft.attachments)) { return false; }
     if (oDraft.sources && !Array.isArray(oDraft.sources)) { return false; }
     if (oDraft.newsItems && !Array.isArray(oDraft.newsItems)) { return false; }
@@ -93,6 +95,12 @@ sap.ui.define([
   /**
    * Persists the given draft object to localStorage.
    *
+   * Recipients are deliberately NOT persisted: they're personal data (names/
+   * emails), and localStorage is unencrypted, machine-wide, and outlives the
+   * session — a draft is meant to restore the compose work, not double as a
+   * store of who a mailing was about to go to. Callers that still pass
+   * oDraft.recipients have it silently dropped here, not just left unread.
+   *
    * @param {object} oDraft draft payload
    * @param {string} [sUserId] user ID for key isolation
    * @returns {void}
@@ -106,7 +114,6 @@ sap.ui.define([
       localId:     oDraft.localId || "",
       subject:     oDraft.subject || "",
       content:     oDraft.content || "",
-      recipients:  Array.isArray(oDraft.recipients) ? oDraft.recipients : [],
       attachments: Array.isArray(oDraft.attachments) ? oDraft.attachments : [],
       sources:     Array.isArray(oDraft.sources) ? oDraft.sources : [],
       newsItems:   Array.isArray(oDraft.newsItems) ? oDraft.newsItems : [],

@@ -15,12 +15,24 @@ sap.ui.define([], () => {
       // this only checks the basic "something@something.tld" shape and
       // leaves real deliverability to the backend/SMTP.
       EMAIL_PATTERN: /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/u,
-      LOCAL_ID_PATTERN: /^[A-Za-z0-9_\-.]{1,40}$/
+      LOCAL_ID_PATTERN: /^[A-Za-z0-9_\-.]{1,40}$/,
+
+      // Mirrors zcl_eb_mailing_dpc_ext=>c_validation-max_subject_len (SO_OBJ_DES
+      // length — outbound BCS document truncates above this). Bound to
+      // subjectInput's maxLength so the limit is enforced before submit,
+      // not only rejected by the backend after a full compose cycle.
+      SUBJECT_MAX_LEN: 50
     },
 
     PERFORMANCE: {
       DEFAULT_TOP: 100,
-      MAX_COLLECTION_SIZE: 5000
+      MAX_COLLECTION_SIZE: 5000,
+
+      // Mirrors zcl_eb_mailing_dpc_ext=>c_validation-max_recipients (ABAP).
+      // Must stay >= the "state" JSONModel's sizeLimit (Component.js), or
+      // the "Добавлено" recipients list in RecipientSearch silently
+      // truncates past this many entries instead of just rendering slowly.
+      MAX_RECIPIENTS_PER_MAILING: 10000
     },
 
     STORAGE: {
