@@ -2,42 +2,40 @@ sap.ui.define([
   "sap/ui/core/UIComponent",
   "sap/ui/model/json/JSONModel",
   "sap/base/Log",
-  "emailbuilder/util/config",
-  "emailbuilder/util/constants"
-], (UIComponent, JSONModel, Log, Config, Constants) => {
+  "MAILING_CONSTRUCTOR/util/config",
+  "MAILING_CONSTRUCTOR/util/constants",
+  "MAILING_CONSTRUCTOR/util/sanitize",
+  "MAILING_CONSTRUCTOR/util/service",
+  "MAILING_CONSTRUCTOR/model/formatter"
+], (UIComponent, JSONModel, Log, Config, Constants, Sanitize, Service, Formatter) => {
   "use strict";
 
-  return UIComponent.extend("emailbuilder.Component", {
+  return UIComponent.extend("MAILING_CONSTRUCTOR.Component", {
 
     metadata: { manifest: "json" },
 
     init() {
-      // Flat schema — single source of truth; every path below matches the
-      // paths read by controllers, mixins and the view (no ui/data nesting).
       const oAppStateModel = new JSONModel(this._initialState());
-      // Pre-load fallback (see config model comment below); raised again to
-      // the backend-delivered value once MailingConfigSet resolves via
-      // setStateSizeLimit(), so the JSONModel never silently truncates the
-      // "Добавлено" recipients list before that cap.
       oAppStateModel.setSizeLimit(Constants.PERFORMANCE.MAX_RECIPIENTS_PER_MAILING);
       this.setModel(oAppStateModel, "state");
 
-      // Runtime configuration delivered by the backend (AllowedHostSet,
-      // MailingConfigSet). maxRecipients/subjectMaxLen start out seeded from
-      // util/constants.js purely as a pre-load fallback so the UI has a sane
-      // maxLength/sizeLimit before the first round-trip resolves; App
-      // controller#_loadMailingConfig overwrites them from the backend
-      // (the actual single source of truth — see util/service.js#getMailingConfig)
-      // the moment it responds.
       this.setModel(new JSONModel({
         allowedHosts:   [],
         maxRecipients:  Constants.PERFORMANCE.MAX_RECIPIENTS_PER_MAILING,
         subjectMaxLen:  Constants.VALIDATION.SUBJECT_MAX_LEN
       }), "config");
 
-      // Exposes util/constants.js to XML bindings (e.g. subjectInput's
-      // maxLength) so a view-level literal never has to duplicate a value
-      // already defined there. Read-only: no controller ever writes to it.
+      // Service dictionary — all lookup tables (statuses, news types,
+      // allowed hosts) loaded once from ServiceDictSet. formatter.js reads
+      // status texts/icons/states from here; SFB value-help binds to it.
+      this.setModel(new JSONModel({
+        MAIL_STATUS:  [],
+        REC_STATUS:   [],
+        DISP_STATUS:  [],
+        NEWS_TYPE:    [],
+        ALLOWED_HOST: []
+      }), "dict");
+
       this.setModel(new JSONModel(Constants), "constants");
 
       UIComponent.prototype.init.apply(this, arguments);
@@ -45,9 +43,42 @@ sap.ui.define([
       const oODataModel = this.getModel();
       if (oODataModel) {
         oODataModel.attachMetadataFailed((oEvent) => {
-          Log.warning("OData metadata failed", oEvent.getParameter("message"), "emailbuilder.Component");
+          Log.warning("OData metadata failed", oEvent.getParameter("message"), "MAILING_CONSTRUCTOR.Component");
+        });
+        // Load the service dictionary as soon as metadata is available —
+        // formatter.js and SFB value-help depend on it being populated.
+        oODataModel.metadataLoaded().then(() => {
+          this._loadServiceDict();
         });
       }
+    },
+
+    /**
+     * Loads ServiceDictSet and populates the "dict" JSONModel by DictType.
+     * Each DictType becomes a property path: dict>/MAIL_STATUS, dict>/NEWS_TYPE, etc.
+     * @private
+     */
+    _loadServiceDict() {
+      Service.getServiceDict(this).then((aAll) => {
+        const oDict = this.getModel("dict");
+        const mGroups = {};
+        (aAll || []).forEach((oEntry) => {
+          const sType = oEntry.DictType;
+          if (!mGroups[sType]) { mGroups[sType] = []; }
+          mGroups[sType].push(oEntry);
+        });
+        // Sort each group by SortOrder
+        Object.keys(mGroups).forEach((sType) => {
+          mGroups[sType].sort((a, b) => (a.SortOrder || 0) - (b.SortOrder || 0));
+          oDict.setProperty("/" + sType, mGroups[sType]);
+        });
+        // Also populate config>/allowedHosts from ALLOWED_HOST entries
+        const aHosts = (mGroups["ALLOWED_HOST"] || []).map((h) => h.DictKey);
+        this.getModel("config").setProperty("/allowedHosts", aHosts);
+        Log.info("[MAILING_CONSTRUCTOR] Service dictionary loaded: " + (aAll || []).length + " entries");
+      }).catch((e) => {
+        Log.warning("[MAILING_CONSTRUCTOR] Service dictionary load failed: " + (e.message || e));
+      });
     },
 
     /**
@@ -74,15 +105,15 @@ sap.ui.define([
 
     /**
      * Resets the composer state to a pristine draft with a fresh LocalId.
-     * Single reset routine for "after send", "clear template" and
-     * "back to current" (was duplicated across controller methods).
+     * Shared reset routine for "after send", "clear template" and
+     * "back to current".
      */
     resetState() {
       this.getModel("state").setData(this._initialState());
     },
 
     destroy() {
-      // FIXED: Explicit cleanup of all created models
+      // Explicit cleanup of all created models
       ["state", "config", "constants"].forEach((sModelName) => {
         const oModel = this.getModel(sModelName);
         if (oModel && !oModel.isDestroyed()) {
@@ -96,6 +127,11 @@ sap.ui.define([
         this._oMockServer = null;
       }
 
+      // Clear module-level singletons to prevent stale state across
+      // component lifecycles (module is a singleton, not instance-scoped).
+      Sanitize.removeHooks();
+      Formatter.reset();
+
       UIComponent.prototype.destroy.apply(this, arguments);
     },
 
@@ -106,8 +142,12 @@ sap.ui.define([
     /**
      * Raises the "state" JSONModel's array size limit to the backend-delivered
      * MaxRecipients once MailingConfigSet resolves (see App.controller#_loadMailingConfig).
-     * A no-op no-lower-than-default guard: never shrinks below the pre-load
-     * fallback, so a transient bad backend value can't silently truncate.
+     *
+     * The "state" model carries the local recipients list (which can grow past
+     * the JSONModel's default sizeLimit of 100), so this cap must follow the
+     * backend's MaxRecipients. A no-op no-lower-than-default guard: never
+     * shrinks below the pre-load fallback, so a transient bad backend value
+     * can't silently truncate.
      *
      * @param {number} iMaxRecipients backend-delivered recipient cap
      */

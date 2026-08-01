@@ -18,10 +18,11 @@ PARAMETERS: p_budget  TYPE i DEFAULT 300,   "Runtime budget per instance, second
 START-OF-SELECTION.
   IF p_workers <= 1.
     " Single instance: no partitioning overhead, behaves exactly like
-    " ZMAIL_DISPATCHER run standalone.
+    " ZMAIL_DISPATCHER run standalone. Catch only cx_dynamic_check —
+    " see zmail_dispatcher.prog.abap.
     TRY.
         zcl_mail_dispatcher=>run( iv_max_runtime_s = p_budget ).
-      CATCH cx_root INTO DATA(lx_single).
+      CATCH cx_dynamic_check INTO DATA(lx_single).
         MESSAGE lx_single->get_text( ) TYPE 'E'.
     ENDTRY.
     RETURN.

@@ -1,0 +1,1274 @@
+[
+  {
+    "Email": "кузнецов.николай@company.com",
+    "FullName": "Кузнецов Николай",
+    "Roles": "Архитектор",
+    "AuthCount": 2
+  },
+  {
+    "Email": "кузнецов.сергей@company.com",
+    "FullName": "Кузнецов Сергей",
+    "Roles": "Консультант",
+    "AuthCount": 1
+  },
+  {
+    "Email": "лебедев.анна@corp.ru",
+    "FullName": "Лебедев Анна",
+    "Roles": "Менеджер",
+    "AuthCount": 1
+  },
+  {
+    "Email": "голубев.ольга@mail.example.org",
+    "FullName": "Голубев Ольга",
+    "Roles": "Менеджер",
+    "AuthCount": 1
+  },
+  {
+    "Email": "новиков.андрей@corp.ru",
+    "FullName": "Новиков Андрей",
+    "Roles": "Тестировщик",
+    "AuthCount": 1
+  },
+  {
+    "Email": "павлов.анна@company.com",
+    "FullName": "Павлов Анна",
+    "Roles": "Руководитель",
+    "AuthCount": 1
+  },
+  {
+    "Email": "петров.алена@enterprise.ru",
+    "FullName": "Петров Алена",
+    "Roles": "Аналитик",
+    "AuthCount": 1
+  },
+  {
+    "Email": "морозов.ирина@mail.example.org",
+    "FullName": "Морозов Ирина",
+    "Roles": "Тестировщик",
+    "AuthCount": 1
+  },
+  {
+    "Email": "козлов.светлана@mail.example.org",
+    "FullName": "Козлов Светлана",
+    "Roles": "Аналитик",
+    "AuthCount": 1
+  },
+  {
+    "Email": "новиков.михаил@enterprise.ru",
+    "FullName": "Новиков Михаил",
+    "Roles": "Руководитель",
+    "AuthCount": 1
+  },
+  {
+    "Email": "лебедев.татьяна@mail.example.org",
+    "FullName": "Лебедев Татьяна",
+    "Roles": "Аналитик",
+    "AuthCount": 1
+  },
+  {
+    "Email": "голубев.елена@enterprise.ru",
+    "FullName": "Голубев Елена",
+    "Roles": "Архитектор",
+    "AuthCount": 1
+  },
+  {
+    "Email": "петров.максим@corp.ru",
+    "FullName": "Петров Максим",
+    "Roles": "Менеджер",
+    "AuthCount": 1
+  },
+  {
+    "Email": "сидоров.алексей@corp.ru",
+    "FullName": "Сидоров Алексей",
+    "Roles": "Руководитель",
+    "AuthCount": 1
+  },
+  {
+    "Email": "голубев.михаил@corp.ru",
+    "FullName": "Голубев Михаил",
+    "Roles": "Архитектор",
+    "AuthCount": 1
+  },
+  {
+    "Email": "воробьев.оксана@mail.example.org",
+    "FullName": "Воробьев Оксана",
+    "Roles": "Консультант, Руководитель",
+    "AuthCount": 2
+  },
+  {
+    "Email": "соколов.ольга@enterprise.ru",
+    "FullName": "Соколов Ольга",
+    "Roles": "Аналитик",
+    "AuthCount": 1
+  },
+  {
+    "Email": "попов.сергей@enterprise.ru",
+    "FullName": "Попов Сергей",
+    "Roles": "Аналитик",
+    "AuthCount": 1
+  },
+  {
+    "Email": "голубев.виктория@mail.example.org",
+    "FullName": "Голубев Виктория",
+    "Roles": "Менеджер",
+    "AuthCount": 1
+  },
+  {
+    "Email": "волков.роман@company.com",
+    "FullName": "Волков Роман",
+    "Roles": "Архитектор",
+    "AuthCount": 1
+  },
+  {
+    "Email": "иванов.владимир@mail.example.org",
+    "FullName": "Иванов Владимир",
+    "Roles": "Разработчик",
+    "AuthCount": 1
+  },
+  {
+    "Email": "богданов.максим@corp.ru",
+    "FullName": "Богданов Максим",
+    "Roles": "Разработчик",
+    "AuthCount": 1
+  },
+  {
+    "Email": "богданов.ирина@company.com",
+    "FullName": "Богданов Ирина",
+    "Roles": "Руководитель",
+    "AuthCount": 1
+  },
+  {
+    "Email": "зайцев.мария@mail.example.org",
+    "FullName": "Зайцев Мария",
+    "Roles": "Тестировщик",
+    "AuthCount": 1
+  },
+  {
+    "Email": "федоров.кирилл@company.com",
+    "FullName": "Федоров Кирилл",
+    "Roles": "Аналитик",
+    "AuthCount": 1
+  },
+  {
+    "Email": "воробьев.роман@corp.ru",
+    "FullName": "Воробьев Роман",
+    "Roles": "Разработчик",
+    "AuthCount": 1
+  },
+  {
+    "Email": "богданов.алексей@enterprise.ru",
+    "FullName": "Богданов Алексей",
+    "Roles": "Тестировщик",
+    "AuthCount": 1
+  },
+  {
+    "Email": "зайцев.михаил@enterprise.ru",
+    "FullName": "Зайцев Михаил",
+    "Roles": "Координатор",
+    "AuthCount": 1
+  },
+  {
+    "Email": "сидоров.ольга@mail.example.org",
+    "FullName": "Сидоров Ольга",
+    "Roles": "Менеджер",
+    "AuthCount": 1
+  },
+  {
+    "Email": "сидоров.иван@company.com",
+    "FullName": "Сидоров Иван",
+    "Roles": "Тестировщик",
+    "AuthCount": 1
+  },
+  {
+    "Email": "волков.дарья@company.com",
+    "FullName": "Волков Дарья",
+    "Roles": "Тестировщик",
+    "AuthCount": 1
+  },
+  {
+    "Email": "воробьев.дмитрий@corp.ru",
+    "FullName": "Воробьев Дмитрий",
+    "Roles": "Координатор",
+    "AuthCount": 1
+  },
+  {
+    "Email": "семенов.алена@corp.ru",
+    "FullName": "Семенов Алена",
+    "Roles": "Аналитик, Архитектор",
+    "AuthCount": 2
+  },
+  {
+    "Email": "семенов.татьяна@enterprise.ru",
+    "FullName": "Семенов Татьяна",
+    "Roles": "Координатор",
+    "AuthCount": 1
+  },
+  {
+    "Email": "павлов.петр@mail.example.org",
+    "FullName": "Павлов Петр",
+    "Roles": "Аналитик",
+    "AuthCount": 1
+  },
+  {
+    "Email": "воробьев.дмитрий@enterprise.ru",
+    "FullName": "Воробьев Дмитрий",
+    "Roles": "Разработчик",
+    "AuthCount": 1
+  },
+  {
+    "Email": "голубев.алексей@corp.ru",
+    "FullName": "Голубев Алексей",
+    "Roles": "Аналитик, Координатор",
+    "AuthCount": 2
+  },
+  {
+    "Email": "воробьев.петр@company.com",
+    "FullName": "Воробьев Петр",
+    "Roles": "Аналитик",
+    "AuthCount": 1
+  },
+  {
+    "Email": "виноградов.юлия@enterprise.ru",
+    "FullName": "Виноградов Юлия",
+    "Roles": "Тестировщик",
+    "AuthCount": 1
+  },
+  {
+    "Email": "павлов.елена@company.com",
+    "FullName": "Павлов Елена",
+    "Roles": "Консультант",
+    "AuthCount": 1
+  },
+  {
+    "Email": "семенов.наталья@enterprise.ru",
+    "FullName": "Семенов Наталья",
+    "Roles": "Разработчик",
+    "AuthCount": 1
+  },
+  {
+    "Email": "петров.дмитрий@company.com",
+    "FullName": "Петров Дмитрий",
+    "Roles": "Руководитель",
+    "AuthCount": 1
+  },
+  {
+    "Email": "виноградов.павел@corp.ru",
+    "FullName": "Виноградов Павел",
+    "Roles": "Менеджер",
+    "AuthCount": 1
+  },
+  {
+    "Email": "михайлов.анна@company.com",
+    "FullName": "Михайлов Анна",
+    "Roles": "Консультант, Тестировщик",
+    "AuthCount": 2
+  },
+  {
+    "Email": "федоров.кирилл@corp.ru",
+    "FullName": "Федоров Кирилл",
+    "Roles": "Менеджер",
+    "AuthCount": 1
+  },
+  {
+    "Email": "федоров.светлана@mail.example.org",
+    "FullName": "Федоров Светлана",
+    "Roles": "Архитектор, Координатор",
+    "AuthCount": 2
+  },
+  {
+    "Email": "новиков.ольга@enterprise.ru",
+    "FullName": "Новиков Ольга",
+    "Roles": "Разработчик",
+    "AuthCount": 1
+  },
+  {
+    "Email": "сидоров.андрей@company.com",
+    "FullName": "Сидоров Андрей",
+    "Roles": "Координатор",
+    "AuthCount": 1
+  },
+  {
+    "Email": "лебедев.ирина@mail.example.org",
+    "FullName": "Лебедев Ирина",
+    "Roles": "Разработчик",
+    "AuthCount": 1
+  },
+  {
+    "Email": "козлов.кирилл@mail.example.org",
+    "FullName": "Козлов Кирилл",
+    "Roles": "Архитектор",
+    "AuthCount": 1
+  },
+  {
+    "Email": "воробьев.максим@mail.example.org",
+    "FullName": "Воробьев Максим",
+    "Roles": "Менеджер",
+    "AuthCount": 1
+  },
+  {
+    "Email": "соколов.кирилл@mail.example.org",
+    "FullName": "Соколов Кирилл",
+    "Roles": "Аналитик",
+    "AuthCount": 1
+  },
+  {
+    "Email": "морозов.алексей@corp.ru",
+    "FullName": "Морозов Алексей",
+    "Roles": "Руководитель",
+    "AuthCount": 1
+  },
+  {
+    "Email": "виноградов.сергей@mail.example.org",
+    "FullName": "Виноградов Сергей",
+    "Roles": "Менеджер",
+    "AuthCount": 1
+  },
+  {
+    "Email": "новиков.максим@company.com",
+    "FullName": "Новиков Максим",
+    "Roles": "Менеджер",
+    "AuthCount": 1
+  },
+  {
+    "Email": "новиков.николай@corp.ru",
+    "FullName": "Новиков Николай",
+    "Roles": "Координатор",
+    "AuthCount": 1
+  },
+  {
+    "Email": "сидоров.мария@corp.ru",
+    "FullName": "Сидоров Мария",
+    "Roles": "Менеджер",
+    "AuthCount": 1
+  },
+  {
+    "Email": "соколов.юлия@company.com",
+    "FullName": "Соколов Юлия",
+    "Roles": "Архитектор",
+    "AuthCount": 1
+  },
+  {
+    "Email": "зайцев.кирилл@corp.ru",
+    "FullName": "Зайцев Кирилл",
+    "Roles": "Тестировщик",
+    "AuthCount": 1
+  },
+  {
+    "Email": "воробьев.роман@enterprise.ru",
+    "FullName": "Воробьев Роман",
+    "Roles": "Разработчик",
+    "AuthCount": 1
+  },
+  {
+    "Email": "попов.алена@enterprise.ru",
+    "FullName": "Попов Алена",
+    "Roles": "Менеджер",
+    "AuthCount": 1
+  },
+  {
+    "Email": "петров.михаил@enterprise.ru",
+    "FullName": "Петров Михаил",
+    "Roles": "Тестировщик",
+    "AuthCount": 1
+  },
+  {
+    "Email": "морозов.татьяна@corp.ru",
+    "FullName": "Морозов Татьяна",
+    "Roles": "Тестировщик",
+    "AuthCount": 1
+  },
+  {
+    "Email": "волков.михаил@mail.example.org",
+    "FullName": "Волков Михаил",
+    "Roles": "Аналитик",
+    "AuthCount": 1
+  },
+  {
+    "Email": "богданов.николай@enterprise.ru",
+    "FullName": "Богданов Николай",
+    "Roles": "Руководитель",
+    "AuthCount": 1
+  },
+  {
+    "Email": "новиков.кирилл@corp.ru",
+    "FullName": "Новиков Кирилл",
+    "Roles": "Архитектор",
+    "AuthCount": 1
+  },
+  {
+    "Email": "семенов.виктория@mail.example.org",
+    "FullName": "Семенов Виктория",
+    "Roles": "Руководитель",
+    "AuthCount": 1
+  },
+  {
+    "Email": "федоров.михаил@corp.ru",
+    "FullName": "Федоров Михаил",
+    "Roles": "Архитектор",
+    "AuthCount": 1
+  },
+  {
+    "Email": "богданов.иван@corp.ru",
+    "FullName": "Богданов Иван",
+    "Roles": "Руководитель",
+    "AuthCount": 1
+  },
+  {
+    "Email": "волков.светлана@mail.example.org",
+    "FullName": "Волков Светлана",
+    "Roles": "Аналитик",
+    "AuthCount": 1
+  },
+  {
+    "Email": "семенов.светлана@mail.example.org",
+    "FullName": "Семенов Светлана",
+    "Roles": "Консультант",
+    "AuthCount": 1
+  },
+  {
+    "Email": "семенов.дмитрий@enterprise.ru",
+    "FullName": "Семенов Дмитрий",
+    "Roles": "Разработчик",
+    "AuthCount": 1
+  },
+  {
+    "Email": "иванов.ирина@mail.example.org",
+    "FullName": "Иванов Ирина",
+    "Roles": "Архитектор",
+    "AuthCount": 1
+  },
+  {
+    "Email": "федоров.алена@mail.example.org",
+    "FullName": "Федоров Алена",
+    "Roles": "Координатор",
+    "AuthCount": 1
+  },
+  {
+    "Email": "лебедев.светлана@enterprise.ru",
+    "FullName": "Лебедев Светлана",
+    "Roles": "Разработчик",
+    "AuthCount": 1
+  },
+  {
+    "Email": "михайлов.сергей@mail.example.org",
+    "FullName": "Михайлов Сергей",
+    "Roles": "Аналитик",
+    "AuthCount": 1
+  },
+  {
+    "Email": "лебедев.ольга@corp.ru",
+    "FullName": "Лебедев Ольга",
+    "Roles": "Менеджер",
+    "AuthCount": 1
+  },
+  {
+    "Email": "михайлов.екатерина@company.com",
+    "FullName": "Михайлов Екатерина",
+    "Roles": "Координатор",
+    "AuthCount": 1
+  },
+  {
+    "Email": "павлов.артем@enterprise.ru",
+    "FullName": "Павлов Артем",
+    "Roles": "Консультант",
+    "AuthCount": 1
+  },
+  {
+    "Email": "иванов.николай@company.com",
+    "FullName": "Иванов Николай",
+    "Roles": "Консультант",
+    "AuthCount": 1
+  },
+  {
+    "Email": "богданов.алена@enterprise.ru",
+    "FullName": "Богданов Алена",
+    "Roles": "Менеджер",
+    "AuthCount": 1
+  },
+  {
+    "Email": "соколов.владимир@enterprise.ru",
+    "FullName": "Соколов Владимир",
+    "Roles": "Руководитель",
+    "AuthCount": 1
+  },
+  {
+    "Email": "воробьев.максим@enterprise.ru",
+    "FullName": "Воробьев Максим",
+    "Roles": "Разработчик",
+    "AuthCount": 1
+  },
+  {
+    "Email": "козлов.алексей@mail.example.org",
+    "FullName": "Козлов Алексей",
+    "Roles": "Координатор",
+    "AuthCount": 1
+  },
+  {
+    "Email": "сидоров.владимир@mail.example.org",
+    "FullName": "Сидоров Владимир",
+    "Roles": "Тестировщик",
+    "AuthCount": 1
+  },
+  {
+    "Email": "воробьев.андрей@company.com",
+    "FullName": "Воробьев Андрей",
+    "Roles": "Разработчик",
+    "AuthCount": 1
+  },
+  {
+    "Email": "соколов.михаил@corp.ru",
+    "FullName": "Соколов Михаил",
+    "Roles": "Аналитик",
+    "AuthCount": 1
+  },
+  {
+    "Email": "воробьев.андрей@enterprise.ru",
+    "FullName": "Воробьев Андрей",
+    "Roles": "Консультант",
+    "AuthCount": 1
+  },
+  {
+    "Email": "семенов.максим@enterprise.ru",
+    "FullName": "Семенов Максим",
+    "Roles": "Менеджер",
+    "AuthCount": 1
+  },
+  {
+    "Email": "зайцев.иван@mail.example.org",
+    "FullName": "Зайцев Иван",
+    "Roles": "Консультант",
+    "AuthCount": 1
+  },
+  {
+    "Email": "козлов.екатерина@mail.example.org",
+    "FullName": "Козлов Екатерина",
+    "Roles": "Консультант",
+    "AuthCount": 1
+  },
+  {
+    "Email": "волков.михаил@enterprise.ru",
+    "FullName": "Волков Михаил",
+    "Roles": "Разработчик",
+    "AuthCount": 1
+  },
+  {
+    "Email": "воробьев.виктория@company.com",
+    "FullName": "Воробьев Виктория",
+    "Roles": "Консультант",
+    "AuthCount": 1
+  },
+  {
+    "Email": "семенов.николай@corp.ru",
+    "FullName": "Семенов Николай",
+    "Roles": "Координатор",
+    "AuthCount": 1
+  },
+  {
+    "Email": "павлов.алексей@mail.example.org",
+    "FullName": "Павлов Алексей",
+    "Roles": "Тестировщик",
+    "AuthCount": 1
+  },
+  {
+    "Email": "павлов.андрей@mail.example.org",
+    "FullName": "Павлов Андрей",
+    "Roles": "Консультант",
+    "AuthCount": 1
+  },
+  {
+    "Email": "иванов.екатерина@company.com",
+    "FullName": "Иванов Екатерина",
+    "Roles": "Руководитель",
+    "AuthCount": 1
+  },
+  {
+    "Email": "петров.роман@company.com",
+    "FullName": "Петров Роман",
+    "Roles": "Тестировщик",
+    "AuthCount": 1
+  },
+  {
+    "Email": "соколов.виктория@corp.ru",
+    "FullName": "Соколов Виктория",
+    "Roles": "Разработчик",
+    "AuthCount": 1
+  },
+  {
+    "Email": "лебедев.павел@enterprise.ru",
+    "FullName": "Лебедев Павел",
+    "Roles": "Архитектор",
+    "AuthCount": 1
+  },
+  {
+    "Email": "михайлов.виктория@company.com",
+    "FullName": "Михайлов Виктория",
+    "Roles": "Разработчик",
+    "AuthCount": 1
+  },
+  {
+    "Email": "иванов.павел@mail.example.org",
+    "FullName": "Иванов Павел",
+    "Roles": "Консультант",
+    "AuthCount": 1
+  },
+  {
+    "Email": "федоров.анна@corp.ru",
+    "FullName": "Федоров Анна",
+    "Roles": "Аналитик",
+    "AuthCount": 1
+  },
+  {
+    "Email": "федоров.алена@company.com",
+    "FullName": "Федоров Алена",
+    "Roles": "Руководитель",
+    "AuthCount": 1
+  },
+  {
+    "Email": "богданов.анна@mail.example.org",
+    "FullName": "Богданов Анна",
+    "Roles": "Менеджер",
+    "AuthCount": 1
+  },
+  {
+    "Email": "семенов.мария@mail.example.org",
+    "FullName": "Семенов Мария",
+    "Roles": "Координатор",
+    "AuthCount": 1
+  },
+  {
+    "Email": "богданов.елена@mail.example.org",
+    "FullName": "Богданов Елена",
+    "Roles": "Координатор",
+    "AuthCount": 1
+  },
+  {
+    "Email": "федоров.максим@mail.example.org",
+    "FullName": "Федоров Максим",
+    "Roles": "Руководитель",
+    "AuthCount": 1
+  },
+  {
+    "Email": "виноградов.иван@mail.example.org",
+    "FullName": "Виноградов Иван",
+    "Roles": "Разработчик",
+    "AuthCount": 1
+  },
+  {
+    "Email": "новиков.татьяна@mail.example.org",
+    "FullName": "Новиков Татьяна",
+    "Roles": "Архитектор",
+    "AuthCount": 1
+  },
+  {
+    "Email": "лебедев.сергей@company.com",
+    "FullName": "Лебедев Сергей",
+    "Roles": "Тестировщик",
+    "AuthCount": 1
+  },
+  {
+    "Email": "козлов.ирина@enterprise.ru",
+    "FullName": "Козлов Ирина",
+    "Roles": "Координатор",
+    "AuthCount": 1
+  },
+  {
+    "Email": "морозов.анна@corp.ru",
+    "FullName": "Морозов Анна",
+    "Roles": "Консультант",
+    "AuthCount": 1
+  },
+  {
+    "Email": "новиков.наталья@corp.ru",
+    "FullName": "Новиков Наталья",
+    "Roles": "Аналитик",
+    "AuthCount": 1
+  },
+  {
+    "Email": "воробьев.мария@corp.ru",
+    "FullName": "Воробьев Мария",
+    "Roles": "Тестировщик",
+    "AuthCount": 1
+  },
+  {
+    "Email": "федоров.алексей@mail.example.org",
+    "FullName": "Федоров Алексей",
+    "Roles": "Аналитик",
+    "AuthCount": 1
+  },
+  {
+    "Email": "зайцев.ольга@corp.ru",
+    "FullName": "Зайцев Ольга",
+    "Roles": "Архитектор",
+    "AuthCount": 1
+  },
+  {
+    "Email": "петров.алексей@company.com",
+    "FullName": "Петров Алексей",
+    "Roles": "Архитектор",
+    "AuthCount": 1
+  },
+  {
+    "Email": "иванов.мария@mail.example.org",
+    "FullName": "Иванов Мария",
+    "Roles": "Координатор",
+    "AuthCount": 1
+  },
+  {
+    "Email": "попов.андрей@company.com",
+    "FullName": "Попов Андрей",
+    "Roles": "Архитектор",
+    "AuthCount": 1
+  },
+  {
+    "Email": "сидоров.максим@enterprise.ru",
+    "FullName": "Сидоров Максим",
+    "Roles": "Координатор",
+    "AuthCount": 1
+  },
+  {
+    "Email": "соколов.сергей@mail.example.org",
+    "FullName": "Соколов Сергей",
+    "Roles": "Аналитик",
+    "AuthCount": 1
+  },
+  {
+    "Email": "семенов.ирина@corp.ru",
+    "FullName": "Семенов Ирина",
+    "Roles": "Консультант",
+    "AuthCount": 1
+  },
+  {
+    "Email": "федоров.наталья@enterprise.ru",
+    "FullName": "Федоров Наталья",
+    "Roles": "Архитектор",
+    "AuthCount": 2
+  },
+  {
+    "Email": "лебедев.роман@corp.ru",
+    "FullName": "Лебедев Роман",
+    "Roles": "Архитектор",
+    "AuthCount": 1
+  },
+  {
+    "Email": "попов.ольга@company.com",
+    "FullName": "Попов Ольга",
+    "Roles": "Разработчик",
+    "AuthCount": 1
+  },
+  {
+    "Email": "михайлов.владимир@enterprise.ru",
+    "FullName": "Михайлов Владимир",
+    "Roles": "Архитектор",
+    "AuthCount": 1
+  },
+  {
+    "Email": "морозов.наталья@enterprise.ru",
+    "FullName": "Морозов Наталья",
+    "Roles": "Аналитик",
+    "AuthCount": 1
+  },
+  {
+    "Email": "федоров.алена@corp.ru",
+    "FullName": "Федоров Алена",
+    "Roles": "Консультант",
+    "AuthCount": 1
+  },
+  {
+    "Email": "соколов.николай@mail.example.org",
+    "FullName": "Соколов Николай",
+    "Roles": "Разработчик",
+    "AuthCount": 1
+  },
+  {
+    "Email": "морозов.елена@mail.example.org",
+    "FullName": "Морозов Елена",
+    "Roles": "Координатор",
+    "AuthCount": 1
+  },
+  {
+    "Email": "морозов.артем@enterprise.ru",
+    "FullName": "Морозов Артем",
+    "Roles": "Архитектор",
+    "AuthCount": 1
+  },
+  {
+    "Email": "сидоров.иван@corp.ru",
+    "FullName": "Сидоров Иван",
+    "Roles": "Менеджер",
+    "AuthCount": 1
+  },
+  {
+    "Email": "попов.роман@enterprise.ru",
+    "FullName": "Попов Роман",
+    "Roles": "Координатор",
+    "AuthCount": 1
+  },
+  {
+    "Email": "семенов.павел@enterprise.ru",
+    "FullName": "Семенов Павел",
+    "Roles": "Аналитик",
+    "AuthCount": 1
+  },
+  {
+    "Email": "волков.юлия@mail.example.org",
+    "FullName": "Волков Юлия",
+    "Roles": "Аналитик",
+    "AuthCount": 1
+  },
+  {
+    "Email": "виноградов.юлия@mail.example.org",
+    "FullName": "Виноградов Юлия",
+    "Roles": "Консультант",
+    "AuthCount": 1
+  },
+  {
+    "Email": "волков.анна@mail.example.org",
+    "FullName": "Волков Анна",
+    "Roles": "Руководитель",
+    "AuthCount": 1
+  },
+  {
+    "Email": "богданов.дарья@company.com",
+    "FullName": "Богданов Дарья",
+    "Roles": "Координатор",
+    "AuthCount": 1
+  },
+  {
+    "Email": "богданов.дмитрий@mail.example.org",
+    "FullName": "Богданов Дмитрий",
+    "Roles": "Координатор",
+    "AuthCount": 1
+  },
+  {
+    "Email": "новиков.дмитрий@corp.ru",
+    "FullName": "Новиков Дмитрий",
+    "Roles": "Архитектор",
+    "AuthCount": 1
+  },
+  {
+    "Email": "иванов.мария@corp.ru",
+    "FullName": "Иванов Мария",
+    "Roles": "Разработчик",
+    "AuthCount": 1
+  },
+  {
+    "Email": "семенов.ирина@company.com",
+    "FullName": "Семенов Ирина",
+    "Roles": "Тестировщик",
+    "AuthCount": 1
+  },
+  {
+    "Email": "соколов.мария@enterprise.ru",
+    "FullName": "Соколов Мария",
+    "Roles": "Архитектор",
+    "AuthCount": 1
+  },
+  {
+    "Email": "виноградов.максим@enterprise.ru",
+    "FullName": "Виноградов Максим",
+    "Roles": "Архитектор, Тестировщик",
+    "AuthCount": 2
+  },
+  {
+    "Email": "лебедев.михаил@corp.ru",
+    "FullName": "Лебедев Михаил",
+    "Roles": "Аналитик",
+    "AuthCount": 1
+  },
+  {
+    "Email": "богданов.андрей@mail.example.org",
+    "FullName": "Богданов Андрей",
+    "Roles": "Менеджер",
+    "AuthCount": 1
+  },
+  {
+    "Email": "федоров.максим@enterprise.ru",
+    "FullName": "Федоров Максим",
+    "Roles": "Разработчик",
+    "AuthCount": 1
+  },
+  {
+    "Email": "волков.татьяна@enterprise.ru",
+    "FullName": "Волков Татьяна",
+    "Roles": "Координатор",
+    "AuthCount": 1
+  },
+  {
+    "Email": "козлов.артем@enterprise.ru",
+    "FullName": "Козлов Артем",
+    "Roles": "Тестировщик",
+    "AuthCount": 1
+  },
+  {
+    "Email": "виноградов.андрей@enterprise.ru",
+    "FullName": "Виноградов Андрей",
+    "Roles": "Консультант",
+    "AuthCount": 1
+  },
+  {
+    "Email": "соколов.петр@mail.example.org",
+    "FullName": "Соколов Петр",
+    "Roles": "Аналитик",
+    "AuthCount": 1
+  },
+  {
+    "Email": "голубев.сергей@company.com",
+    "FullName": "Голубев Сергей",
+    "Roles": "Разработчик",
+    "AuthCount": 1
+  },
+  {
+    "Email": "виноградов.анна@mail.example.org",
+    "FullName": "Виноградов Анна",
+    "Roles": "Руководитель",
+    "AuthCount": 1
+  },
+  {
+    "Email": "волков.дарья@enterprise.ru",
+    "FullName": "Волков Дарья",
+    "Roles": "Руководитель",
+    "AuthCount": 1
+  },
+  {
+    "Email": "сидоров.виктория@corp.ru",
+    "FullName": "Сидоров Виктория",
+    "Roles": "Архитектор",
+    "AuthCount": 1
+  },
+  {
+    "Email": "кузнецов.юлия@company.com",
+    "FullName": "Кузнецов Юлия",
+    "Roles": "Координатор",
+    "AuthCount": 1
+  },
+  {
+    "Email": "иванов.кирилл@company.com",
+    "FullName": "Иванов Кирилл",
+    "Roles": "Руководитель",
+    "AuthCount": 1
+  },
+  {
+    "Email": "зайцев.татьяна@enterprise.ru",
+    "FullName": "Зайцев Татьяна",
+    "Roles": "Разработчик",
+    "AuthCount": 1
+  },
+  {
+    "Email": "попов.павел@corp.ru",
+    "FullName": "Попов Павел",
+    "Roles": "Разработчик",
+    "AuthCount": 1
+  },
+  {
+    "Email": "козлов.виктория@enterprise.ru",
+    "FullName": "Козлов Виктория",
+    "Roles": "Разработчик",
+    "AuthCount": 1
+  },
+  {
+    "Email": "новиков.николай@enterprise.ru",
+    "FullName": "Новиков Николай",
+    "Roles": "Архитектор",
+    "AuthCount": 1
+  },
+  {
+    "Email": "морозов.кирилл@corp.ru",
+    "FullName": "Морозов Кирилл",
+    "Roles": "Аналитик",
+    "AuthCount": 1
+  },
+  {
+    "Email": "морозов.павел@enterprise.ru",
+    "FullName": "Морозов Павел",
+    "Roles": "Архитектор",
+    "AuthCount": 1
+  },
+  {
+    "Email": "павлов.дмитрий@enterprise.ru",
+    "FullName": "Павлов Дмитрий",
+    "Roles": "Аналитик",
+    "AuthCount": 1
+  },
+  {
+    "Email": "зайцев.павел@mail.example.org",
+    "FullName": "Зайцев Павел",
+    "Roles": "Архитектор",
+    "AuthCount": 1
+  },
+  {
+    "Email": "иванов.алексей@company.com",
+    "FullName": "Иванов Алексей",
+    "Roles": "Координатор",
+    "AuthCount": 1
+  },
+  {
+    "Email": "зайцев.виктория@corp.ru",
+    "FullName": "Зайцев Виктория",
+    "Roles": "Тестировщик",
+    "AuthCount": 1
+  },
+  {
+    "Email": "зайцев.павел@corp.ru",
+    "FullName": "Зайцев Павел",
+    "Roles": "Аналитик",
+    "AuthCount": 1
+  },
+  {
+    "Email": "семенов.оксана@corp.ru",
+    "FullName": "Семенов Оксана",
+    "Roles": "Тестировщик",
+    "AuthCount": 1
+  },
+  {
+    "Email": "богданов.сергей@mail.example.org",
+    "FullName": "Богданов Сергей",
+    "Roles": "Разработчик",
+    "AuthCount": 1
+  },
+  {
+    "Email": "морозов.алена@mail.example.org",
+    "FullName": "Морозов Алена",
+    "Roles": "Аналитик",
+    "AuthCount": 1
+  },
+  {
+    "Email": "козлов.сергей@enterprise.ru",
+    "FullName": "Козлов Сергей",
+    "Roles": "Руководитель",
+    "AuthCount": 1
+  },
+  {
+    "Email": "новиков.иван@company.com",
+    "FullName": "Новиков Иван",
+    "Roles": "Координатор",
+    "AuthCount": 1
+  },
+  {
+    "Email": "павлов.павел@mail.example.org",
+    "FullName": "Павлов Павел",
+    "Roles": "Аналитик",
+    "AuthCount": 1
+  },
+  {
+    "Email": "михайлов.иван@mail.example.org",
+    "FullName": "Михайлов Иван",
+    "Roles": "Тестировщик",
+    "AuthCount": 1
+  },
+  {
+    "Email": "морозов.полина@enterprise.ru",
+    "FullName": "Морозов Полина",
+    "Roles": "Аналитик",
+    "AuthCount": 1
+  },
+  {
+    "Email": "морозов.петр@enterprise.ru",
+    "FullName": "Морозов Петр",
+    "Roles": "Аналитик",
+    "AuthCount": 1
+  },
+  {
+    "Email": "воробьев.кирилл@corp.ru",
+    "FullName": "Воробьев Кирилл",
+    "Roles": "Консультант",
+    "AuthCount": 1
+  },
+  {
+    "Email": "воробьев.светлана@enterprise.ru",
+    "FullName": "Воробьев Светлана",
+    "Roles": "Разработчик",
+    "AuthCount": 1
+  },
+  {
+    "Email": "голубев.дмитрий@enterprise.ru",
+    "FullName": "Голубев Дмитрий",
+    "Roles": "Тестировщик",
+    "AuthCount": 1
+  },
+  {
+    "Email": "зайцев.светлана@mail.example.org",
+    "FullName": "Зайцев Светлана",
+    "Roles": "Менеджер",
+    "AuthCount": 1
+  },
+  {
+    "Email": "кузнецов.дмитрий@enterprise.ru",
+    "FullName": "Кузнецов Дмитрий",
+    "Roles": "Аналитик",
+    "AuthCount": 1
+  },
+  {
+    "Email": "волков.петр@corp.ru",
+    "FullName": "Волков Петр",
+    "Roles": "Разработчик",
+    "AuthCount": 1
+  },
+  {
+    "Email": "воробьев.максим@corp.ru",
+    "FullName": "Воробьев Максим",
+    "Roles": "Тестировщик",
+    "AuthCount": 1
+  },
+  {
+    "Email": "соколов.роман@company.com",
+    "FullName": "Соколов Роман",
+    "Roles": "Архитектор",
+    "AuthCount": 1
+  },
+  {
+    "Email": "новиков.ирина@corp.ru",
+    "FullName": "Новиков Ирина",
+    "Roles": "Аналитик",
+    "AuthCount": 1
+  },
+  {
+    "Email": "зайцев.иван@corp.ru",
+    "FullName": "Зайцев Иван",
+    "Roles": "Руководитель",
+    "AuthCount": 1
+  },
+  {
+    "Email": "петров.алексей@corp.ru",
+    "FullName": "Петров Алексей",
+    "Roles": "Консультант",
+    "AuthCount": 1
+  },
+  {
+    "Email": "голубев.екатерина@mail.example.org",
+    "FullName": "Голубев Екатерина",
+    "Roles": "Аналитик",
+    "AuthCount": 1
+  },
+  {
+    "Email": "петров.виктория@mail.example.org",
+    "FullName": "Петров Виктория",
+    "Roles": "Координатор",
+    "AuthCount": 1
+  },
+  {
+    "Email": "павлов.екатерина@enterprise.ru",
+    "FullName": "Павлов Екатерина",
+    "Roles": "Аналитик",
+    "AuthCount": 1
+  },
+  {
+    "Email": "сидоров.анна@mail.example.org",
+    "FullName": "Сидоров Анна",
+    "Roles": "Разработчик",
+    "AuthCount": 1
+  },
+  {
+    "Email": "михайлов.алексей@mail.example.org",
+    "FullName": "Михайлов Алексей",
+    "Roles": "Консультант",
+    "AuthCount": 1
+  },
+  {
+    "Email": "михайлов.сергей@enterprise.ru",
+    "FullName": "Михайлов Сергей",
+    "Roles": "Аналитик",
+    "AuthCount": 1
+  },
+  {
+    "Email": "голубев.юлия@corp.ru",
+    "FullName": "Голубев Юлия",
+    "Roles": "Консультант",
+    "AuthCount": 1
+  },
+  {
+    "Email": "семенов.михаил@company.com",
+    "FullName": "Семенов Михаил",
+    "Roles": "Руководитель",
+    "AuthCount": 1
+  },
+  {
+    "Email": "новиков.светлана@mail.example.org",
+    "FullName": "Новиков Светлана",
+    "Roles": "Разработчик",
+    "AuthCount": 1
+  },
+  {
+    "Email": "сидоров.анна@company.com",
+    "FullName": "Сидоров Анна",
+    "Roles": "Консультант",
+    "AuthCount": 1
+  },
+  {
+    "Email": "соколов.алена@company.com",
+    "FullName": "Соколов Алена",
+    "Roles": "Руководитель",
+    "AuthCount": 1
+  },
+  {
+    "Email": "семенов.татьяна@company.com",
+    "FullName": "Семенов Татьяна",
+    "Roles": "Архитектор",
+    "AuthCount": 1
+  },
+  {
+    "Email": "федоров.мария@corp.ru",
+    "FullName": "Федоров Мария",
+    "Roles": "Разработчик",
+    "AuthCount": 1
+  },
+  {
+    "Email": "кузнецов.дарья@mail.example.org",
+    "FullName": "Кузнецов Дарья",
+    "Roles": "Руководитель",
+    "AuthCount": 1
+  },
+  {
+    "Email": "козлов.павел@enterprise.ru",
+    "FullName": "Козлов Павел",
+    "Roles": "Менеджер",
+    "AuthCount": 1
+  },
+  {
+    "Email": "новиков.елена@mail.example.org",
+    "FullName": "Новиков Елена",
+    "Roles": "Руководитель",
+    "AuthCount": 1
+  },
+  {
+    "Email": "соколов.елена@enterprise.ru",
+    "FullName": "Соколов Елена",
+    "Roles": "Аналитик",
+    "AuthCount": 1
+  },
+  {
+    "Email": "богданов.анна@corp.ru",
+    "FullName": "Богданов Анна",
+    "Roles": "Консультант",
+    "AuthCount": 1
+  },
+  {
+    "Email": "попов.андрей@mail.example.org",
+    "FullName": "Попов Андрей",
+    "Roles": "Архитектор",
+    "AuthCount": 1
+  },
+  {
+    "Email": "петров.кирилл@corp.ru",
+    "FullName": "Петров Кирилл",
+    "Roles": "Разработчик",
+    "AuthCount": 1
+  },
+  {
+    "Email": "голубев.алексей@enterprise.ru",
+    "FullName": "Голубев Алексей",
+    "Roles": "Координатор",
+    "AuthCount": 1
+  },
+  {
+    "Email": "лебедев.алексей@company.com",
+    "FullName": "Лебедев Алексей",
+    "Roles": "Руководитель",
+    "AuthCount": 1
+  },
+  {
+    "Email": "михайлов.михаил@company.com",
+    "FullName": "Михайлов Михаил",
+    "Roles": "Менеджер",
+    "AuthCount": 1
+  }
+]

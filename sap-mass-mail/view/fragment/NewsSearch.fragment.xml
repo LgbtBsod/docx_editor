@@ -1,8 +1,7 @@
 <core:FragmentDefinition
   xmlns="sap.m"
-  xmlns:core="sap.ui.core"
-  xmlns:layout="sap.ui.layout"
-  xmlns:search="emailbuilder.control">
+  xmlns:comp="sap.ui.comp.smartfilterbar"
+  xmlns:core="sap.ui.core">
 
   <Dialog
     id="newsDialog"
@@ -24,71 +23,62 @@
           <items>
             <IconTabFilter icon="sap-icon://accept" text="{i18n>TAB_ADDED}" key="added"
               count="{= ${state>/newsItems}.length || '' }" />
-            <IconTabFilter icon="sap-icon://search" text="{i18n>DIALOG_NEWS}" key="search">
-              <layout:Grid
-                defaultSpan="L3 M6 S12"
-                containerQuery="false"
-                width="100%"
-                class="sapUiSmallMarginBottom">
-                <search:SearchField label="{i18n>YEAR}">
-                  <search:layoutData>
-                    <layout:GridData span="L3 M6 S12" />
-                  </search:layoutData>
-                  <Input
-                    placeholder="{i18n>YEAR_PLACEHOLDER}"
-                    value="{dialog>/year}"
-                    submit="onSearchNews" />
-                </search:SearchField>
-                <search:SearchField label="{i18n>QUARTER}">
-                  <search:layoutData>
-                    <layout:GridData span="L3 M6 S12" />
-                  </search:layoutData>
-                  <Select selectedKey="{dialog>/quarter}" change="onSearchNews">
-                    <items>
-                      <core:Item key="all" text="{i18n>ALL}" />
-                      <core:Item key="1" text="Q1" />
-                      <core:Item key="2" text="Q2" />
-                      <core:Item key="3" text="Q3" />
-                      <core:Item key="4" text="Q4" />
-                    </items>
-                  </Select>
-                </search:SearchField>
-                <search:SearchField label="{i18n>AREA}">
-                  <search:layoutData>
-                    <layout:GridData span="L3 M6 S12" />
-                  </search:layoutData>
-                  <Select selectedKey="{dialog>/area}" change="onSearchNews">
-                    <items>
-                      <core:Item key="" text="{i18n>ALL}" />
-                      <core:Item key="Маркетинг" text="{i18n>AREA_MARKETING}" />
-                      <core:Item key="Юридический" text="{i18n>AREA_LEGAL}" />
-                      <core:Item key="Производство" text="{i18n>AREA_PRODUCTION}" />
-                      <core:Item key="Финансы" text="{i18n>AREA_FINANCE}" />
-                      <core:Item key="HR" text="{i18n>AREA_HR}" />
-                      <core:Item key="IT" text="{i18n>AREA_IT}" />
-                      <core:Item key="Логистика" text="{i18n>AREA_LOGISTICS}" />
-                      <core:Item key="Безопасность" text="{i18n>AREA_SECURITY}" />
-                    </items>
-                  </Select>
-                </search:SearchField>
-                <search:SearchField>
-                  <search:layoutData>
-                    <layout:GridData span="L3 M12 S12" />
-                  </search:layoutData>
-                  <Button
-                    icon="sap-icon://search"
-                    press="onSearchNews"
-                    type="Emphasized"
-                    width="100%"
-                    tooltip="{i18n>DIALOG_NEWS}" />
-                </search:SearchField>
-              </layout:Grid>
-              <!-- Sends Filter("IsChange", EQ, "X") in DialogMixin#_searchNews
-                   when on — same News entity, just the CHG subset. -->
-              <HBox alignItems="Center" class="sapUiTinyMarginTop sapUiTinyMarginBottom">
-                <Switch state="{dialog>/changesOnly}" change="onSearchNews" customTextOn=" " customTextOff=" " />
-                <Label text="{i18n>NEWS_CHANGES_ONLY}" class="sapUiTinyMarginBegin" />
-              </HBox>
+
+            <IconTabFilter icon="sap-icon://search" text="{i18n>TAB_SEARCH}" key="search">
+              <VBox>
+                <comp:SmartFilterBar
+                  id="newsSFB"
+                  entitySet="NewsSet"
+                  liveMode="false"
+                  showGoOnFB="true"
+                  showClearOnFB="true"
+                  useToolbar="false"
+                  search="onSmartFilterSearch"
+                  clear="onSmartFilterSearch">
+                  <comp:controlConfiguration>
+                    <comp:ControlConfiguration
+                      key="NewID"
+                      visibleInAdvancedArea="false" />
+                    <comp:ControlConfiguration
+                      key="NewsType"
+                      index="0"
+                      visibleInAdvancedArea="true" />
+                    <comp:ControlConfiguration
+                      key="Title"
+                      index="1"
+                      visibleInAdvancedArea="true" />
+                    <comp:ControlConfiguration
+                      key="Year"
+                      index="2"
+                      visibleInAdvancedArea="true" />
+                    <comp:ControlConfiguration
+                      key="Quarter"
+                      index="3"
+                      visibleInAdvancedArea="true" />
+                    <comp:ControlConfiguration
+                      key="Area"
+                      index="4"
+                      visibleInAdvancedArea="true" />
+                    <comp:ControlConfiguration
+                      key="ChangeNumber"
+                      index="5"
+                      visibleInAdvancedArea="true" />
+                    <comp:ControlConfiguration
+                      key="InitiatorName"
+                      index="6"
+                      visibleInAdvancedArea="true" />
+                    <comp:ControlConfiguration
+                      key="NewsTypeText"
+                      visibleInAdvancedArea="false" />
+                    <comp:ControlConfiguration
+                      key="Content"
+                      visibleInAdvancedArea="false" />
+                  </comp:controlConfiguration>
+                </comp:SmartFilterBar>
+                <!-- "Только изменения" toggle removed — the SFB NewsType
+                     dropdown above (index 0) covers the same filter via
+                     Filter("NewsType", EQ, "CHG"). One SSOT, one control. -->
+              </VBox>
             </IconTabFilter>
           </items>
         </IconTabBar>
@@ -105,21 +95,25 @@
           noDataText="{i18n>NO_NEWS_RESULTS}">
           <columns>
             <Column width="15%" minScreenWidth="Tablet" demandPopin="true" popinDisplay="Inline">
+              <Text text="{i18n>NEWS_TYPE_LABEL}" />
+            </Column>
+            <Column width="12%" minScreenWidth="Tablet" demandPopin="true" popinDisplay="Inline">
               <Text text="{i18n>NEWS_CHANGE_NUMBER}" />
             </Column>
-            <Column width="40%" minScreenWidth="Phone" demandPopin="false">
+            <Column width="38%" minScreenWidth="Phone" demandPopin="false">
               <Text text="{i18n>NEWS_TITLE}" />
             </Column>
-            <Column width="15%" minScreenWidth="Tablet" demandPopin="true" popinDisplay="Inline">
+            <Column width="12%" minScreenWidth="Tablet" demandPopin="true" popinDisplay="Inline">
               <Text text="{i18n>YEAR}" />
             </Column>
-            <Column width="30%" minScreenWidth="Tablet" demandPopin="true" popinDisplay="Block">
+            <Column width="23%" minScreenWidth="Tablet" demandPopin="true" popinDisplay="Block">
               <Text text="{i18n>AREA}" />
             </Column>
           </columns>
           <items>
             <ColumnListItem type="Active">
               <cells>
+                <Text text="{NewsTypeText}" wrapping="true" />
                 <Text text="{ChangeNumber}" />
                 <Text text="{Title}" wrapping="true" />
                 <Text text="{Year}" />

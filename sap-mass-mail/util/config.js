@@ -1,7 +1,7 @@
 sap.ui.define([
   "sap/base/Log",
   "sap/ui/core/format/FileSizeFormat",
-  "emailbuilder/util/fileTypes"
+  "MAILING_CONSTRUCTOR/util/fileTypes"
 ], (Log, FileSizeFormat, FileTypes) => {
   "use strict";
 
@@ -80,7 +80,7 @@ sap.ui.define([
     try {
       return getFileSizeFormat().format(n);
     } catch (e) {
-      Log.warning("[emailbuilder] FileSizeFormat failed: " + e.message);
+      Log.warning("[MAILING_CONSTRUCTOR] FileSizeFormat failed: " + e.message);
       return String(n);
     }
   }
@@ -88,8 +88,7 @@ sap.ui.define([
   return {
     LOCAL_ID_PREFIX: LOCAL_ID_PREFIX,
 
-    // Client-side limits — single source (removed duplicates from the
-    // "config" JSONModel and from fileProcessor-local constants).
+    // Client-side limits — single source of truth.
     MAX_ATTACHMENT_SIZE: 5 * 1024 * 1024,
     MAX_SOURCE_SIZE: 10 * 1024 * 1024,
     MAX_ATTACHMENTS: 10,

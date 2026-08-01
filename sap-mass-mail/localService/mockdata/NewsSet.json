@@ -6,10 +6,11 @@
     "Quarter": 2,
     "Area": "HSE.1.2.PRD Учёт разрешительных документов",
     "Content": "<p>В рамках изменения Бизнес-процесса «Учёт разрешительных документов» в карточках заключения экспертиз промышленной безопасности при выборе значения «Не соответствует ПБ» в поле «Вывод заключения» будет упразднена контрольная процедура по проверке поля «Срок».</p>",
-    "IsChange": "X",
     "ChangeNumber": "CHG00141304",
     "InitiatorName": "",
-    "InitiatorOrg": "ООО \"Норникель-ЕРП\""
+    "InitiatorOrg": "ООО \"Норникель-ЕРП\"",
+    "NewsType": "CHG",
+    "NewsTypeText": "Изменения"
   },
   {
     "NewID": "N-CHG00136543",
@@ -18,10 +19,11 @@
     "Quarter": 2,
     "Area": "HSE.1.1.CPW Контрольно-профилактическая работа",
     "Content": "<p>В рамках изменения Бизнес-процесса «Контрольно-профилактическая работа» будет разработан отчёт по администраторам доски быстрой идентификации опасностей, включающий в себя данные о местоположениях и информацию о администраторах.</p>",
-    "IsChange": "X",
     "ChangeNumber": "CHG00136543",
     "InitiatorName": "",
-    "InitiatorOrg": "Заполярный филиал ПАО «ГМК «Норильский никель»"
+    "InitiatorOrg": "Заполярный филиал ПАО «ГМК «Норильский никель»",
+    "NewsType": "CHG",
+    "NewsTypeText": "Изменения"
   },
   {
     "NewID": "N-CHG00137260",
@@ -30,10 +32,11 @@
     "Quarter": 2,
     "Area": "HSE.1.1.WPR Организация нарядно-допускной системы",
     "Content": "<p>В рамках изменения Бизнес-процесса «Организация нарядно-допускной системы» будет добавлено поле «Дата и время открытия наряда-допуска» в отчёт по подрядным организациям.</p>",
-    "IsChange": "X",
     "ChangeNumber": "CHG00137260",
     "InitiatorName": "",
-    "InitiatorOrg": "ООО \"Норильский обеспечивающий комплекс\""
+    "InitiatorOrg": "ООО \"Норильский обеспечивающий комплекс\"",
+    "NewsType": "CHG",
+    "NewsTypeText": "Изменения"
   },
   {
     "NewID": "N-CHG00137738",
@@ -42,10 +45,11 @@
     "Quarter": 2,
     "Area": "HSE.1.1.WPR Организация нарядно-допускной системы",
     "Content": "<p>В рамках изменения Бизнес-процесса «Организация нарядно-допускной системы» будет реализовано автоматическое внесение работников, указанных во вкладке «Ответственные лица», в поля «Допускающий» и «Производитель» раздела «Ежесменная регистрация работ», соответственно их функциональным обязанностям.</p>",
-    "IsChange": "X",
     "ChangeNumber": "CHG00137738",
     "InitiatorName": "",
-    "InitiatorOrg": "Заполярный филиал ПАО «ГМК «Норильский никель»"
+    "InitiatorOrg": "Заполярный филиал ПАО «ГМК «Норильский никель»",
+    "NewsType": "CHG",
+    "NewsTypeText": "Изменения"
   },
   {
     "NewID": "N-CHG00139693",
@@ -54,10 +58,11 @@
     "Quarter": 2,
     "Area": "HSE.1.1.WPR Организация нарядно-допускной системы",
     "Content": "<p>В рамках изменения Бизнес-процесса «Организация нарядно-допускной системы» будет добавлено поле «Подробное описание» в результирующую таблицу сервиса «Наряды-допуски».</p>",
-    "IsChange": "X",
     "ChangeNumber": "CHG00139693",
     "InitiatorName": "",
-    "InitiatorOrg": "Заполярный филиал ПАО «ГМК «Норильский никель»"
+    "InitiatorOrg": "Заполярный филиал ПАО «ГМК «Норильский никель»",
+    "NewsType": "CHG",
+    "NewsTypeText": "Изменения"
   },
   {
     "NewID": "N-CHG00140086",
@@ -66,10 +71,11 @@
     "Quarter": 2,
     "Area": "HSE.1.1.CPW Контрольно-профилактическая работа",
     "Content": "<p>В рамках изменения Бизнес-процесса «Контрольно-профилактическая работа» будут разработаны сервисы «Геймификация» и «Связаться с ответственным» для SmartApp БИО. Также будет добавлен признак «ПК1» для заявок пользователей, созданных по результатам прохождения производственного контроля.</p>",
-    "IsChange": "X",
     "ChangeNumber": "CHG00140086",
     "InitiatorName": "",
-    "InitiatorOrg": "Заполярный филиал ПАО «ГМК «Норильский никель»"
+    "InitiatorOrg": "Заполярный филиал ПАО «ГМК «Норильский никель»",
+    "NewsType": "CHG",
+    "NewsTypeText": "Изменения"
   },
   {
     "NewID": "N-CHG00140574",
@@ -78,10 +84,11 @@
     "Quarter": 2,
     "Area": "HSE.1.1.CPW Контрольно-профилактическая работа",
     "Content": "<p>В рамках изменения Бизнес-процесса «Контрольно-профилактическая работа» будет разработано мобильное приложение «Контакты и рейтинг сотрудников ПБиОТ», расположенное в разделе \"Промышленная безопасность\" сервисов ПМД «Суперника» и позволяющее узнать контакты сотрудников ПБиОТ на предприятии, оценить их работу и оставить отзыв.</p>",
-    "IsChange": "X",
     "ChangeNumber": "CHG00140574",
     "InitiatorName": "",
-    "InitiatorOrg": "Заполярный филиал ПАО «ГМК «Норильский никель»"
+    "InitiatorOrg": "Заполярный филиал ПАО «ГМК «Норильский никель»",
+    "NewsType": "CHG",
+    "NewsTypeText": "Изменения"
   },
   {
     "NewID": "N-CHG00140620",
@@ -90,10 +97,11 @@
     "Quarter": 2,
     "Area": "PRDS.1.1.13.INC Реагирование на происшествия в области ПБиОТ и организация расследования",
     "Content": "<p>В рамках изменения Бизнес-процесса «Реагирование на происшествия в области ПБиОТ и организация расследования» в объекте «Происшествия» на вкладке «Базовые данные» будет реализовано скрытие категорий в справочнике классификаций по СТО КИСМ 121-216-2022 по разделу человек, не подразумевающих связь с производством.</p>",
-    "IsChange": "X",
     "ChangeNumber": "CHG00140620",
     "InitiatorName": "",
-    "InitiatorOrg": "Заполярный филиал ПАО «ГМК «Норильский никель»"
+    "InitiatorOrg": "Заполярный филиал ПАО «ГМК «Норильский никель»",
+    "NewsType": "CHG",
+    "NewsTypeText": "Изменения"
   },
   {
     "NewID": "N-CHG00140749",
@@ -102,10 +110,11 @@
     "Quarter": 2,
     "Area": "PRDS.1.1.13.INC Реагирование на происшествия в области ПБиОТ и организация расследования",
     "Content": "<p>В рамках изменения Бизнес-процесса «Реагирование на происшествия в области ПБиОТ и организация расследования» на витрину мероприятий сервиса «Происшествия» будет добавлен критерий поиска «Коренная причина».</p>",
-    "IsChange": "X",
     "ChangeNumber": "CHG00140749",
     "InitiatorName": "",
-    "InitiatorOrg": "Заполярный филиал ПАО «ГМК «Норильский никель»"
+    "InitiatorOrg": "Заполярный филиал ПАО «ГМК «Норильский никель»",
+    "NewsType": "CHG",
+    "NewsTypeText": "Изменения"
   },
   {
     "NewID": "N-CHG00140754",
@@ -114,10 +123,11 @@
     "Quarter": 2,
     "Area": "PRDS.1.1.13.INC Реагирование на происшествия в области ПБиОТ и организация расследования",
     "Content": "<p>В рамках изменения Бизнес-процесса «Реагирование на происшествия в области ПБиОТ и организация расследования» на витрину сервиса «Происшествия» будет добавлен критерий поиска «Мед. лечение», также будет добавлено одноимённое поле в результирующую таблицу.</p>",
-    "IsChange": "X",
     "ChangeNumber": "CHG00140754",
     "InitiatorName": "",
-    "InitiatorOrg": "АО \"Кольская ГМК\""
+    "InitiatorOrg": "АО \"Кольская ГМК\"",
+    "NewsType": "CHG",
+    "NewsTypeText": "Изменения"
   },
   {
     "NewID": "N-CHG00141613",
@@ -126,10 +136,11 @@
     "Quarter": 2,
     "Area": "PRDS.1.1.13.INC Реагирование на происшествия в области ПБиОТ и организация расследования",
     "Content": "<p>В рамках изменения Бизнес-процесса «Реагирование на происшествия в области ПБиОТ и организация расследования» в объекте «Происшествия» в селекционных экранах для поиска сотрудников будет добавлен критерий поиска «Отчество».</p>",
-    "IsChange": "X",
     "ChangeNumber": "CHG00141613",
     "InitiatorName": "",
-    "InitiatorOrg": "Заполярный филиал ПАО «ГМК «Норильский никель»"
+    "InitiatorOrg": "Заполярный филиал ПАО «ГМК «Норильский никель»",
+    "NewsType": "CHG",
+    "NewsTypeText": "Изменения"
   },
   {
     "NewID": "N-CHG00141619",
@@ -138,10 +149,11 @@
     "Quarter": 2,
     "Area": "PRDS.1.1.13.INC Реагирование на происшествия в области ПБиОТ и организация расследования",
     "Content": "<p>В рамках изменения Бизнес-процесса «Реагирование на происшествия в области ПБиОТ и организация расследования» в объекте «Происшествия» на экране «Расследование» будут объединены субвкладки «Комиссия» и «Причины», субвкладки «Мероприятия» и «Документы» будут убраны.</p>",
-    "IsChange": "X",
     "ChangeNumber": "CHG00141619",
     "InitiatorName": "",
-    "InitiatorOrg": "Заполярный филиал ПАО «ГМК «Норильский никель»"
+    "InitiatorOrg": "Заполярный филиал ПАО «ГМК «Норильский никель»",
+    "NewsType": "CHG",
+    "NewsTypeText": "Изменения"
   },
   {
     "NewID": "N-CHG00137726",
@@ -150,10 +162,11 @@
     "Quarter": 2,
     "Area": "HSE.1.1.WPR Организация нарядно-допускной системы",
     "Content": "<p>В рамках изменения Бизнес-процесса «Организация нарядно-допускной системы» в нарядах-допусках на работы повышенной опасности и на огневые работы будет настроена автоматическая сортировка сотрудников в разделе «Ответственные лица».</p>",
-    "IsChange": "X",
     "ChangeNumber": "CHG00137726",
     "InitiatorName": "",
-    "InitiatorOrg": "ООО \"Медвежий ручей\""
+    "InitiatorOrg": "ООО \"Медвежий ручей\"",
+    "NewsType": "CHG",
+    "NewsTypeText": "Изменения"
   },
   {
     "NewID": "N-CHG00139987",
@@ -162,10 +175,11 @@
     "Quarter": 2,
     "Area": "HSE.1.1.CPW Контрольно-профилактическая работа",
     "Content": "<p>В рамках изменения Бизнес-процесса «Контрольно-профилактическая работа» в селекционный экран доски быстрой идентификации опасностей будут добавлены критерии поиска «Рекомендации к устранению» и «Участвовать в устранении».</p>",
-    "IsChange": "X",
     "ChangeNumber": "CHG00139987",
     "InitiatorName": "",
-    "InitiatorOrg": "Заполярный филиал ПАО «ГМК «Норильский никель»"
+    "InitiatorOrg": "Заполярный филиал ПАО «ГМК «Норильский никель»",
+    "NewsType": "CHG",
+    "NewsTypeText": "Изменения"
   },
   {
     "NewID": "N000001",
@@ -174,10 +188,11 @@
     "Quarter": 2,
     "Area": "Маркетинг",
     "Content": "<p>Содержание новости номер 1.</p><p>Область: Производство.</p>",
-    "IsChange": "",
     "ChangeNumber": "",
     "InitiatorName": "",
-    "InitiatorOrg": ""
+    "InitiatorOrg": "",
+    "NewsType": "NEWS",
+    "NewsTypeText": "Новости"
   },
   {
     "NewID": "N000002",
@@ -186,10 +201,11 @@
     "Quarter": 1,
     "Area": "Юридический",
     "Content": "<p>Содержание новости номер 2.</p><p>Область: IT.</p>",
-    "IsChange": "",
     "ChangeNumber": "",
     "InitiatorName": "",
-    "InitiatorOrg": ""
+    "InitiatorOrg": "",
+    "NewsType": "BASE",
+    "NewsTypeText": "Базовая рассылка"
   },
   {
     "NewID": "N000003",
@@ -198,10 +214,11 @@
     "Quarter": 4,
     "Area": "Производство",
     "Content": "<p>Содержание новости номер 3.</p><p>Область: HR.</p>",
-    "IsChange": "",
     "ChangeNumber": "",
     "InitiatorName": "",
-    "InitiatorOrg": ""
+    "InitiatorOrg": "",
+    "NewsType": "NEWS",
+    "NewsTypeText": "Новости"
   },
   {
     "NewID": "N000004",
@@ -210,10 +227,11 @@
     "Quarter": 1,
     "Area": "Финансы",
     "Content": "<p>Содержание новости номер 4.</p><p>Область: Безопасность.</p>",
-    "IsChange": "",
     "ChangeNumber": "",
     "InitiatorName": "",
-    "InitiatorOrg": ""
+    "InitiatorOrg": "",
+    "NewsType": "NEWS",
+    "NewsTypeText": "Новости"
   },
   {
     "NewID": "N000005",
@@ -222,10 +240,11 @@
     "Quarter": 3,
     "Area": "Юридический",
     "Content": "<p>Содержание новости номер 5.</p><p>Область: Юридический.</p>",
-    "IsChange": "",
     "ChangeNumber": "",
     "InitiatorName": "",
-    "InitiatorOrg": ""
+    "InitiatorOrg": "",
+    "NewsType": "NEWS",
+    "NewsTypeText": "Новости"
   },
   {
     "NewID": "N000006",
@@ -234,10 +253,11 @@
     "Quarter": 1,
     "Area": "Финансы",
     "Content": "<p>Содержание новости номер 6.</p><p>Область: Производство.</p>",
-    "IsChange": "",
     "ChangeNumber": "",
     "InitiatorName": "",
-    "InitiatorOrg": ""
+    "InitiatorOrg": "",
+    "NewsType": "NEWS",
+    "NewsTypeText": "Новости"
   },
   {
     "NewID": "N000007",
@@ -246,10 +266,11 @@
     "Quarter": 4,
     "Area": "HR",
     "Content": "<p>Содержание новости номер 7.</p><p>Область: Юридический.</p>",
-    "IsChange": "",
     "ChangeNumber": "",
     "InitiatorName": "",
-    "InitiatorOrg": ""
+    "InitiatorOrg": "",
+    "NewsType": "BASE",
+    "NewsTypeText": "Базовая рассылка"
   },
   {
     "NewID": "N000008",
@@ -258,10 +279,11 @@
     "Quarter": 2,
     "Area": "Юридический",
     "Content": "<p>Содержание новости номер 8.</p><p>Область: HR.</p>",
-    "IsChange": "",
     "ChangeNumber": "",
     "InitiatorName": "",
-    "InitiatorOrg": ""
+    "InitiatorOrg": "",
+    "NewsType": "NEWS",
+    "NewsTypeText": "Новости"
   },
   {
     "NewID": "N000009",
@@ -270,10 +292,11 @@
     "Quarter": 3,
     "Area": "Логистика",
     "Content": "<p>Содержание новости номер 9.</p><p>Область: Производство.</p>",
-    "IsChange": "",
     "ChangeNumber": "",
     "InitiatorName": "",
-    "InitiatorOrg": ""
+    "InitiatorOrg": "",
+    "NewsType": "NEWS",
+    "NewsTypeText": "Новости"
   },
   {
     "NewID": "N000010",
@@ -282,10 +305,11 @@
     "Quarter": 1,
     "Area": "Логистика",
     "Content": "<p>Содержание новости номер 10.</p><p>Область: Производство.</p>",
-    "IsChange": "",
     "ChangeNumber": "",
     "InitiatorName": "",
-    "InitiatorOrg": ""
+    "InitiatorOrg": "",
+    "NewsType": "NEWS",
+    "NewsTypeText": "Новости"
   },
   {
     "NewID": "N000011",
@@ -294,10 +318,11 @@
     "Quarter": 2,
     "Area": "HR",
     "Content": "<p>Содержание новости номер 11.</p><p>Область: IT.</p>",
-    "IsChange": "",
     "ChangeNumber": "",
     "InitiatorName": "",
-    "InitiatorOrg": ""
+    "InitiatorOrg": "",
+    "NewsType": "NEWS",
+    "NewsTypeText": "Новости"
   },
   {
     "NewID": "N000012",
@@ -306,10 +331,11 @@
     "Quarter": 2,
     "Area": "IT",
     "Content": "<p>Содержание новости номер 12.</p><p>Область: HR.</p>",
-    "IsChange": "",
     "ChangeNumber": "",
     "InitiatorName": "",
-    "InitiatorOrg": ""
+    "InitiatorOrg": "",
+    "NewsType": "BASE",
+    "NewsTypeText": "Базовая рассылка"
   },
   {
     "NewID": "N000013",
@@ -318,10 +344,11 @@
     "Quarter": 4,
     "Area": "Безопасность",
     "Content": "<p>Содержание новости номер 13.</p><p>Область: Производство.</p>",
-    "IsChange": "",
     "ChangeNumber": "",
     "InitiatorName": "",
-    "InitiatorOrg": ""
+    "InitiatorOrg": "",
+    "NewsType": "NEWS",
+    "NewsTypeText": "Новости"
   },
   {
     "NewID": "N000014",
@@ -330,10 +357,11 @@
     "Quarter": 3,
     "Area": "Безопасность",
     "Content": "<p>Содержание новости номер 14.</p><p>Область: HR.</p>",
-    "IsChange": "",
     "ChangeNumber": "",
     "InitiatorName": "",
-    "InitiatorOrg": ""
+    "InitiatorOrg": "",
+    "NewsType": "NEWS",
+    "NewsTypeText": "Новости"
   },
   {
     "NewID": "N000015",
@@ -342,10 +370,11 @@
     "Quarter": 4,
     "Area": "Маркетинг",
     "Content": "<p>Содержание новости номер 15.</p><p>Область: Финансы.</p>",
-    "IsChange": "",
     "ChangeNumber": "",
     "InitiatorName": "",
-    "InitiatorOrg": ""
+    "InitiatorOrg": "",
+    "NewsType": "NEWS",
+    "NewsTypeText": "Новости"
   },
   {
     "NewID": "N000016",
@@ -354,10 +383,11 @@
     "Quarter": 1,
     "Area": "Безопасность",
     "Content": "<p>Содержание новости номер 16.</p><p>Область: Безопасность.</p>",
-    "IsChange": "",
     "ChangeNumber": "",
     "InitiatorName": "",
-    "InitiatorOrg": ""
+    "InitiatorOrg": "",
+    "NewsType": "NEWS",
+    "NewsTypeText": "Новости"
   },
   {
     "NewID": "N000017",
@@ -366,10 +396,11 @@
     "Quarter": 1,
     "Area": "Маркетинг",
     "Content": "<p>Содержание новости номер 17.</p><p>Область: HR.</p>",
-    "IsChange": "",
     "ChangeNumber": "",
     "InitiatorName": "",
-    "InitiatorOrg": ""
+    "InitiatorOrg": "",
+    "NewsType": "BASE",
+    "NewsTypeText": "Базовая рассылка"
   },
   {
     "NewID": "N000018",
@@ -378,10 +409,11 @@
     "Quarter": 1,
     "Area": "Безопасность",
     "Content": "<p>Содержание новости номер 18.</p><p>Область: Финансы.</p>",
-    "IsChange": "",
     "ChangeNumber": "",
     "InitiatorName": "",
-    "InitiatorOrg": ""
+    "InitiatorOrg": "",
+    "NewsType": "NEWS",
+    "NewsTypeText": "Новости"
   },
   {
     "NewID": "N000019",
@@ -390,10 +422,11 @@
     "Quarter": 2,
     "Area": "Безопасность",
     "Content": "<p>Содержание новости номер 19.</p><p>Область: IT.</p>",
-    "IsChange": "",
     "ChangeNumber": "",
     "InitiatorName": "",
-    "InitiatorOrg": ""
+    "InitiatorOrg": "",
+    "NewsType": "NEWS",
+    "NewsTypeText": "Новости"
   },
   {
     "NewID": "N000020",
@@ -402,10 +435,11 @@
     "Quarter": 4,
     "Area": "Производство",
     "Content": "<p>Содержание новости номер 20.</p><p>Область: HR.</p>",
-    "IsChange": "",
     "ChangeNumber": "",
     "InitiatorName": "",
-    "InitiatorOrg": ""
+    "InitiatorOrg": "",
+    "NewsType": "NEWS",
+    "NewsTypeText": "Новости"
   },
   {
     "NewID": "N000021",
@@ -414,10 +448,11 @@
     "Quarter": 2,
     "Area": "Логистика",
     "Content": "<p>Содержание новости номер 21.</p><p>Область: Безопасность.</p>",
-    "IsChange": "",
     "ChangeNumber": "",
     "InitiatorName": "",
-    "InitiatorOrg": ""
+    "InitiatorOrg": "",
+    "NewsType": "NEWS",
+    "NewsTypeText": "Новости"
   },
   {
     "NewID": "N000022",
@@ -426,10 +461,11 @@
     "Quarter": 2,
     "Area": "Производство",
     "Content": "<p>Содержание новости номер 22.</p><p>Область: Маркетинг.</p>",
-    "IsChange": "",
     "ChangeNumber": "",
     "InitiatorName": "",
-    "InitiatorOrg": ""
+    "InitiatorOrg": "",
+    "NewsType": "BASE",
+    "NewsTypeText": "Базовая рассылка"
   },
   {
     "NewID": "N000023",
@@ -438,10 +474,11 @@
     "Quarter": 4,
     "Area": "Финансы",
     "Content": "<p>Содержание новости номер 23.</p><p>Область: Производство.</p>",
-    "IsChange": "",
     "ChangeNumber": "",
     "InitiatorName": "",
-    "InitiatorOrg": ""
+    "InitiatorOrg": "",
+    "NewsType": "NEWS",
+    "NewsTypeText": "Новости"
   },
   {
     "NewID": "N000024",
@@ -450,10 +487,11 @@
     "Quarter": 3,
     "Area": "Юридический",
     "Content": "<p>Содержание новости номер 24.</p><p>Область: Маркетинг.</p>",
-    "IsChange": "",
     "ChangeNumber": "",
     "InitiatorName": "",
-    "InitiatorOrg": ""
+    "InitiatorOrg": "",
+    "NewsType": "NEWS",
+    "NewsTypeText": "Новости"
   },
   {
     "NewID": "N000025",
@@ -462,10 +500,11 @@
     "Quarter": 2,
     "Area": "HR",
     "Content": "<p>Содержание новости номер 25.</p><p>Область: IT.</p>",
-    "IsChange": "",
     "ChangeNumber": "",
     "InitiatorName": "",
-    "InitiatorOrg": ""
+    "InitiatorOrg": "",
+    "NewsType": "NEWS",
+    "NewsTypeText": "Новости"
   },
   {
     "NewID": "N000026",
@@ -474,10 +513,11 @@
     "Quarter": 3,
     "Area": "IT",
     "Content": "<p>Содержание новости номер 26.</p><p>Область: HR.</p>",
-    "IsChange": "",
     "ChangeNumber": "",
     "InitiatorName": "",
-    "InitiatorOrg": ""
+    "InitiatorOrg": "",
+    "NewsType": "NEWS",
+    "NewsTypeText": "Новости"
   },
   {
     "NewID": "N000027",
@@ -486,10 +526,11 @@
     "Quarter": 4,
     "Area": "IT",
     "Content": "<p>Содержание новости номер 27.</p><p>Область: HR.</p>",
-    "IsChange": "",
     "ChangeNumber": "",
     "InitiatorName": "",
-    "InitiatorOrg": ""
+    "InitiatorOrg": "",
+    "NewsType": "BASE",
+    "NewsTypeText": "Базовая рассылка"
   },
   {
     "NewID": "N000028",
@@ -498,10 +539,11 @@
     "Quarter": 4,
     "Area": "Финансы",
     "Content": "<p>Содержание новости номер 28.</p><p>Область: Производство.</p>",
-    "IsChange": "",
     "ChangeNumber": "",
     "InitiatorName": "",
-    "InitiatorOrg": ""
+    "InitiatorOrg": "",
+    "NewsType": "NEWS",
+    "NewsTypeText": "Новости"
   },
   {
     "NewID": "N000029",
@@ -510,10 +552,11 @@
     "Quarter": 2,
     "Area": "Производство",
     "Content": "<p>Содержание новости номер 29.</p><p>Область: Безопасность.</p>",
-    "IsChange": "",
     "ChangeNumber": "",
     "InitiatorName": "",
-    "InitiatorOrg": ""
+    "InitiatorOrg": "",
+    "NewsType": "NEWS",
+    "NewsTypeText": "Новости"
   },
   {
     "NewID": "N000030",
@@ -522,10 +565,11 @@
     "Quarter": 2,
     "Area": "IT",
     "Content": "<p>Содержание новости номер 30.</p><p>Область: HR.</p>",
-    "IsChange": "",
     "ChangeNumber": "",
     "InitiatorName": "",
-    "InitiatorOrg": ""
+    "InitiatorOrg": "",
+    "NewsType": "NEWS",
+    "NewsTypeText": "Новости"
   },
   {
     "NewID": "N000031",
@@ -534,10 +578,11 @@
     "Quarter": 1,
     "Area": "Производство",
     "Content": "<p>Содержание новости номер 31.</p><p>Область: IT.</p>",
-    "IsChange": "",
     "ChangeNumber": "",
     "InitiatorName": "",
-    "InitiatorOrg": ""
+    "InitiatorOrg": "",
+    "NewsType": "NEWS",
+    "NewsTypeText": "Новости"
   },
   {
     "NewID": "N000032",
@@ -546,10 +591,11 @@
     "Quarter": 4,
     "Area": "IT",
     "Content": "<p>Содержание новости номер 32.</p><p>Область: IT.</p>",
-    "IsChange": "",
     "ChangeNumber": "",
     "InitiatorName": "",
-    "InitiatorOrg": ""
+    "InitiatorOrg": "",
+    "NewsType": "BASE",
+    "NewsTypeText": "Базовая рассылка"
   },
   {
     "NewID": "N000033",
@@ -558,10 +604,11 @@
     "Quarter": 2,
     "Area": "Финансы",
     "Content": "<p>Содержание новости номер 33.</p><p>Область: Юридический.</p>",
-    "IsChange": "",
     "ChangeNumber": "",
     "InitiatorName": "",
-    "InitiatorOrg": ""
+    "InitiatorOrg": "",
+    "NewsType": "NEWS",
+    "NewsTypeText": "Новости"
   },
   {
     "NewID": "N000034",
@@ -570,10 +617,11 @@
     "Quarter": 2,
     "Area": "Маркетинг",
     "Content": "<p>Содержание новости номер 34.</p><p>Область: Безопасность.</p>",
-    "IsChange": "",
     "ChangeNumber": "",
     "InitiatorName": "",
-    "InitiatorOrg": ""
+    "InitiatorOrg": "",
+    "NewsType": "NEWS",
+    "NewsTypeText": "Новости"
   },
   {
     "NewID": "N000035",
@@ -582,10 +630,11 @@
     "Quarter": 2,
     "Area": "Безопасность",
     "Content": "<p>Содержание новости номер 35.</p><p>Область: Логистика.</p>",
-    "IsChange": "",
     "ChangeNumber": "",
     "InitiatorName": "",
-    "InitiatorOrg": ""
+    "InitiatorOrg": "",
+    "NewsType": "NEWS",
+    "NewsTypeText": "Новости"
   },
   {
     "NewID": "N000036",
@@ -594,10 +643,11 @@
     "Quarter": 4,
     "Area": "Маркетинг",
     "Content": "<p>Содержание новости номер 36.</p><p>Область: Юридический.</p>",
-    "IsChange": "",
     "ChangeNumber": "",
     "InitiatorName": "",
-    "InitiatorOrg": ""
+    "InitiatorOrg": "",
+    "NewsType": "NEWS",
+    "NewsTypeText": "Новости"
   },
   {
     "NewID": "N000037",
@@ -606,10 +656,11 @@
     "Quarter": 4,
     "Area": "Логистика",
     "Content": "<p>Содержание новости номер 37.</p><p>Область: IT.</p>",
-    "IsChange": "",
     "ChangeNumber": "",
     "InitiatorName": "",
-    "InitiatorOrg": ""
+    "InitiatorOrg": "",
+    "NewsType": "BASE",
+    "NewsTypeText": "Базовая рассылка"
   },
   {
     "NewID": "N000038",
@@ -618,10 +669,11 @@
     "Quarter": 1,
     "Area": "Производство",
     "Content": "<p>Содержание новости номер 38.</p><p>Область: HR.</p>",
-    "IsChange": "",
     "ChangeNumber": "",
     "InitiatorName": "",
-    "InitiatorOrg": ""
+    "InitiatorOrg": "",
+    "NewsType": "NEWS",
+    "NewsTypeText": "Новости"
   },
   {
     "NewID": "N000039",
@@ -630,10 +682,11 @@
     "Quarter": 1,
     "Area": "HR",
     "Content": "<p>Содержание новости номер 39.</p><p>Область: IT.</p>",
-    "IsChange": "",
     "ChangeNumber": "",
     "InitiatorName": "",
-    "InitiatorOrg": ""
+    "InitiatorOrg": "",
+    "NewsType": "NEWS",
+    "NewsTypeText": "Новости"
   },
   {
     "NewID": "N000040",
@@ -642,10 +695,11 @@
     "Quarter": 4,
     "Area": "Юридический",
     "Content": "<p>Содержание новости номер 40.</p><p>Область: HR.</p>",
-    "IsChange": "",
     "ChangeNumber": "",
     "InitiatorName": "",
-    "InitiatorOrg": ""
+    "InitiatorOrg": "",
+    "NewsType": "NEWS",
+    "NewsTypeText": "Новости"
   },
   {
     "NewID": "N000041",
@@ -654,10 +708,11 @@
     "Quarter": 4,
     "Area": "Финансы",
     "Content": "<p>Содержание новости номер 41.</p><p>Область: Юридический.</p>",
-    "IsChange": "",
     "ChangeNumber": "",
     "InitiatorName": "",
-    "InitiatorOrg": ""
+    "InitiatorOrg": "",
+    "NewsType": "NEWS",
+    "NewsTypeText": "Новости"
   },
   {
     "NewID": "N000042",
@@ -666,10 +721,11 @@
     "Quarter": 4,
     "Area": "Логистика",
     "Content": "<p>Содержание новости номер 42.</p><p>Область: Юридический.</p>",
-    "IsChange": "",
     "ChangeNumber": "",
     "InitiatorName": "",
-    "InitiatorOrg": ""
+    "InitiatorOrg": "",
+    "NewsType": "BASE",
+    "NewsTypeText": "Базовая рассылка"
   },
   {
     "NewID": "N000043",
@@ -678,10 +734,11 @@
     "Quarter": 3,
     "Area": "Финансы",
     "Content": "<p>Содержание новости номер 43.</p><p>Область: Производство.</p>",
-    "IsChange": "",
     "ChangeNumber": "",
     "InitiatorName": "",
-    "InitiatorOrg": ""
+    "InitiatorOrg": "",
+    "NewsType": "NEWS",
+    "NewsTypeText": "Новости"
   },
   {
     "NewID": "N000044",
@@ -690,10 +747,11 @@
     "Quarter": 3,
     "Area": "IT",
     "Content": "<p>Содержание новости номер 44.</p><p>Область: Финансы.</p>",
-    "IsChange": "",
     "ChangeNumber": "",
     "InitiatorName": "",
-    "InitiatorOrg": ""
+    "InitiatorOrg": "",
+    "NewsType": "NEWS",
+    "NewsTypeText": "Новости"
   },
   {
     "NewID": "N000045",
@@ -702,10 +760,11 @@
     "Quarter": 4,
     "Area": "Безопасность",
     "Content": "<p>Содержание новости номер 45.</p><p>Область: Безопасность.</p>",
-    "IsChange": "",
     "ChangeNumber": "",
     "InitiatorName": "",
-    "InitiatorOrg": ""
+    "InitiatorOrg": "",
+    "NewsType": "NEWS",
+    "NewsTypeText": "Новости"
   },
   {
     "NewID": "N000046",
@@ -714,10 +773,11 @@
     "Quarter": 1,
     "Area": "Финансы",
     "Content": "<p>Содержание новости номер 46.</p><p>Область: Маркетинг.</p>",
-    "IsChange": "",
     "ChangeNumber": "",
     "InitiatorName": "",
-    "InitiatorOrg": ""
+    "InitiatorOrg": "",
+    "NewsType": "NEWS",
+    "NewsTypeText": "Новости"
   },
   {
     "NewID": "N000047",
@@ -726,10 +786,11 @@
     "Quarter": 2,
     "Area": "HR",
     "Content": "<p>Содержание новости номер 47.</p><p>Область: Маркетинг.</p>",
-    "IsChange": "",
     "ChangeNumber": "",
     "InitiatorName": "",
-    "InitiatorOrg": ""
+    "InitiatorOrg": "",
+    "NewsType": "BASE",
+    "NewsTypeText": "Базовая рассылка"
   },
   {
     "NewID": "N000048",
@@ -738,10 +799,11 @@
     "Quarter": 3,
     "Area": "Финансы",
     "Content": "<p>Содержание новости номер 48.</p><p>Область: Логистика.</p>",
-    "IsChange": "",
     "ChangeNumber": "",
     "InitiatorName": "",
-    "InitiatorOrg": ""
+    "InitiatorOrg": "",
+    "NewsType": "NEWS",
+    "NewsTypeText": "Новости"
   },
   {
     "NewID": "N000049",
@@ -750,10 +812,11 @@
     "Quarter": 4,
     "Area": "HR",
     "Content": "<p>Содержание новости номер 49.</p><p>Область: Безопасность.</p>",
-    "IsChange": "",
     "ChangeNumber": "",
     "InitiatorName": "",
-    "InitiatorOrg": ""
+    "InitiatorOrg": "",
+    "NewsType": "NEWS",
+    "NewsTypeText": "Новости"
   },
   {
     "NewID": "N000050",
@@ -762,10 +825,11 @@
     "Quarter": 1,
     "Area": "IT",
     "Content": "<p>Содержание новости номер 50.</p><p>Область: Маркетинг.</p>",
-    "IsChange": "",
     "ChangeNumber": "",
     "InitiatorName": "",
-    "InitiatorOrg": ""
+    "InitiatorOrg": "",
+    "NewsType": "NEWS",
+    "NewsTypeText": "Новости"
   },
   {
     "NewID": "N000051",
@@ -774,10 +838,11 @@
     "Quarter": 1,
     "Area": "Логистика",
     "Content": "<p>Содержание новости номер 51.</p><p>Область: Юридический.</p>",
-    "IsChange": "",
     "ChangeNumber": "",
     "InitiatorName": "",
-    "InitiatorOrg": ""
+    "InitiatorOrg": "",
+    "NewsType": "NEWS",
+    "NewsTypeText": "Новости"
   },
   {
     "NewID": "N000052",
@@ -786,10 +851,11 @@
     "Quarter": 1,
     "Area": "HR",
     "Content": "<p>Содержание новости номер 52.</p><p>Область: Финансы.</p>",
-    "IsChange": "",
     "ChangeNumber": "",
     "InitiatorName": "",
-    "InitiatorOrg": ""
+    "InitiatorOrg": "",
+    "NewsType": "BASE",
+    "NewsTypeText": "Базовая рассылка"
   },
   {
     "NewID": "N000053",
@@ -798,10 +864,11 @@
     "Quarter": 4,
     "Area": "Юридический",
     "Content": "<p>Содержание новости номер 53.</p><p>Область: Производство.</p>",
-    "IsChange": "",
     "ChangeNumber": "",
     "InitiatorName": "",
-    "InitiatorOrg": ""
+    "InitiatorOrg": "",
+    "NewsType": "NEWS",
+    "NewsTypeText": "Новости"
   },
   {
     "NewID": "N000054",
@@ -810,10 +877,11 @@
     "Quarter": 1,
     "Area": "HR",
     "Content": "<p>Содержание новости номер 54.</p><p>Область: Производство.</p>",
-    "IsChange": "",
     "ChangeNumber": "",
     "InitiatorName": "",
-    "InitiatorOrg": ""
+    "InitiatorOrg": "",
+    "NewsType": "NEWS",
+    "NewsTypeText": "Новости"
   },
   {
     "NewID": "N000055",
@@ -822,10 +890,11 @@
     "Quarter": 1,
     "Area": "IT",
     "Content": "<p>Содержание новости номер 55.</p><p>Область: Финансы.</p>",
-    "IsChange": "",
     "ChangeNumber": "",
     "InitiatorName": "",
-    "InitiatorOrg": ""
+    "InitiatorOrg": "",
+    "NewsType": "NEWS",
+    "NewsTypeText": "Новости"
   },
   {
     "NewID": "N000056",
@@ -834,10 +903,11 @@
     "Quarter": 3,
     "Area": "Безопасность",
     "Content": "<p>Содержание новости номер 56.</p><p>Область: Безопасность.</p>",
-    "IsChange": "",
     "ChangeNumber": "",
     "InitiatorName": "",
-    "InitiatorOrg": ""
+    "InitiatorOrg": "",
+    "NewsType": "NEWS",
+    "NewsTypeText": "Новости"
   },
   {
     "NewID": "N000057",
@@ -846,10 +916,11 @@
     "Quarter": 2,
     "Area": "HR",
     "Content": "<p>Содержание новости номер 57.</p><p>Область: Безопасность.</p>",
-    "IsChange": "",
     "ChangeNumber": "",
     "InitiatorName": "",
-    "InitiatorOrg": ""
+    "InitiatorOrg": "",
+    "NewsType": "BASE",
+    "NewsTypeText": "Базовая рассылка"
   },
   {
     "NewID": "N000058",
@@ -858,10 +929,11 @@
     "Quarter": 3,
     "Area": "Финансы",
     "Content": "<p>Содержание новости номер 58.</p><p>Область: Логистика.</p>",
-    "IsChange": "",
     "ChangeNumber": "",
     "InitiatorName": "",
-    "InitiatorOrg": ""
+    "InitiatorOrg": "",
+    "NewsType": "NEWS",
+    "NewsTypeText": "Новости"
   },
   {
     "NewID": "N000059",
@@ -870,10 +942,11 @@
     "Quarter": 3,
     "Area": "Юридический",
     "Content": "<p>Содержание новости номер 59.</p><p>Область: Безопасность.</p>",
-    "IsChange": "",
     "ChangeNumber": "",
     "InitiatorName": "",
-    "InitiatorOrg": ""
+    "InitiatorOrg": "",
+    "NewsType": "NEWS",
+    "NewsTypeText": "Новости"
   },
   {
     "NewID": "N000060",
@@ -882,9 +955,10 @@
     "Quarter": 1,
     "Area": "Маркетинг",
     "Content": "<p>Содержание новости номер 60.</p><p>Область: Производство.</p>",
-    "IsChange": "",
     "ChangeNumber": "",
     "InitiatorName": "",
-    "InitiatorOrg": ""
+    "InitiatorOrg": "",
+    "NewsType": "NEWS",
+    "NewsTypeText": "Новости"
   }
 ]

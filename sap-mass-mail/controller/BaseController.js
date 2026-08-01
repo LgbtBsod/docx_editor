@@ -5,7 +5,7 @@ sap.ui.define([
 ], (Controller, Log, Dialog) => {
   "use strict";
 
-  return Controller.extend("emailbuilder.controller.BaseController", {
+  return Controller.extend("MAILING_CONSTRUCTOR.controller.BaseController", {
 
     /**
      * Lazy-cached i18n resource bundle.
@@ -35,14 +35,16 @@ sap.ui.define([
       try {
         return oBundle.getText(sKey, aArgs);
       } catch (e) {
-        Log.warning("[emailbuilder] i18n lookup failed for key: " + sKey);
+        Log.warning("[MAILING_CONSTRUCTOR] i18n lookup failed for key: " + sKey);
         return sKey;
       }
     },
 
     /**
-     * Recomputes the header badge texts and the news counter from the state
-     * model. Single implementation shared by the controller and all mixins.
+     * Recomputes header badge texts and the news counter from the state model.
+     * `_oState` is set by App.controller#onInit before any mixin handler fires.
+     *
+     * @protected
      */
     _updateHeaderBadges() {
       const oState = this._oState;
@@ -93,8 +95,7 @@ sap.ui.define([
     },
 
     /**
-     * Safely destroys a dialog and all its content.
-     * FIXED: Memory leak prevention.
+     * Safely destroys a dialog and all its content (memory leak prevention).
      * @param {sap.m.Dialog} [oDialog] dialog to destroy
      * @private
      */

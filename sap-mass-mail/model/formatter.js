@@ -2,9 +2,11 @@ sap.ui.define([
   "sap/ui/core/format/DateFormat",
   "sap/base/Log",
   "sap/base/security/encodeXML",
-  "emailbuilder/util/sanitize",
-  "emailbuilder/util/sourceBlock"
-], (DateFormat, Log, encodeXML, Sanitize, SourceBlock) => {
+  "MAILING_CONSTRUCTOR/util/sanitize",
+  "MAILING_CONSTRUCTOR/util/sourceBlock",
+  "MAILING_CONSTRUCTOR/util/dateUtils",
+  "MAILING_CONSTRUCTOR/util/constants"
+], (DateFormat, Log, encodeXML, Sanitize, SourceBlock, DateUtils, Constants) => {
   "use strict";
 
   let oDateTimeFormat = null;
@@ -17,46 +19,39 @@ sap.ui.define([
   let oInjectedBundle = null;
 
   /**
-   * Unified status dictionary (single source): the backend maps receiver
-   * codes into this domain inside CDS ZI_Mailing_Status, so every consumer
-   * of Status works with exactly these codes.
+   * Looks up a status entry from the "dict" JSONModel (loaded once from
+   * ServiceDictSet at Component init). Searches MAIL_STATUS first (root
+   * statuses on the mailings grid), then DISP_STATUS (display statuses
+   * from ZI_Mailing_Status aggregation), then REC_STATUS.
+   *
+   * @param {string} sStatus the status code to look up
+   * @returns {object|null} the dict entry {DictKey, DictText, UiState, UiIcon, CssClass}
+   * @private
    */
-  const STATUS_META = {
-    "010": { key: "STATUS_LABEL_NEW",     fallback: "Новый",      cls: "ebStatusUnknown", state: "None",    icon: "sap-icon://hint" },
-    "020": { key: "STATUS_LABEL_PENDING", fallback: "Ожидание",   cls: "ebStatusPending", state: "Warning", icon: "sap-icon://pending" },
-    "030": { key: "STATUS_LABEL_PENDING", fallback: "Ожидание",   cls: "ebStatusPending", state: "Warning", icon: "sap-icon://pending" },
-    "040": { key: "STATUS_LABEL_SENT",    fallback: "Отправлено", cls: "ebStatusSent",    state: "Success", icon: "sap-icon://message-success" },
-    "050": { key: "STATUS_LABEL_FAILED",  fallback: "Ошибка",     cls: "ebStatusFailed",  state: "Error",   icon: "sap-icon://message-error" }
-  };
-
-  function statusMeta(sStatus) {
-    return STATUS_META[String(sStatus)] || null;
+  function dictLookup(sStatus) {
+    const oComp = sap.ui.getCore().getComponent("MAILING_CONSTRUCTOR");
+    if (!oComp) { return null; }
+    const oDict = oComp.getModel("dict");
+    if (!oDict) { return null; }
+    const sCode = String(sStatus);
+    const aGroups = ["MAIL_STATUS", "DISP_STATUS", "REC_STATUS"];
+    for (let i = 0; i < aGroups.length; i++) {
+      const aEntries = oDict.getProperty("/" + aGroups[i]) || [];
+      const oFound = aEntries.find((e) => e.DictKey === sCode);
+      if (oFound) { return oFound; }
+    }
+    return null;
   }
 
   /**
-   * Parses an OData `\/Date(ms)\/` string, ISO-8601 string, epoch number or
-   * Date instance into a Date. Returns null when unparseable.
-   *
+   * Delegates to the shared dateUtils module (SSOT for OData date parsing).
    * @param {string|number|Date} vValue value to parse
    * @returns {Date|null} parsed date or null
    * @private
    */
   function parseDate(vValue) {
     if (vValue === null || vValue === undefined || vValue === "") { return null; }
-    if (vValue instanceof Date) { return isNaN(vValue.getTime()) ? null : vValue; }
-    if (typeof vValue === "number") {
-      return isNaN(vValue) ? null : new Date(vValue);
-    }
-    if (typeof vValue === "string") {
-      const m = vValue.match(/\/Date\((-?\d+)(?:[+-]\d+)?\)\//);
-      if (m) {
-        const iMs = parseInt(m[1], 10);
-        return isNaN(iMs) ? null : new Date(iMs);
-      }
-      const iMs = Date.parse(vValue);
-      return isNaN(iMs) ? null : new Date(iMs);
-    }
-    return null;
+    return DateUtils.parseODataDate(vValue);
   }
 
   function getDateTimeFormat() {
@@ -79,7 +74,7 @@ sap.ui.define([
         const sText = oInjectedBundle.getText(sKey, aArgs);
         if (sText && sText !== sKey) { return sText; }
       } catch (e) {
-        Log.warning("[emailbuilder] i18n key missing: " + sKey);
+        Log.warning("[MAILING_CONSTRUCTOR] i18n key missing: " + sKey);
       }
     }
     return sFallback !== undefined ? sFallback : sKey;
@@ -142,23 +137,28 @@ sap.ui.define([
     },
 
     statusClass(sStatus) {
-      const m = statusMeta(sStatus);
-      return m ? m.cls : "ebStatusUnknown";
+      const m = dictLookup(sStatus);
+      return m && m.CssClass ? m.CssClass : "ebStatusUnknown";
     },
 
     statusLabel(sStatus) {
-      const m = statusMeta(sStatus);
-      return m ? getText(m.key, null, m.fallback) : "—";
+      const m = dictLookup(sStatus);
+      return m ? m.DictText : String(sStatus || "—");
+    },
+
+    /** Alias for statusLabel — used in MailingsDialog ObjectStatus. */
+    statusText(sStatus) {
+      return Formatter.statusLabel(sStatus);
     },
 
     statusState(sStatus) {
-      const m = statusMeta(sStatus);
-      return m ? m.state : "None";
+      const m = dictLookup(sStatus);
+      return m && m.UiState ? m.UiState : "None";
     },
 
     statusIcon(sStatus) {
-      const m = statusMeta(sStatus);
-      return m ? m.icon : "sap-icon://hint";
+      const m = dictLookup(sStatus);
+      return m && m.UiIcon ? m.UiIcon : "sap-icon://hint";
     },
 
     /**
@@ -169,8 +169,8 @@ sap.ui.define([
      * @returns {string} chip text
      */
     statusChipText(sStatus, iCount) {
-      const m = statusMeta(sStatus);
-      const sLabel = m ? getText(m.key, null, m.fallback) : "—";
+      const m = dictLookup(sStatus);
+      const sLabel = m ? m.DictText : "—";
       return sLabel + " (" + (iCount || 0) + ")";
     },
 
@@ -213,21 +213,11 @@ sap.ui.define([
     /**
      * Builds the editor-ready HTML block for a single News/NewsSet entry.
      * When IsChange="X" (see ZCDS_News), this reproduces the CHG-announcement
-     * layout from the reference template — bold change number, bold
-     * "Инициатор: ФИО, Организация" and "Область изменения: ..." lines,
-     * then the body paragraph — instead of just dumping Content raw. A
-     * regular (non-change) news item keeps the old plain-Content behavior
-     * unchanged.
+     * layout (bold change number, "Инициатор: ...", "Область изменения: ...",
+     * body). Other news items render plain sanitized Content.
      *
-     * ChangeNumber/InitiatorName/InitiatorOrg/Area are plain OData string
-     * fields (not HTML) and are XML-encoded here; Content is HTML and goes
-     * through Sanitize.forImport like before.
-     *
-     * Styling is INLINE, not a CSS class: this block ends up embedded in the
-     * outgoing email body (see util/emailComposer.js), which strips <style>
-     * tags and isn't served css/style.css — a recipient's mail client has no
-     * app stylesheet to resolve a class against, only what travels in the
-     * markup itself.
+     * Styling is INLINE (not a CSS class): this block travels in the outgoing
+     * email body where no app stylesheet resolves.
      *
      * @param {object} oNews News/NewsSet entity (Title, Area, Content,
      *   IsChange, ChangeNumber, InitiatorName, InitiatorOrg)
@@ -243,7 +233,7 @@ sap.ui.define([
 
       if (oNews.ChangeNumber) {
         aParts.push(
-          '<p style="margin:0 0 8px;font-size:16px;font-weight:700;color:#0070f2;text-align:center;">',
+          '<p style="margin:0 0 8px;font-size:16px;font-weight:700;color:' + Constants.COLORS.PRIMARY + ';text-align:center;">',
           encodeXML(oNews.ChangeNumber),
           '</p>'
         );
@@ -277,6 +267,17 @@ sap.ui.define([
      * @param {number|string} vCount the count to substitute
      * @returns {string} formatted text
      */
+    /**
+     * Clears the cached bundle and format instances.
+     * Called from Component#destroy to prevent stale singleton state
+     * when the component is recreated within the same page lifecycle.
+     */
+    reset() {
+      oInjectedBundle = null;
+      oDateTimeFormat = null;
+      oTimeFormat = null;
+    },
+
     formatCount(sTemplate, vCount) {
       const n = (vCount === undefined || vCount === null) ? 0 : (Number(vCount) || 0);
       if (!sTemplate || typeof sTemplate !== "string") { return String(n); }

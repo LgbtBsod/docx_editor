@@ -2,7 +2,7 @@ sap.ui.define([
   "sap/ui/richtexteditor/RichTextEditor",
   "sap/ui/richtexteditor/library",
   "sap/base/Log",
-  "emailbuilder/util/sourceBlock"
+  "MAILING_CONSTRUCTOR/util/sourceBlock"
 ], (RichTextEditor, richtexteditorLibrary, Log, SourceBlock) => {
   "use strict";
 
@@ -32,7 +32,7 @@ sap.ui.define([
    * @param {sap.ui.core.mvc.View} oView the view owning the editor
    * @param {string} sContainerId the id of the container control
    * @constructor
-   * @alias emailbuilder.util.Editor
+   * @alias MAILING_CONSTRUCTOR.util.Editor
    */
   function Editor(oView, sContainerId) {
     this._oView = oView;
@@ -56,7 +56,7 @@ sap.ui.define([
       try {
         const oContainer = this._oView.byId(this._sContainerId);
         if (!oContainer) {
-          Log.error("[emailbuilder] Editor container not found: " + this._sContainerId);
+          Log.error("[MAILING_CONSTRUCTOR] Editor container not found: " + this._sContainerId);
           resolve(false);
           return;
         }
@@ -97,7 +97,7 @@ sap.ui.define([
         }
         this._oRte = oRte;
       } catch (e) {
-        Log.error("[emailbuilder] Failed to create editor: " + e.message);
+        Log.error("[MAILING_CONSTRUCTOR] Failed to create editor: " + e.message);
         resolve(false);
       }
     });
@@ -126,7 +126,7 @@ sap.ui.define([
       mConfig.setup = (editor) => {
         if (typeof fnOrigSetup === "function") { fnOrigSetup(editor); }
         editor.on("keydown", (e) => {
-          if (e.keyCode !== 9) { return; }
+          if (e.key !== "Tab") { return; }
           const oNode = editor.selection && editor.selection.getNode();
           if (oNode && editor.dom.getParent(oNode, "table")) { return; }
           e.preventDefault();
@@ -280,6 +280,10 @@ sap.ui.define([
    * Starts the container-level observer that detects the RichTextEditor
    * replacing its internal iframe (see the class doc comment). Idempotent.
    *
+   * Observer options use `childList: true` only — the iframe swap is a
+   * direct child change of the RTE's root node, never a deeply-nested
+   * mutation.
+   *
    * @private
    */
   Editor.prototype._ensureContainerObserver = function () {
@@ -290,7 +294,7 @@ sap.ui.define([
     this._checkIframeSwap();
 
     this._oContainerObserver = new MutationObserver(() => this._checkIframeSwap());
-    this._oContainerObserver.observe(oContainerDom, { childList: true, subtree: true });
+    this._oContainerObserver.observe(oContainerDom, { childList: true });
   };
 
   /**
@@ -341,7 +345,7 @@ sap.ui.define([
       try {
         return oTinymce.getContent() || "";
       } catch (e) {
-        Log.warning("[emailbuilder] TinyMCE getContent failed, falling back: " + e.message);
+        Log.warning("[MAILING_CONSTRUCTOR] TinyMCE getContent failed, falling back: " + e.message);
       }
     }
     if (!this._oRte) { return ""; }
@@ -357,7 +361,7 @@ sap.ui.define([
     try {
       this._oRte.setValue(sHtml || "");
     } catch (e) {
-      Log.warning("[emailbuilder] Editor setValue failed: " + e.message);
+      Log.warning("[MAILING_CONSTRUCTOR] Editor setValue failed: " + e.message);
     }
   };
 
@@ -368,12 +372,7 @@ sap.ui.define([
    * NOTE: the per-iframe reference (iframe.contentWindow.tinymce) is NOT
    * usable here — TinyMCE4 only tracks activeEditor/editors[] on the
    * top-level `window.tinymce` singleton, so the iframe copy's
-   * `.activeEditor` is always null. Using it silently forced insert() onto
-   * its setValue()-concatenation fallback for every call, which corrupts
-   * large data: URI images (observed: a docx-embedded PNG's whole `src`
-   * attribute gets dropped, leaving only `alt`) instead of using TinyMCE's
-   * own insertContent(), which correctly converts data: URIs to a
-   * blob: reference backed by its blob cache.
+   * `.activeEditor` is always null.
    *
    * @returns {Object|null} tinymce.Editor instance or null
    * @private
@@ -390,15 +389,10 @@ sap.ui.define([
   /**
    * Inserts HTML for a newly added source/news block.
    *
-   * Always appends at the very end of the document rather than at
-   * whatever the current selection happens to be: uploads are additive
-   * ("add another source"), not cursor-targeted edits, and leaving this
-   * to insertContent()'s default selection is actively wrong when the
-   * previous source's content ends in a block element with nothing after
-   * it (e.g. a docx that renders as a wrapping <table>) — the browser has
-   * nowhere valid to park the caret except *inside* that table's last
-   * cell, so the next insertContent() call would land there instead of
-   * after it.
+   * Appends at the very end of the document rather than at the current
+   * selection — uploads are additive, not cursor-targeted edits, and the
+   * browser has no valid caret position after a wrapping block (e.g. a
+   * docx-rendered <table>).
    *
    * @param {string} sHtml HTML to append
    */
@@ -412,14 +406,14 @@ sap.ui.define([
         oTinymce.insertContent(sHtml);
         return;
       } catch (e) {
-        Log.warning("[emailbuilder] TinyMCE insertContent failed, falling back: " + e.message);
+        Log.warning("[MAILING_CONSTRUCTOR] TinyMCE insertContent failed, falling back: " + e.message);
       }
     }
     try {
       const sCur = this._oRte.getValue() || "";
       this._oRte.setValue(sCur + sHtml);
     } catch (e) {
-      Log.warning("[emailbuilder] Editor insert fallback failed: " + e.message);
+      Log.warning("[MAILING_CONSTRUCTOR] Editor insert fallback failed: " + e.message);
     }
   };
 
@@ -456,7 +450,7 @@ sap.ui.define([
         this._oRte.setValue(oDoc.body.innerHTML);
       }
     } catch (e) {
-      Log.warning("[emailbuilder] Editor removeSource failed: " + e.message);
+      Log.warning("[MAILING_CONSTRUCTOR] Editor removeSource failed: " + e.message);
     }
   };
 

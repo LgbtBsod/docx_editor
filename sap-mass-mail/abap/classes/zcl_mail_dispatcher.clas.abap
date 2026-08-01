@@ -36,12 +36,10 @@ CLASS zcl_mail_dispatcher DEFINITION
     CONSTANTS:
       c_max_stuck_rows TYPE i VALUE 100,
       " Batch of oldest in_queue candidates fetched per poll. Trying each in
-      " order (instead of a single top-1 pick) means a worker that loses the
-      " lock race on the oldest row falls through to the next-oldest one in
-      " the SAME round trip, rather than re-selecting and re-losing against
-      " the identical top-1 row every poll cycle — the thundering-herd
-      " pattern the previous single-candidate pick produced under multiple
-      " parallel dispatcher instances (see RUN's iv_partition).
+      " order means a worker that loses the lock race on the oldest row falls
+      " through to the next-oldest one in the SAME round trip, avoiding the
+      " thundering-herd pattern a single-candidate pick would produce under
+      " multiple parallel dispatcher instances (see RUN's iv_partition).
       c_candidate_batch TYPE i VALUE 20.
 
     CLASS-METHODS:
@@ -115,6 +113,13 @@ CLASS zcl_mail_dispatcher DEFINITION
         IMPORTING io_srv_mgr    TYPE REF TO /bobf/if_frw_service_manager
                   iv_log_handle TYPE balloghndl
         RETURNING VALUE(rv_ok) TYPE abap_bool,
+
+      " Surfaces dropped attachments (corrupted Base64, unsupported
+      " codepage) inside zcl_mail_transport=>build_document as warning log
+      " entries instead of silently swallowing them in its CATCH block.
+      log_skipped_attachments
+        IMPORTING iv_log_handle TYPE balloghndl
+                  it_skipped    TYPE zcl_mail_transport=>tt_attachment_name,
 
       stuck_cutoff
         RETURNING VALUE(rv_cutoff) TYPE timestampl,
@@ -219,10 +224,9 @@ CLASS zcl_mail_dispatcher IMPLEMENTATION.
     ENDLOOP.
 
     " Every candidate in this batch lost its acquire race to another
-    " worker — report processed=true so RUN's WHILE retries immediately
-    " with a fresh SELECT rather than treating a contested batch as
-    " end-of-queue (which would end this job's run early while work
-    " genuinely remains).
+    " worker. The 1-second WAIT prevents busy-looping; the LUW here is
+    " empty (no modify yet), so WAIT's implicit COMMIT is a no-op.
+    WAIT UP TO 1 SECONDS.
     rv_processed = abap_true.
   ENDMETHOD.
 
@@ -345,25 +349,23 @@ CLASS zcl_mail_dispatcher IMPLEMENTATION.
       IMPORTING et_data        = DATA(lt_att_data) ).
     rs_payload-attachments = CORRESPONDING #( lt_att_data ).
 
-    " Receivers deliberately bypass the BOPF service manager (query()+read(),
-    " 2 round-trips through the buffer) for a direct SELECT — same
-    " Code-to-Data convention this class already uses for pick_next_mailing/
-    " requeue_stuck_mailings/mailing_exists/resolve_sender below: this is a
-    " read-only background-job fetch, not a transactional write, so there is
-    " no BOPF consistency/locking benefit to pay the round-trip for.
-    " zeb_mailing_rec is the receiver persistence BOPF creates nodes on top
-    " of (mirrors zi_mailing_status.ddls.asddls). Only rec_status-new rows
-    " come back — a mailing retried after a partial send must not re-mail
-    " already-sent recipients. .key is the BOPF conf_key apply_chunk_status
-    " later writes the outcome status back through via io_srv_mgr->modify().
-    SELECT key, email
-      FROM zeb_mailing_rec
-      WHERE mailing_id = @iv_root_key
-        AND status     = @zcl_newsletter_constants=>rec_status-new
-      INTO TABLE @DATA(lt_rec_data).
+    " Receivers are fetched through BOPF retrieve_by_association on
+    " root->receivers (not a direct SELECT on zeb_mailing_rec) so they
+    " share the BOPF buffer the rest of this class uses for the same BO.
+    " retrieve_by_association can't carry a WHERE on receiver status, so
+    " the rec_status-new filter moves into the ABAP FOR expression below.
+    " only NEW recipients come back, which is what the bulk-send path
+    " needs: a mailing retried after a partial send must not re-mail
+    " already-sent recipients.
+    io_srv_mgr->retrieve_by_association(
+      EXPORTING iv_node        = /bobf/if_znewsletter_bo_c=>sc_node-root
+                it_key         = VALUE #( ( key = iv_root_key ) )
+                iv_association = /bobf/if_znewsletter_bo_c=>sc_association-root-receivers
+      IMPORTING et_data        = DATA(lt_rec_data) ).
 
     rs_payload-recipients = VALUE zcl_mail_transport=>tt_recipient_node(
-      FOR <rec> IN lt_rec_data ( key = <rec>-key email = <rec>-email ) ).
+      FOR <rec> IN lt_rec_data WHERE ( status = zcl_newsletter_constants=>rec_status-new )
+      ( key = <rec>-key email = <rec>-email ) ).
   ENDMETHOD.
 
   METHOD resolve_sender.
@@ -374,11 +376,19 @@ CLASS zcl_mail_dispatcher IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD send_all.
+    " build_document EXPORTs the attachment names it had to drop (corrupted
+    " Base64, unsupported codepage) — statement-form call so the IMPORTING
+    " list can pick up both the document and the skipped list.
+    DATA: lt_skipped TYPE zcl_mail_transport=>tt_attachment_name,
+          lo_document TYPE REF TO cl_document_bcs.
+
     TRY.
-        DATA(lo_document) = zcl_mail_transport=>build_document(
-                               iv_subject     = is_payload-subject
-                               iv_content     = is_payload-content
-                               it_attachments = is_payload-attachments ).
+        zcl_mail_transport=>build_document(
+          EXPORTING iv_subject     = is_payload-subject
+                    iv_content     = is_payload-content
+                    it_attachments = is_payload-attachments
+          IMPORTING eo_document    = lo_document
+                    et_skipped     = lt_skipped ).
       CATCH cx_bcs INTO DATA(lx_doc).
         log_msg( iv_log_handle = iv_log_handle iv_msgty = zcl_newsletter_constants=>msg_type-error
                  iv_msgno = zcl_newsletter_constants=>dispatcher_msgno-send_error
@@ -389,6 +399,11 @@ CLASS zcl_mail_dispatcher IMPLEMENTATION.
         rs_stats-errors = rs_stats-total.
         RETURN.
     ENDTRY.
+
+    " Even a fully-built document can come back with skipped attachments
+    " (build_document catches per-attachment Base64/codepage failures so
+    " one bad attachment doesn't sink the whole mailing). Log each one here.
+    log_skipped_attachments( iv_log_handle = iv_log_handle it_skipped = lt_skipped ).
 
     DATA(lv_total)    = lines( is_payload-recipients ).
     DATA(lv_chunk)    = zcl_newsletter_constants=>behavior-chunk_size.
@@ -519,6 +534,20 @@ CLASS zcl_mail_dispatcher IMPLEMENTATION.
     rv_ok = abap_true.
   ENDMETHOD.
 
+  METHOD log_skipped_attachments.
+    " One warning per attachment dropped inside build_document. Uses the
+    " dedicated skipped_attachment msgno (006) so it never collides with
+    " the catch-all send_error (001). log_msg truncates msgv1/msgv2 to
+    " CHAR(50) for BAL's ceiling, so long attachment names are safe.
+    LOOP AT it_skipped INTO DATA(lv_name).
+      log_msg( iv_log_handle = iv_log_handle
+               iv_msgty      = zcl_newsletter_constants=>msg_type-warning
+               iv_msgno      = zcl_newsletter_constants=>dispatcher_msgno-skipped_attachment
+               iv_msgv1      = 'Skipped attachment'
+               iv_msgv2      = lv_name ).
+    ENDLOOP.
+  ENDMETHOD.
+
   METHOD stuck_cutoff.
     rv_cutoff = cl_abap_tstmp=>subtract( tstmp = sy-timestampl secs = zcl_newsletter_constants=>behavior-stuck_timeout_s ).
   ENDMETHOD.
@@ -532,6 +561,9 @@ CLASS zcl_mail_dispatcher IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD log_msg.
+    " BAL's msgv1..msgv4 fields are CHAR(50) — substring here is the
+    " narrow ceiling that applies on this path (the Gateway message
+    " container path in zcl_eb_mailing_dpc_ext accepts full strings).
     DATA(lv_v1) = COND #( WHEN iv_msgv1 IS SUPPLIED THEN substring( val = |{ iv_msgv1 }| len = 50 ) ELSE '' ).
     DATA(lv_v2) = COND #( WHEN iv_msgv2 IS SUPPLIED THEN substring( val = |{ iv_msgv2 }| len = 50 ) ELSE '' ).
 

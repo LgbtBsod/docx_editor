@@ -98,10 +98,6 @@ CLASS zcl_eb_mailing_dpc_ext DEFINITION
         IMPORTING it_attachments TYPE tt_attachment
         RAISING   /iwbep/cx_mgw_busi_exception,
 
-      mailing_exists
-        IMPORTING iv_local_id      TYPE csequence
-        RETURNING VALUE(rv_exists) TYPE abap_bool,
-
       build_modifications
         IMPORTING is_mailing             TYPE tys_mailing_deep
         RETURNING VALUE(rt_modification) TYPE /bobf/t_frw_modification,
@@ -110,6 +106,18 @@ CLASS zcl_eb_mailing_dpc_ext DEFINITION
         IMPORTING it_modification TYPE /bobf/t_frw_modification
                   iv_local_id     TYPE csequence
         RAISING   /iwbep/cx_mgw_busi_exception,
+
+      " Shared helper for both the modify-error and save-error branches
+      " of persist_mailing.
+      add_bopf_messages_to_container
+        IMPORTING io_message TYPE REF TO /bobf/if_frw_message,
+
+      " Inspects a BOPF save() message object's text for the duplicate-key
+      " signature (UNIQUE-constraint violation on zmail_hdr~local_id) and
+      " returns 409 for the conflict, 500 for anything else.
+      detect_save_status
+        IMPORTING io_save_msg        TYPE REF TO /bobf/if_frw_message
+        RETURNING VALUE(rv_status)   TYPE i,
 
       build_response
         IMPORTING is_mailing       TYPE tys_mailing_deep
@@ -138,14 +146,12 @@ CLASS zcl_eb_mailing_dpc_ext IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD handle_mailing_deep_create.
+    " Existence is enforced at the DDIC layer (UNIQUE index on
+    " zmail_hdr~local_id) and reported through BOPF save()'s message
+    " object — detect_save_status maps that to a 409 in persist_mailing.
     DATA(ls_payload) = read_payload( io_data_provider ).
 
     validate_payload( ls_payload ).
-
-    IF mailing_exists( ls_payload-local_id ) = abap_true.
-      raise_business_error( iv_text = |Mailing with LocalId '{ ls_payload-local_id }' already exists.|
-                            iv_status = zcl_newsletter_constants=>http_status-conflict ).
-    ENDIF.
 
     persist_mailing( it_modification = build_modifications( ls_payload ) iv_local_id = ls_payload-local_id ).
 
@@ -255,10 +261,6 @@ CLASS zcl_eb_mailing_dpc_ext IMPLEMENTATION.
     ENDLOOP.
   ENDMETHOD.
 
-  METHOD mailing_exists.
-    SELECT SINGLE @abap_true FROM zmail_hdr WHERE local_id = @iv_local_id INTO @rv_exists.
-  ENDMETHOD.
-
   METHOD build_modifications.
     rt_modification = zcl_eb_mailing_mod_builder=>build_deep(
       is_root        = VALUE #( local_id   = is_mailing-local_id
@@ -274,31 +276,66 @@ CLASS zcl_eb_mailing_dpc_ext IMPLEMENTATION.
 
     lo_srv_mgr->modify( EXPORTING it_modification = it_modification IMPORTING eo_message = DATA(lo_msg) ).
 
+    " Both error branches funnel through the same pair of helpers
+    " (add_bopf_messages_to_container + raise_business_error) so they
+    " surface BOPF messages identically.
     IF lo_msg IS BOUND AND lo_msg->has_errors( ).
-      LOOP AT lo_msg->get_messages( ) ASSIGNING FIELD-SYMBOL(<msg>) WHERE msg_type = 'E' OR msg_type = 'A'.
-        mo_context->get_message_container( )->add_message(
-          iv_msg_type   = <msg>-msg_type
-          iv_msg_id     = <msg>-msg_id
-          iv_msg_number = <msg>-msg_number
-          iv_msg_text   = <msg>-message_text
-          iv_add_to_response_header = abap_true ).
-      ENDLOOP.
-      RAISE EXCEPTION TYPE /iwbep/cx_mgw_busi_exception
-        EXPORTING message_container = mo_context->get_message_container( ) http_status_code = 400.
+      add_bopf_messages_to_container( lo_msg ).
+      raise_business_error( iv_text   = |Modify failed for mailing '{ iv_local_id }'|
+                            iv_status = zcl_newsletter_constants=>http_status-bad_request ).
     ENDIF.
 
+    " BOPF save() commits its own LUW internally — an explicit COMMIT
+    " WORK here would break the rollback path and flush unrelated work
+    " the caller's LUW had pending. Trust BOPF's contract.
     DATA(lo_save_msg) = /bobf/cl_tra_trans_mgr_factory=>get_transaction_manager( )->save( /bobf/if_znewsletter_bo_c=>sc_bo_key ).
 
     IF lo_save_msg IS BOUND AND lo_save_msg->has_errors( ).
-      " The mailing_exists()/CREATE race (TOCTOU) is closed at the DDIC
-      " layer (UNIQUE index on zmail_hdr~local_id), not here: BOPF reports
-      " persistence failures — including a unique-key violation — through
-      " this message object, never as a propagated cx_sy_open_sql_db.
-      raise_business_error( iv_text = |Failed to save mailing '{ iv_local_id }'|
-                            iv_status = zcl_newsletter_constants=>http_status-server_error ).
+      " The UNIQUE index on zmail_hdr~local_id catches the duplicate
+      " LocalId case; BOPF surfaces the DB-side error as a message here,
+      " and detect_save_status maps it to 409 vs 500 from the text.
+      add_bopf_messages_to_container( lo_save_msg ).
+      raise_business_error(
+        iv_text   = |Failed to save mailing '{ iv_local_id }'|
+        iv_status = detect_save_status( lo_save_msg ) ).
     ENDIF.
+  ENDMETHOD.
 
-    COMMIT WORK.
+  METHOD add_bopf_messages_to_container.
+    " Shared by the modify-error and save-error branches of persist_mailing
+    " so both surface BOPF messages identically to the Gateway container.
+    LOOP AT io_message->get_messages( ) ASSIGNING FIELD-SYMBOL(<msg>)
+         WHERE msg_type = 'E' OR msg_type = 'A'.
+      mo_context->get_message_container( )->add_message(
+        iv_msg_type   = <msg>-msg_type
+        iv_msg_id     = <msg>-msg_id
+        iv_msg_number = <msg>-msg_number
+        iv_msg_text   = <msg>-message_text
+        iv_add_to_response_header = abap_true ).
+    ENDLOOP.
+  ENDMETHOD.
+
+  METHOD detect_save_status.
+    " Inspects BOPF save()'s message text for the duplicate-key signature
+    " (UNIQUE-constraint violation on zmail_hdr~local_id) — returns 409
+    " for the conflict, 500 for anything else. The DB's duplicate-key
+    " error is carried as free-text, so a case-insensitive substring
+    " scan across German/English phrasings is the cheapest stable
+    " discriminator. Default to 500 so an unmapped message type isn't
+    " mis-reported as a conflict.
+    rv_status = zcl_newsletter_constants=>http_status-server_error.
+
+    CHECK io_save_msg IS BOUND.
+
+    LOOP AT io_save_msg->get_messages( ) ASSIGNING FIELD-SYMBOL(<msg>).
+      DATA(lv_text) = to_lower( |{ <msg>-message_text }| ).
+      IF    lv_text CS 'duplicate'
+         OR lv_text CS 'already exists'
+         OR lv_text CS 'doppelt'.
+        rv_status = zcl_newsletter_constants=>http_status-conflict.
+        RETURN.
+      ENDIF.
+    ENDLOOP.
   ENDMETHOD.
 
   METHOD build_response.
@@ -320,14 +357,16 @@ CLASS zcl_eb_mailing_dpc_ext IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD raise_business_error.
+    " The Gateway message container accepts the full string — the
+    " CHAR(50) ceiling only applies to BAL's msgv1..msgv4 fields
+    " (zcl_mail_dispatcher=>log_msg, kept narrow there deliberately).
     DATA(lo_msg_container) = mo_context->get_message_container( ).
-    DATA(lv_text) = COND #( WHEN iv_text IS SUPPLIED THEN substring( val = |{ iv_text }| len = 50 ) ELSE '' ).
 
     lo_msg_container->add_message(
       iv_msg_type   = zcl_newsletter_constants=>msg_type-error
       iv_msg_id     = zcl_newsletter_constants=>message-zeb_mail_id
       iv_msg_number = zcl_newsletter_constants=>message-default_no
-      iv_msg_text   = lv_text
+      iv_msg_text   = COND #( WHEN iv_text IS SUPPLIED THEN |{ iv_text }| ELSE '' )
       iv_add_to_response_header = abap_true ).
 
     RAISE EXCEPTION TYPE /iwbep/cx_mgw_busi_exception

@@ -9,7 +9,7 @@ sap.ui.define([
    * tracked so `detachAll()` can remove them cleanly.
    *
    * @constructor
-   * @alias emailbuilder.util.DnDManager
+   * @alias MAILING_CONSTRUCTOR.util.DnDManager
    */
   function DnDManager() {
     this._aZones = [];
@@ -24,11 +24,11 @@ sap.ui.define([
    */
   DnDManager.prototype.attachZone = function (oDomRef, fnHandler, sKind) {
     if (!oDomRef) {
-      Log.warning("[emailbuilder] DnDManager.attachZone: missing oDomRef");
+      Log.warning("[MAILING_CONSTRUCTOR] DnDManager.attachZone: missing oDomRef");
       return;
     }
     if (typeof fnHandler !== "function") {
-      Log.warning("[emailbuilder] DnDManager.attachZone: missing fnHandler");
+      Log.warning("[MAILING_CONSTRUCTOR] DnDManager.attachZone: missing fnHandler");
       return;
     }
 

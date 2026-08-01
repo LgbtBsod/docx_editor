@@ -4,29 +4,33 @@ CLASS zcl_newsletter_constants DEFINITION
   CREATE PRIVATE.
 
   PUBLIC SECTION.
-    " REFERENCE / PLACEHOLDER — this class did not exist anywhere in the
-    " repository even though every ABAP class in abap/classes/ assumes it.
-    " Literal values below are picked for internal consistency across the
-    " codebase (mirroring the pre-BOPF raw-SQL status literals), not
-    " verified against any real system. Adjust freely when porting.
-    TYPES ty_status TYPE c LENGTH 10.
+    " CHAR(3) — SSOT with the UI5 client (util/constants.js#Constants.STATUS)
+    " and with the BOPF persistence tables zmail_hdr~status and
+    " zeb_mailing_rec~status, whose domains are CHAR(3). The previous
+    " CHAR(10) word codes ('QUEUE'/'PROC'/'OK'/'ERROR') broke the contract
+    " at the ABAP/UI5 boundary: the UI was sending 3-char codes the ABAP
+    " side compared against 10-char fields, so any status filter or write
+    " round-tripped silently as a no-match.
+    TYPES ty_status TYPE c LENGTH 3.
 
     CONSTANTS:
+      " Root mailing statuses (zmail_hdr~status). Mirror Constants.STATUS.ROOT
+      " on the UI5 side exactly — every value here is the literal the UI5
+      " client sends in $filter and that the BOPF persistence round-trips.
       BEGIN OF root_status,
-        in_queue   TYPE ty_status VALUE 'QUEUE',
-        processing TYPE ty_status VALUE 'PROC',
-        sent_ok    TYPE ty_status VALUE 'OK',
-        sent_err   TYPE ty_status VALUE 'ERROR',
+        in_queue   TYPE ty_status VALUE '001', " Constants.STATUS.ROOT.QUEUE
+        processing TYPE ty_status VALUE '010', " Constants.STATUS.ROOT.PROC
+        sent_ok    TYPE ty_status VALUE '100', " Constants.STATUS.ROOT.OK
+        sent_err   TYPE ty_status VALUE '900', " Constants.STATUS.ROOT.ERROR
       END OF root_status,
 
-      " Numeric codes, NOT word codes: must match ZI_Mail_Status_Map's
-      " RecStatus column (zi_mail_status_map.ddls.asddls) — that view, not
-      " this class, is the single source of truth for the receiver-status
-      " -> unified display-status mapping (020/040/050, consumed via
-      " ZI_Mailing_Status). CDS cannot reference an ABAP class constant, so
-      " the two can drift silently; ASSERT_STATUS_MAP_CONSISTENT below
-      " closes that gap by SELECTing the map at test time and failing fast
-      " if these literals and the view ever disagree.
+      " Recipient statuses (zeb_mailing_rec~status). Mirror
+      " Constants.STATUS.RECIPIENT on the UI5 side exactly. NOTE: '010'
+      " intentionally collides with root_status-processing — they live in
+      " different columns/contexts (a recipient never carries a root
+      " status, and vice versa), so reusing the code point is fine and
+      " matches the UI5 STATUS enum, which also reuses 010 across
+      " ROOT.PROC and RECIPIENT.NEW for the same reason.
       BEGIN OF rec_status,
         new   TYPE ty_status VALUE '010',
         sent  TYPE ty_status VALUE '020',
@@ -43,7 +47,7 @@ CLASS zcl_newsletter_constants DEFINITION
       " mainService metadata (MailHeaderSet) on the SAPUI5 side.
       BEGIN OF entity,
         mail_header    TYPE string VALUE 'MailHeaderSet',
-        mailing_config TYPE string VALUE 'MailingConfig',
+        mailing_config TYPE string VALUE 'MailingConfigSet',
       END OF entity,
 
       BEGIN OF http_status,
@@ -73,12 +77,15 @@ CLASS zcl_newsletter_constants DEFINITION
 
       " SBAL message slots logged by zcl_mail_dispatcher — free-text
       " messages (no message class behind them), numbered for readability.
+      " 006 (skipped_attachment) surfaces corrupted / un-decodable
+      " attachments dropped in zcl_mail_transport=>build_document.
       BEGIN OF dispatcher_msgno,
-        send_error       TYPE symsgno VALUE '001',
-        mailing_finished TYPE symsgno VALUE '002',
-        no_mailing_found TYPE symsgno VALUE '003',
-        lock_failed      TYPE symsgno VALUE '004',
-        no_recipients    TYPE symsgno VALUE '005',
+        send_error         TYPE symsgno VALUE '001',
+        mailing_finished   TYPE symsgno VALUE '002',
+        no_mailing_found   TYPE symsgno VALUE '003',
+        lock_failed        TYPE symsgno VALUE '004',
+        no_recipients      TYPE symsgno VALUE '005',
+        skipped_attachment TYPE symsgno VALUE '006',
       END OF dispatcher_msgno,
 
       BEGIN OF document,

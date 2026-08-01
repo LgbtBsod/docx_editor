@@ -1,18 +1,18 @@
 sap.ui.define([
-  "emailbuilder/controller/BaseController",
-  "emailbuilder/util/toast",
+  "MAILING_CONSTRUCTOR/controller/BaseController",
+  "MAILING_CONSTRUCTOR/util/toast",
   "sap/m/MessageBox",
   "sap/base/Log",
-  "emailbuilder/util/service",
-  "emailbuilder/util/draftManager",
-  "emailbuilder/util/editorApi",
-  "emailbuilder/util/dndManager",
-  "emailbuilder/util/emailComposer",
-  "emailbuilder/model/formatter",
-  "emailbuilder/controller/DialogMixin",
-  "emailbuilder/controller/SourcesMixin",
-  "emailbuilder/util/constants",
-  "emailbuilder/util/mockBackend"
+  "MAILING_CONSTRUCTOR/util/service",
+  "MAILING_CONSTRUCTOR/util/draftManager",
+  "MAILING_CONSTRUCTOR/util/editorApi",
+  "MAILING_CONSTRUCTOR/util/dndManager",
+  "MAILING_CONSTRUCTOR/util/emailComposer",
+  "MAILING_CONSTRUCTOR/model/formatter",
+  "MAILING_CONSTRUCTOR/controller/DialogMixin",
+  "MAILING_CONSTRUCTOR/controller/SourcesMixin",
+  "MAILING_CONSTRUCTOR/util/constants",
+  "MAILING_CONSTRUCTOR/util/mockBackend"
 ], (
   BaseController, Toast, MessageBox, Log,
   Service, DraftManager, Editor, DnDManager, EmailComposer, Formatter,
@@ -20,7 +20,12 @@ sap.ui.define([
 ) => {
   "use strict";
 
-  return BaseController.extend("emailbuilder.controller.App",
+  // BaseController.extend(name, Object.assign({}, DialogMixin, SourcesMixin, {
+  //   ...App's own methods...
+  // })) flattens DialogMixin / SourcesMixin plus App's own methods into one
+  // controller prototype (UI5 1.71 LTS has no first-class class composition).
+  // LAST object wins for method name collisions; mixins share state via `this`.
+  return BaseController.extend("MAILING_CONSTRUCTOR.controller.App",
     Object.assign({}, DialogMixin, SourcesMixin, {
 
     formatter: Formatter,
@@ -30,9 +35,9 @@ sap.ui.define([
       const oView = this.getView();
 
       // Inject the resource bundle before any model is attached to the view —
-      // attaching "state" triggers an immediate formatter evaluation
-      // (e.g. recipientsSummary/newsSummary), which would otherwise run with
-      // no bundle and permanently stick to the hardcoded fallback text.
+      // attaching "state" triggers an immediate formatter evaluation, which
+      // would otherwise run with no bundle and permanently stick to the
+      // hardcoded fallback text.
       Formatter.setResourceBundle(oComp.getModel("i18n").getResourceBundle());
 
       ["state", "config", "i18n", "constants"].forEach((sName) => {
@@ -46,7 +51,7 @@ sap.ui.define([
       this._bFirstRenderDone = false;
       this._sUserId = null;
 
-      // FIXED: Capture userId for draft isolation
+      // Capture userId for draft isolation (SAP Launchpad / SAP Fiori)
       try {
         if (sap.ushell && sap.ushell.Container) {
           const oUser = sap.ushell.Container.getUser();
@@ -55,10 +60,9 @@ sap.ui.define([
           }
         }
       } catch (e) {
-        Log.warning("[emailbuilder] Could not determine user ID");
+        Log.warning("[MAILING_CONSTRUCTOR] Could not determine user ID");
       }
 
-      this._loadAllowedHosts();
       this._loadMailingConfig();
     },
 
@@ -85,18 +89,10 @@ sap.ui.define([
     },
 
     onExit() {
-      // FIXED: Explicit cleanup with isDestroyed check
-      [this._oRecipDialog, this._oNewsDialog, this._oMailingsDialog,
-       this._oPdfModeDialog, this._oHistoryViewDialog]
-        .forEach((oDialog) => {
-          if (oDialog && !oDialog.isDestroyed()) {
-            oDialog.destroyContent();
-            oDialog.destroy();
-          }
-        });
-
-      this._oRecipDialog = this._oNewsDialog = this._oMailingsDialog =
-        this._oPdfModeDialog = this._oHistoryViewDialog = null;
+      // DialogMixin handles its own dialog cleanup
+      if (typeof this.onExitCleanup === "function") {
+        this.onExitCleanup();
+      }
 
       if (this._oDnD)    { this._oDnD.destroy();    this._oDnD = null; }
       if (this._oEditor) { this._oEditor.destroy(); this._oEditor = null; }
@@ -105,6 +101,10 @@ sap.ui.define([
 
       BaseController.prototype.onExit.apply(this, arguments);
     },
+
+    // ----------------------------------------------------------------
+    // UI event handlers
+    // ----------------------------------------------------------------
 
     onSubjectChange(oEvent) {
       this._oState.setProperty("/viewingSubject", oEvent.getParameter("newValue") || "");
@@ -115,25 +115,51 @@ sap.ui.define([
     },
 
     onSourceBrowse() {
+      // UI5 1.71 FileUploader has no openFileSelector() method (added in 1.84+).
+      // The FileUploader with buttonOnly="true" already renders a native <input type="file">
+      // — trigger its click() directly via the DOM. This is the standard 1.71 workaround.
       const oUploader = this.byId("sourceUploader");
-      if (oUploader) { oUploader.openFileSelector(); }
+      if (oUploader && oUploader.getDomRef) {
+        const oInput = oUploader.getDomRef().querySelector("input[type='file']");
+        if (oInput) { oInput.click(); }
+      }
     },
 
     onAttachmentBrowse() {
       const oUploader = this.byId("attachmentUploader");
-      if (oUploader) { oUploader.openFileSelector(); }
+      if (oUploader && oUploader.getDomRef) {
+        const oInput = oUploader.getDomRef().querySelector("input[type='file']");
+        if (oInput) { oInput.click(); }
+      }
     },
 
-    // === SEND ===
+    /**
+     * Copies the LocalId to the system clipboard.
+     * Placed here (not in SourcesMixin) as it is a generic UI action,
+     * not a source-management concern.
+     */
+    onCopyLocalId() {
+      const sText = this._oState.getProperty("/localId") || "";
+      if (sText && navigator && navigator.clipboard
+          && typeof navigator.clipboard.writeText === "function") {
+        navigator.clipboard.writeText(sText)
+          .then(() => Toast.success(this._t("MSG_LOCALID_COPIED")))
+          .catch(() => { /* clipboard API may be blocked by browser policy */ });
+      }
+    },
+
+    // ----------------------------------------------------------------
+    // Send
+    // ----------------------------------------------------------------
 
     onSend()      { this._handleSend(false); },
     onTestSend()  { this._handleSend(true);  },
     onSaveDraft() { this._saveDraft(); },
 
     /**
-     * Validates email addresses against unified Constants.VALIDATION.EMAIL_PATTERN.
-     * FIXED: DRY — single source of truth for email validation.
-     * @param {object[]} aRecipients array of recipient objects with email property
+     * Validates email addresses against Constants.VALIDATION.EMAIL_PATTERN.
+     *
+     * @param {object[]} aRecipients
      * @returns {object} { valid: boolean, message: string }
      * @private
      */
@@ -163,16 +189,12 @@ sap.ui.define([
         return;
       }
 
-      // Send buttons are enabled-bound to {= !${state>/isSending} } in the
-      // view — no direct control manipulation needed here.
       this._oState.setProperty("/isSending", true);
 
       const sSubject = this._oState.getProperty("/viewingSubject") ||
                        (bIsTest ? this._t("TEST_SUBJECT_DEFAULT") : "");
-
       const oComponent = this.getOwnerComponent();
 
-      // FIXED: emailComposer now gets component for i18n (removed hardcoded Russian text)
       const sEmailHtml = EmailComposer.compose(
         this._oEditor.getValue() || "",
         this._oConfig.getProperty("/allowedHosts") || [],
@@ -182,11 +204,8 @@ sap.ui.define([
 
       const aAttachments = this._oState.getProperty("/attachments") || [];
 
-      // Test sends omit ToRecipients on the wire — the backend targets the
-      // test send at the calling user itself, it doesn't need the mailing
-      // list. The local mock record keeps the real recipient list (plus an
-      // IsTest flag) purely so /preview can show what a test send actually
-      // looked like; it's never sent to the OData service.
+      // Frontend deep-create payload. No `Status` field is sent —
+      // zcl_eb_mailing_mod_builder=>build_deep is the SSOT for status on create.
       const oPayload = {
         LocalId:      this._oState.getProperty("/localId"),
         Subject:      sSubject,
@@ -198,7 +217,10 @@ sap.ui.define([
       Service.sendMailing(oComponent, oPayload, bIsTest)
         .then((data) => MockBackend.recordSend(oPayload, aRecipients, bIsTest).then(() => data))
         .then((data) => {
-          // MSG_SENT carries a {0} placeholder for the LocalId
+          if (this._oMailingsTable && this._oMailingsTable.getBinding) {
+            var oBinding = this._oMailingsTable.getBinding("items");
+            if (oBinding) { oBinding.refresh(); }
+          }
           MessageBox.success(this._t(data.messageKey, [data.localId]), {
             title: this._t("SUCCESS_SENT_TITLE"),
             onClose: () => this._resetComposer()
@@ -216,14 +238,12 @@ sap.ui.define([
 
     /**
      * Resets the composer to a pristine draft (fresh LocalId, empty editor).
-     * Single implementation for "after send" and "clear template".
-     *
      * @private
      */
     _resetComposer() {
       this._oEditor.setValue("");
       this.getOwnerComponent().resetState();
-      DraftManager.clear(this._sUserId);  // FIXED: User-isolated cleanup
+      DraftManager.clear(this._sUserId);
     },
 
     onClearTemplate() {
@@ -238,16 +258,16 @@ sap.ui.define([
       });
     },
 
-    // === DRAFT ===
+    // ----------------------------------------------------------------
+    // Draft
+    // ----------------------------------------------------------------
 
     _restoreDraft() {
-      const oDraft = DraftManager.load(this._sUserId);  // FIXED: User-isolated load
+      const oDraft = DraftManager.load(this._sUserId);
       if (!oDraft) { return; }
 
       this._oState.setProperty("/localId", oDraft.localId);
       this._oState.setProperty("/viewingSubject", oDraft.subject || "");
-      // Recipients are never persisted (see draftManager.js#save) — a
-      // restored draft always starts with an empty recipient list.
       this._oState.setProperty("/recipients", []);
       this._oState.setProperty("/attachments", oDraft.attachments || []);
       this._oState.setProperty("/sources", oDraft.sources || []);
@@ -260,7 +280,6 @@ sap.ui.define([
 
     _saveDraft() {
       try {
-        // Recipients intentionally excluded — see draftManager.js#save.
         DraftManager.save({
           localId:     this._oState.getProperty("/localId"),
           subject:     this._oState.getProperty("/viewingSubject") || "",
@@ -268,38 +287,22 @@ sap.ui.define([
           attachments: this._oState.getProperty("/attachments") || [],
           sources:     this._oState.getProperty("/sources")     || [],
           newsItems:   this._oState.getProperty("/newsItems")   || []
-        }, this._sUserId);  // FIXED: User-isolated save
+        }, this._sUserId);
         Toast.success(this._t("DRAFT_SAVED"));
       } catch (e) {
-        Log.error("[emailbuilder] Draft save failed: " + e.message);
+        Log.error("[MAILING_CONSTRUCTOR] Draft save failed: " + e.message);
         MessageBox.error(this._t("ERR_DRAFT_SAVE"), { title: this._t("ERR_TITLE") });
       }
     },
 
-    // === DATA LOADING ===
-
-    _loadAllowedHosts() {
-      Service.getAllowedHosts(this.getOwnerComponent())
-        .then((aHosts) => {
-          this._oConfig.setProperty("/allowedHosts", (aHosts || []).map((h) => h.Host));
-        })
-        .catch(() => {
-          // Fail closed: an empty allowlist rejects every external host
-          // (see util/sanitize.js) instead of silently allowing all — but
-          // that's a silent behavior change for the user (their own
-          // company images/links now vanish on send) unless we say so.
-          this._oConfig.setProperty("/allowedHosts", []);
-          Toast.warning(this._t("MSG_ALLOWED_HOSTS_LOAD_FAILED"));
-        });
-    },
+    // ----------------------------------------------------------------
+    // Data loading
+    // ----------------------------------------------------------------
 
     /**
-     * Loads MaxRecipients/SubjectMaxLen from the backend's single-row
-     * MailingConfigSet (see util/service.js#getMailingConfig) and overwrites
-     * the util/constants.js-seeded fallback in the "config" model. A failure
-     * here is silently ignored — the pre-load fallback already in place
-     * (Component.js#_initialState-adjacent config model init) keeps the UI
-     * usable with the last-known-good client-side defaults.
+     * Loads MaxRecipients/SubjectMaxLen from MailingConfigSet.
+     * Failure is silently ignored — the pre-load fallback in util/constants.js
+     * keeps the UI usable with client-side defaults.
      * @private
      */
     _loadMailingConfig() {
@@ -317,7 +320,7 @@ sap.ui.define([
           }
         })
         .catch((e) => {
-          Log.warning("[emailbuilder] Mailing config load failed, using client-side fallback: " + e.message);
+          Log.warning("[MAILING_CONSTRUCTOR] Mailing config load failed, using client-side fallback: " + e.message);
         });
     }
   }));

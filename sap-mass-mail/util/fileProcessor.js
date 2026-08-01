@@ -1,15 +1,16 @@
 sap.ui.define([
   "sap/base/security/encodeXML",
-  "emailbuilder/util/config",
-  "emailbuilder/util/fileTypes",
-  "emailbuilder/util/sourceBlock",
-  "emailbuilder/util/sanitize",
-  "emailbuilder/util/libLoader"
-], (encodeXML, Config, FileTypes, SourceBlock, Sanitize, LibLoader) => {
+  "MAILING_CONSTRUCTOR/util/config",
+  "MAILING_CONSTRUCTOR/util/fileTypes",
+  "MAILING_CONSTRUCTOR/util/sourceBlock",
+  "MAILING_CONSTRUCTOR/util/sanitize",
+  "MAILING_CONSTRUCTOR/util/libLoader",
+  "MAILING_CONSTRUCTOR/util/constants"
+], (encodeXML, Config, FileTypes, SourceBlock, Sanitize, LibLoader, Constants) => {
   "use strict";
 
   function libUrl(sPath) {
-    return sap.ui.require.toUrl("emailbuilder/" + sPath);
+    return sap.ui.require.toUrl("MAILING_CONSTRUCTOR/" + sPath);
   }
 
   const LIBS = {
@@ -118,8 +119,10 @@ sap.ui.define([
 
   function processHtml(file, sSourceId) {
     return readAsText(file).then((sText) => {
-      const mBody = sText.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
-      const sBody = Sanitize.forImport(mBody ? mBody[1] : sText);
+      // DOMParser gives a real, properly-nested document; .body.innerHTML is
+      // the canonical extraction. Falls back to raw text for HTML fragments.
+      const oDoc = new DOMParser().parseFromString(sText, "text/html");
+      const sBody = Sanitize.forImport(oDoc.body ? oDoc.body.innerHTML : sText);
       return SourceBlock.wrap(sSourceId, SourceBlock.TYPE.FILE, sBody);
     });
   }
@@ -143,11 +146,11 @@ sap.ui.define([
         oTable.style.margin = "8px 0";
       });
       oDoc.querySelectorAll("table td, table th").forEach((oCell) => {
-        oCell.style.border = "1px solid #d9dde3";
+        oCell.style.border = "1px solid " + Constants.COLORS.BORDER;
         oCell.style.padding = "6px 10px";
       });
       oDoc.querySelectorAll("table th").forEach((oHeader) => {
-        oHeader.style.background = "#fafbfc";
+        oHeader.style.background = Constants.COLORS.SURFACE_ALT;
         oHeader.style.fontWeight = "600";
         oHeader.style.textAlign = "left";
       });
@@ -200,7 +203,7 @@ sap.ui.define([
         return Promise.all(aPromises).then((aHtml) => {
           let sResult = aHtml.join("");
           if (iTotal > iPages) {
-            sResult += '<p style="color:#e76500;font-size:12px;">'
+            sResult += '<p style="color:' + Constants.COLORS.WARNING + ';font-size:12px;">'
               + encodeXML(t(oBundle, "PDF_PAGES_TRUNCATED", [iPages, iTotal]))
               + '</p>';
           }

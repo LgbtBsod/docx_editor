@@ -1,11 +1,13 @@
 {
   "_version": "1.12.0",
   "sap.app": {
-    "id": "emailbuilder",
+    "id": "MAILING_CONSTRUCTOR",
     "type": "application",
     "i18n": "i18n/i18n.properties",
     "title": "{{TITLE}}",
     "description": "{{APP_DESC}}",
+    "supportedLocales": ["en", "ru"],
+    "fallbackLocale": "ru",
     "applicationVersion": {
       "version": "2.1.0"
     },
@@ -22,6 +24,14 @@
         "type": "sap.ui.model.resource.ResourceModel",
         "uri": "i18n/i18n.properties"
       }
+    },
+    "_backendSetupGuide": {
+      "_comment": "PRODUCTION BACKEND SETUP — documentation only (JSON has no native comments).",
+      "_step1_mock": "Current config works for dev/preview with MockServer. ODataModel connects to /sap/opu/odata/sap/ZEB_MAILING_SRV/ which MockServer intercepts when window.USE_MOCK=true (see index.html).",
+      "_step2_realBackend": "For production: (a) set window.USE_MOCK=false in index.html; (b) publish SAP Gateway service ZEB_MAILING_SRV (SOAUTH / /IWFND/MAINT_SERVICE); (c) configure reverse proxy (sap-web-dispatcher/nginx/Caddy) mapping /sap/opu/odata/sap/ZEB_MAILING_SRV/ to backend port 8000; (d) replace UI5 CDN in index.html with local ABAP frontend server /sap/public/bc/ui5_ui5/ui5/1.71/resources/sap-ui-core.js.",
+      "_step3_auth": "SAP Gateway requires authentication. Same-origin (reverse proxy) uses SAP session cookie automatically. Cross-origin needs CORS + token auth.",
+      "_step4_csrf": "ODataModel v2 with useBatch=true auto-fetches CSRF token on first write. No manual handling needed.",
+      "_step5_localUri": "localUri (localService/metadata.xml) is MockServer-only. Production uses real $metadata from Gateway."
     }
   },
   "sap.ui": {
@@ -34,7 +44,7 @@
   },
   "sap.ui5": {
     "rootView": {
-      "viewName": "emailbuilder.view.App",
+      "viewName": "MAILING_CONSTRUCTOR.view.App",
       "type": "XML",
       "async": true,
       "id": "app"
@@ -46,7 +56,8 @@
         "sap.ui.layout": {},
         "sap.ui.richtexteditor": {},
         "sap.ui.unified": {},
-        "sap.f": {}
+        "sap.f": {},
+        "sap.ui.comp": {}
       }
     },
     "contentDensities": {

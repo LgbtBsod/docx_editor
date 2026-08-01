@@ -1,14 +1,20 @@
 /**
  * Email template composer.
- * FIXED: Clear separation of text encoding (encodeXML) and HTML sanitization (Sanitize.forEmail).
- * FIXED: i18n moved to caller (App.controller), not hardcoded.
+ * Text encoding (encodeXML) is kept separate from HTML sanitization (Sanitize.forEmail).
+ * i18n lives in the caller (App.controller); brand colors come from Constants.COLORS.
  */
 sap.ui.define([
   "sap/base/security/encodeXML",
-  "emailbuilder/util/sanitize",
+  "MAILING_CONSTRUCTOR/util/sanitize",
+  "MAILING_CONSTRUCTOR/util/constants",
   "sap/base/Log"
-], (encodeXML, Sanitize, Log) => {
+], (encodeXML, Sanitize, Constants, Log) => {
   "use strict";
+
+  // Local alias so the template literals below stay readable — the SSOT
+  // entry itself lives in util/constants.js COLORS. A recolour edits one
+  // line there, not three style attributes here.
+  const COLORS = Constants.COLORS;
 
   let oBundle = null;
 
@@ -22,7 +28,7 @@ sap.ui.define([
         }
       }
     } catch (e) {
-      Log.warning("[emailbuilder] Failed to load i18n bundle");
+      Log.warning("[MAILING_CONSTRUCTOR] Failed to load i18n bundle");
     }
     return oBundle;
   }
@@ -69,12 +75,12 @@ sap.ui.define([
       const sFooter = encodeXML(sFooterText);
 
       const aParts = [
-        '<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.6;color:#1d2d3e;max-width:680px;margin:0 auto;">'
+        '<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.6;color:' + COLORS.TEXT + ';max-width:680px;margin:0 auto;">'
       ];
 
       if (sTitle) {
         aParts.push(
-          '<h2 style="margin:0 0 16px;color:#1d2d3e;border-bottom:2px solid #0070f2;padding-bottom:8px;">',
+          '<h2 style="margin:0 0 16px;color:' + COLORS.TEXT + ';border-bottom:2px solid ' + COLORS.PRIMARY + ';padding-bottom:8px;">',
           sTitle,  // Already encoded (TEXT)
           '</h2>'
         );
@@ -83,7 +89,7 @@ sap.ui.define([
       aParts.push(sBody);  // Already sanitized (HTML)
 
       aParts.push(
-        '<div style="margin-top:24px;padding-top:12px;border-top:1px solid #d9dde3;font-size:12px;color:#5b738b;">',
+        '<div style="margin-top:24px;padding-top:12px;border-top:1px solid ' + COLORS.BORDER + ';font-size:12px;color:' + COLORS.SECONDARY + ';">',
         sFooter,  // Already encoded (TEXT)
         '</div>'
       );
@@ -93,5 +99,14 @@ sap.ui.define([
     }
   };
 
-  return EmailComposer;
+  return {
+    compose: EmailComposer.compose,
+
+    /**
+     * Clears the cached i18n bundle reference.
+     * Called from Component#destroy to prevent stale closures across
+     * component lifecycles (module singleton, not instance-scoped).
+     */
+    reset() { oBundle = null; }
+  };
 });

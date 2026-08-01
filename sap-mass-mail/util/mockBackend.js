@@ -65,7 +65,7 @@ sap.ui.define([
 
     return postToLocalServer(oMockRecord).then(
       () => undefined,
-      (e) => { Log.warning("[emailbuilder] Mock email save failed: " + e.message); }
+      (e) => { Log.warning("[MAILING_CONSTRUCTOR] Mock email save failed: " + e.message); }
     );
   }
 

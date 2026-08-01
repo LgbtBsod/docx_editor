@@ -3,14 +3,6 @@ CLASS zcl_eb_mailing_mod_builder DEFINITION
   FINAL
   CREATE PUBLIC.
 
-  " REFERENCE / PLACEHOLDER — this class was referenced by
-  " zcl_eb_mailing_dpc_ext but did not exist anywhere in the repository.
-  " Node/association key constants below (/bobf/if_znewsletter_bo_c=>...)
-  " follow the same naming already assumed by zcl_mail_dispatcher and
-  " zcl_mail_transport for internal consistency; none of it is verified
-  " against a real BOPF business object. Reconcile node/association names
-  " and field types against the actual generated BO interface on import.
-
   PUBLIC SECTION.
     TYPES:
       BEGIN OF tys_root,
@@ -63,6 +55,10 @@ CLASS zcl_eb_mailing_mod_builder IMPLEMENTATION.
       ( node        = /bobf/if_znewsletter_bo_c=>sc_node-root
         key         = lv_root_key
         change_mode = /bobf/cl_frw_factory=>sc_modify_create
+        " Status defaults to ROOT_STATUS-IN_QUEUE — the CHAR(3) value '001'
+        " mirrored from the UI5 client's Constants.STATUS.ROOT.QUEUE (see
+        " zcl_newsletter_constants). The literal lives in exactly one place
+        " (the constants class); this builder must not re-hardcode it.
         data        = VALUE #( local_id   = is_root-local_id
                                subject    = is_root-subject
                                created_by = is_root-created_by

@@ -1,19 +1,80 @@
 <core:FragmentDefinition
   xmlns="sap.m"
-  xmlns:core="sap.ui.core">
+  xmlns:core="sap.ui.core"
+  xmlns:comp="sap.ui.comp.smartfilterbar">
 
   <Dialog
     id="mailingsDialog"
     title="{i18n>DIALOG_MAILINGS}"
-    contentWidth="720px"
-    contentHeight="560px"
+    contentWidth="820px"
+    contentHeight="620px"
     resizable="true"
     draggable="true"
     class="ebDialog ebMailingsDialog">
 
+    <customHeader>
+      <Bar>
+        <contentMiddle>
+          <Title text="{i18n>DIALOG_MAILINGS}" level="H3" />
+        </contentMiddle>
+      </Bar>
+    </customHeader>
+
     <content>
       <VBox class="sapUiSmallMargin">
+        <!-- SmartFilterBar: server-side $filter push-down on MailHistorySet.
+             Replaces the manual DatePicker/Select/SearchField combo — the SFB
+             reads filter metadata from the OData $metadata and builds proper
+             server-side Filter objects via getFilters(). -->
+        <comp:SmartFilterBar
+          id="mailingsSFB"
+          entitySet="MailHistorySet"
+          liveMode="false"
+          showGoOnFB="true"
+          showClearOnFB="true"
+          useToolbar="false"
+          search="onMailingsFilterSearch"
+          clear="onMailingsFilterSearch">
+          <comp:controlConfiguration>
+            <comp:ControlConfiguration
+              key="Key"
+              visibleInAdvancedArea="false" />
+            <comp:ControlConfiguration
+              key="LocalID"
+              index="0"
+              visibleInAdvancedArea="true" />
+            <comp:ControlConfiguration
+              key="Subject"
+              index="1"
+              visibleInAdvancedArea="true" />
+            <comp:ControlConfiguration
+              key="Status"
+              index="2"
+              visibleInAdvancedArea="true" />
+            <comp:ControlConfiguration
+              key="CreatedAt"
+              index="3"
+              visibleInAdvancedArea="true" />
+            <comp:ControlConfiguration
+              key="CreatedBy"
+              index="4"
+              visibleInAdvancedArea="true" />
+            <comp:ControlConfiguration
+              key="TotalCount"
+              visibleInAdvancedArea="false" />
+            <comp:ControlConfiguration
+              key="SentCount"
+              visibleInAdvancedArea="false" />
+            <comp:ControlConfiguration
+              key="ErrorCount"
+              visibleInAdvancedArea="false" />
+          </comp:controlConfiguration>
+        </comp:SmartFilterBar>
+
         <Text text="{i18n>MAILING_CLICK_HINT}" class="sapUiSmallMarginBottom" />
+
+        <!-- Bound directly to /MailHistorySet OData — server-side $filter from
+             the SmartFilterBar above is applied via onMailingsFilterSearch. -->
         <Table
           id="mailingsTable"
           items="{ path: '/MailHistorySet', parameters: { countMode: 'Inline' }, sorter: { path: 'CreatedAt', descending: true } }"
@@ -23,14 +84,17 @@
           class="ebDialogTable"
           noDataText="{i18n>NO_MAILINGS}">
           <columns>
-            <Column width="25%" minScreenWidth="Phone" demandPopin="false">
+            <Column width="22%" minScreenWidth="Phone" demandPopin="false">
               <Text text="{i18n>COL_LOCAL_ID}" />
             </Column>
-            <Column width="15%" minScreenWidth="Tablet" demandPopin="true" popinDisplay="Inline">
+            <Column width="13%" minScreenWidth="Tablet" demandPopin="true" popinDisplay="Inline">
               <Text text="{i18n>COL_SENDER}" />
             </Column>
-            <Column width="20%" minScreenWidth="Tablet" demandPopin="true" popinDisplay="Inline">
+            <Column width="15%" minScreenWidth="Tablet" demandPopin="true" popinDisplay="Inline">
               <Text text="{i18n>COL_DATETIME}" />
+            </Column>
+            <Column width="10%" minScreenWidth="Tablet" demandPopin="true" popinDisplay="Inline">
+              <Text text="{i18n>COL_STATUS}" />
             </Column>
             <Column width="40%" minScreenWidth="Phone" demandPopin="false">
               <Text text="{i18n>COL_SUBJECT}" />
@@ -41,7 +105,10 @@
               <cells>
                 <Label text="{LocalID}" wrapping="true" design="Bold" />
                 <Label text="{CreatedBy}" wrapping="true" />
-                <Text text="{ path: 'CreatedAt', type: 'sap.ui.model.type.DateTime', formatOptions: { pattern: 'dd.MM.yyyy HH:mm' } }" />
+                <Text text="{ path: 'CreatedAt', formatter: '.formatter.dateTime' }" />
+                <ObjectStatus
+                  text="{path: 'Status', formatter: '.formatter.statusText'}"
+                  state="{path: 'Status', formatter: '.formatter.statusState'}" />
                 <Label text="{Subject}" wrapping="true" />
               </cells>
             </ColumnListItem>

@@ -16,7 +16,13 @@
    scan over Title/Content — the latter can't use a HANA text index and
    forces a table scan per keystroke of the app's news search box. Title
    carries a higher search weight than Content (a keyword match in the
-   headline is a stronger relevance signal than one buried in body text). */
+   headline is a stronger relevance signal than one buried in body text).
+
+   NewsType (CHAR 4) is the unified news domain: BASE (базовая рассылка),
+   NEWS (новости), ERROR (ошибки), CHG (изменения). The client's "Только
+   изменения" toggle filters on NewsType = 'CHG'; one domain field drives
+   both the toggle and the SmartFilterBar NewsType dropdown (SSOT).
+   NewsType = 'CHG') but is not the primary filter path. */
 @Search.searchable: true
 define view ZCDS_News
   as select from znews
@@ -43,16 +49,20 @@ define view ZCDS_News
   @Semantics.largeText: true
   content     as Content,
 
-  /* Reuses the existing news table (ZNEWS) rather than a new entity — the
-     change-announcement data (CHG number, initiator) already lives there
-     per business input; this view just projects it. is_change is the
-     filter switch the client's "Изменения" toggle sends as
-     Filter("IsChange", EQ, "X") (see NewsSearch.fragment.xml /
-     DialogMixin#_searchNews); a plain equality filter on a single-char flag
-     needs no dedicated @Consumption tuning beyond marking it filterable. */
-  @Consumption.filter: { selectionType: #SINGLE, multipleSelection: false }
-  @EndUserText.label: 'Признак изменения (CHG)'
-  is_change      as IsChange,
+  /* NewsType: BASE / NEWS / ERROR / CHG. The client's "Только изменения"
+     toggle sends Filter("NewsType", EQ, "CHG"). @ObjectModel.text maps
+     the code to its display text via the associated ZZD_NEWS_TYPE domain
+     text view (NewsTypeText) — the SmartFilterBar renders a dropdown. */
+  @Consumption.filter: { selectionType: #SINGLE, multipleSelection: true }
+  @ObjectModel.text.element: ['NewsTypeText']
+  @EndUserText.label: 'Тип новости'
+  news_type      as NewsType,
+
+  /* Display text for NewsType (read-only projection — populated by the
+     domain fixed-value text or a tiny text-join view). Not filterable. */
+  @EndUserText.label: 'Тип новости (текст)'
+  @ObjectModel.readOnly: true
+  news_type_text as NewsTypeText,
 
   @EndUserText.label: 'Номер изменения'
   change_number  as ChangeNumber,

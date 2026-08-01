@@ -10,14 +10,9 @@
 
 /* List view: LOB content is deliberately NOT part of this projection —
    it is read on demand via ZCDS_Mail_Content (key access).
-   Recipient counts are derived from ZI_Mailing_Status rather than joining
-   the receiver table directly: that view is the single place that reads
-   the BOPF-managed receiver persistence and maps its status domain
-   (010/020/030) into the unified display domain (020/040/050 — via
-   ZI_Mail_Status_Map, joined once inside ZI_Mailing_Status). A second, independent join against the receiver
-   table here would inevitably drift onto a stale/renamed table the moment
-   the BOPF persistence layer changes — composing on the existing view
-   keeps exactly one place that touches that table (SSOT). */
+   Recipient counts are derived from ZI_Mailing_Status (the SSOT for
+   the receiver persistence + status domain mapping) instead of joining
+   the receiver table directly here. */
 @Metadata.allowExtensions: true
 define view ZCDS_Mail_History
   as select from zmail_hdr as h
@@ -25,10 +20,10 @@ define view ZCDS_Mail_History
       select from ZI_Mailing_Status as s
         group by s.MailingId
         fields
-          s.MailingId                                             as mailing_id,
-          sum( s.Cnt )                                             as total_count,
-          sum( case when s.Status = '040' then s.Cnt else 0 end )  as sent_count,
-          sum( case when s.Status = '050' then s.Cnt else 0 end )  as error_count
+          s.MailingId                                                          as mailing_id,
+          sum( s.Cnt )                                                          as total_count,
+          sum( case when s.StatusCategory = 'SENT'  then s.Cnt else 0 end )    as sent_count,
+          sum( case when s.StatusCategory = 'ERROR' then s.Cnt else 0 end )    as error_count
     ) as p on h.key = p.mailing_id
 {
   key h.key                        as Key,

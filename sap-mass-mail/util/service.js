@@ -2,8 +2,8 @@ sap.ui.define([
   "sap/ui/model/Filter",
   "sap/ui/model/FilterOperator",
   "sap/base/Log",
-  "emailbuilder/util/config",
-  "emailbuilder/util/constants"
+  "MAILING_CONSTRUCTOR/util/config",
+  "MAILING_CONSTRUCTOR/util/constants"
 ], (Filter, FilterOperator, Log, Config, Constants) => {
   "use strict";
 
@@ -64,50 +64,66 @@ sap.ui.define([
   }
 
   /**
-   * FIXED: OData read with exponential backoff retry.
-   * Improves resilience to transient network failures.
+   * OData read with exponential backoff retry.
+   *
+   * Improves resilience to transient network failures (only 5xx and
+   * connection drops are retried — see isRetryable).
+   *
+   * @param {sap.ui.core.UIComponent} oComponent owner component
+   * @param {string} sPath entity path or entity set
+   * @param {sap.ui.model.Filter[]} [aFilters] filter array
+   * @param {number} [iTop] $top page size; 0 means "no $top"
+   * @param {object} [mExtraUrlParams] extra $-prefixed URL parameters
+   *   (e.g. { "$search": "vendor" }) merged on top of $top; used by
+   *   callers needing $search (unused in 1.71 binding path)
+   * @returns {Promise<object>} resolves with the raw OData response
    */
-  function readWithRetry(oComponent, sPath, aFilters, iTop, iRetry) {
-    iRetry = iRetry || 0;
-
-    return new Promise((resolve, reject) => {
-      const oModel = getModel(oComponent);
-      if (!oModel) {
-        reject(new Error("OData model not available"));
-        return;
-      }
-
-      const mParams = {
-        success: (oData) => resolve(oData),
-        error: (oError) => {
-          if (iRetry < MAX_RETRIES && isRetryable(oError)) {
-            setTimeout(() => {
-              readWithRetry(oComponent, sPath, aFilters, iTop, iRetry + 1)
-                .then(resolve)
-                .catch(reject);
-            }, DEFAULT_RETRY_WAIT_MS * (iRetry + 1));
-          } else {
-            reject(parseError(oError));
-          }
+  function readWithRetry(oComponent, sPath, aFilters, iTop, mExtraUrlParams) {
+    /**
+     * @param {number} iRetry current retry attempt (0-based, internal)
+     * @private
+     */
+    return function _attempt(iRetry) {
+      iRetry = iRetry || 0;
+      return new Promise((resolve, reject) => {
+        const oModel = getModel(oComponent);
+        if (!oModel) {
+          reject(new Error("OData model not available"));
+          return;
         }
-      };
 
-      if (aFilters && aFilters.length > 0) {
-        mParams.filters = aFilters;
-      }
-      if (iTop !== 0) {
-        const iEffectiveTop = iTop || Constants.PERFORMANCE.DEFAULT_TOP;
-        mParams.urlParameters = {
-          "$top": String(Math.min(iEffectiveTop, Constants.PERFORMANCE.MAX_COLLECTION_SIZE))
+        const mParams = {
+          success: (oData) => resolve(oData),
+          error: (oError) => {
+            if (iRetry < MAX_RETRIES && isRetryable(oError)) {
+              setTimeout(() => {
+                _attempt(iRetry + 1).then(resolve, reject);
+              }, DEFAULT_RETRY_WAIT_MS * (iRetry + 1));
+            } else {
+              reject(parseError(oError));
+            }
+          }
         };
-      }
 
-      try {
-        oModel.read(sPath, mParams);
-      } catch (e) {
-        reject(e);
-      }
-    });
+        if (aFilters && aFilters.length > 0) {
+          mParams.filters = aFilters;
+        }
+        if (iTop !== 0) {
+          const iEffectiveTop = iTop || Constants.PERFORMANCE.DEFAULT_TOP;
+          mParams.urlParameters = Object.assign({
+            "$top": String(Math.min(iEffectiveTop, Constants.PERFORMANCE.MAX_COLLECTION_SIZE))
+          }, mExtraUrlParams || {});
+        } else if (mExtraUrlParams) {
+          mParams.urlParameters = Object.assign({}, mExtraUrlParams);
+        }
+
+        try {
+          oModel.read(sPath, mParams);
+        } catch (e) {
+          reject(e);
+        }
+      });
+    }(0);
   }
 
   function create(oComponent, sPath, oData) {
@@ -130,26 +146,46 @@ sap.ui.define([
 
   /**
    * Normalises an OData v2 error payload into a JS Error.
-   * (The ODataUtils.parseErrorMessage branch was removed — the API does not
-   * exist in 1.71, the branch was dead code.)
+   *
+   * Gateway can answer an error in two wire formats depending on the
+   * Accept header / error contract negotiated by sap.ui.model.odata.v2:
+   *   - JSON:  {"error":{"code":"...","message":{"value":"..."}}}
+   *   - XML:   <error xmlns="..."><message>...</message></error>
+   * Both branches are surfaced as Error messages; the XML branch is parsed
+   * explicitly instead of letting JSON.parse throw and mask the real cause.
    *
    * @param {object} oError OData error object
-   * @returns {Error} normalised error
+   * @returns {Error} normalised error with the backend's message, if any
    * @private
    */
   function parseError(oError) {
     let sMsg = "Request failed";
+    if (!oError) { return new Error(sMsg); }
     try {
-      if (oError && oError.responseText) {
-        const oParsed = JSON.parse(oError.responseText);
-        if (oParsed && oParsed.error && oParsed.error.message
-          && oParsed.error.message.value) {
-          sMsg = oParsed.error.message.value;
+      if (oError.responseText) {
+        const sTrimmed = oError.responseText.trim();
+        // JSON branch: leading "{" or "[" (some gateways wrap error arrays)
+        if (sTrimmed.charAt(0) === "{" || sTrimmed.charAt(0) === "[") {
+          const oParsed = JSON.parse(oError.responseText);
+          if (oParsed && oParsed.error && oParsed.error.message
+            && oParsed.error.message.value) {
+            sMsg = oParsed.error.message.value;
+          }
+        } else if (oError.responseText.indexOf("<error") >= 0
+          || oError.responseText.indexOf("<?xml") === 0) {
+          // XML branch: <error><message>text</message></error>
+          // (DOMParser is the standard, non-regex way to walk XML in 1.71.)
+          const oDoc = new DOMParser().parseFromString(oError.responseText, "application/xml");
+          const oMsg = oDoc.querySelector("message");
+          if (oMsg && oMsg.textContent) {
+            sMsg = oMsg.textContent;
+          }
         }
-      } else if (oError && oError.message) {
-        sMsg = oError.message;
       }
-    } catch (e) { /* keep default */ }
+      if (sMsg === "Request failed" && oError.message) { sMsg = oError.message; }
+    } catch (e) {
+      if (oError.message) { sMsg = oError.message; }
+    }
     return new Error(sMsg);
   }
 
@@ -166,7 +202,6 @@ sap.ui.define([
     const oDeepEntity = {
       LocalId: oPayload.LocalId,
       Subject: oPayload.Subject,
-      Status: bIsTest ? "010" : "020",
       ToRecipients: (oPayload.ToRecipients || []).map((r) => ({
         RecipientId: r.id || r.RecipientId || "",
         Email:       r.email || r.Email || "",
@@ -181,7 +216,7 @@ sap.ui.define([
       }))
     };
 
-    return create(oComponent, "/MailHeaderSet", oDeepEntity).then((oData) => {
+    return create(oComponent, "/" + Constants.ODATA.ENTITY_SETS.MAIL_HEADER, oDeepEntity).then((oData) => {
       const oEntity = extractEntity(oData);
       return {
         localId: oEntity.LocalId || oPayload.LocalId,
@@ -202,7 +237,7 @@ sap.ui.define([
     const aFilters = sMailingId
       ? [new Filter("MailingId", FilterOperator.EQ, sMailingId)]
       : [];
-    return readWithRetry(oComponent, "/MailingStatusSet", aFilters, Constants.PERFORMANCE.DEFAULT_TOP)
+    return readWithRetry(oComponent, "/" + Constants.ODATA.ENTITY_SETS.MAILING_STATUS, aFilters, Constants.PERFORMANCE.DEFAULT_TOP)
       .then(extractResults);
   }
 
@@ -215,7 +250,7 @@ sap.ui.define([
    * @returns {Promise<object>} { Key, LocalID, Subject, Content }
    */
   function getMailingContent(oComponent, sId) {
-    return entityPath(oComponent, "MailContentSet", { Key: sId })
+    return entityPath(oComponent, Constants.ODATA.ENTITY_SETS.MAIL_CONTENT, { Key: sId })
       .then((sPath) => readWithRetry(oComponent, sPath, null, 0))
       .then(extractEntity);
   }
@@ -237,20 +272,9 @@ sap.ui.define([
       }))
       .catch((err) => {
         const sMsg = `Unable to load mailing ${sId}`;
-        Log.error("[emailbuilder] " + sMsg);
+        Log.error("[MAILING_CONSTRUCTOR] " + sMsg);
         return Promise.reject(new Error(sMsg));
       });
-  }
-
-  /**
-   * Returns the allowed hosts list.
-   *
-   * @param {sap.ui.core.UIComponent} oComponent owner component
-   * @returns {Promise<Array>} allowed host entries
-   */
-  function getAllowedHosts(oComponent) {
-    return readWithRetry(oComponent, "/AllowedHostSet", null, Constants.PERFORMANCE.DEFAULT_TOP)
-      .then(extractResults);
   }
 
   /**
@@ -264,17 +288,42 @@ sap.ui.define([
    * @returns {Promise<{MaxRecipients:number, SubjectMaxLen:number, ChunkSize:number}>}
    */
   function getMailingConfig(oComponent) {
-    return entityPath(oComponent, "MailingConfigSet", { Key: "1" })
+    return entityPath(oComponent, Constants.ODATA.ENTITY_SETS.MAILING_CONFIG, { Key: "1" })
       .then((sPath) => readWithRetry(oComponent, sPath, null, 0))
       .then(extractEntity);
   }
 
+  /**
+   * Reads the full mailing history (MailHistorySet list).
+   *
+   * @param {sap.ui.core.UIComponent} oComponent owner component
+   * @returns {Promise<Array>} mailing history entries
+   */
+  function getMailHistory(oComponent) {
+    return readWithRetry(oComponent, "/" + Constants.ODATA.ENTITY_SETS.MAIL_HISTORY, null, Constants.PERFORMANCE.DEFAULT_TOP)
+      .then(extractResults);
+  }
+
+  /**
+   * Loads the service dictionary — all lookup tables (statuses, news types,
+   * allowed hosts) in one round-trip. Frontend stores the result in a
+   * JSONModel "dict" and formatter.js / SFB value-help read from it.
+   *
+   * @param {sap.ui.core.UIComponent} oComponent owner component
+   * @returns {Promise<Array>} all dictionary entries
+   */
+  function getServiceDict(oComponent) {
+    return readWithRetry(oComponent, "/" + Constants.ODATA.ENTITY_SETS.SERVICE_DICT, null, 0)
+      .then(extractResults);
+  }
+
   return {
     sendMailing: sendMailing,
+    getMailHistory: getMailHistory,
     getMailingStatus: getMailingStatus,
     getMailingContent: getMailingContent,
     copyMailing: copyMailing,
-    getAllowedHosts: getAllowedHosts,
-    getMailingConfig: getMailingConfig
+    getMailingConfig: getMailingConfig,
+    getServiceDict: getServiceDict
   };
 });

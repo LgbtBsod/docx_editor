@@ -1,17 +1,17 @@
 sap.ui.define([
   "sap/base/Log",
-  "emailbuilder/util/constants"
+  "MAILING_CONSTRUCTOR/util/constants"
 ], (Log, Constants) => {
   "use strict";
 
-  // v2: recipients are no longer persisted (see save()) — bumped so any
-  // draft saved under v1 (which may carry recipient PII in localStorage)
-  // is discarded by isValidDraft() on next load instead of lingering.
-  const SCHEMA_VERSION = 2;
+  // v3: attachments no longer persist their `base64` content alongside
+  // metadata — see save(). v2 drafts (which may carry large base64 blobs)
+  // are discarded by isValidDraft() on next load instead of migrated;
+  // attachments get re-added from disk on resume.
+  const SCHEMA_VERSION = 3;
 
   /**
    * Генерирует уникальный ключ для draft, изолированный по пользователю.
-   * FIXED: Защита от утечки данных между пользователями при multi-user сценарии.
    * @param {string} [sUserId] опциональный userId
    * @returns {string} storage key
    * @private
@@ -62,7 +62,7 @@ sap.ui.define([
       const sKey = getStorageKey(sUserId);
       return localStorage.getItem(sKey);
     } catch (e) {
-      Log.warning("[emailbuilder] localStorage.getItem failed: " + e.message);
+      Log.warning("[MAILING_CONSTRUCTOR] localStorage.getItem failed: " + e.message);
       return null;
     }
   }
@@ -80,13 +80,13 @@ sap.ui.define([
     try {
       const oDraft = JSON.parse(sRaw);
       if (!isValidDraft(oDraft)) {
-        Log.warning("[emailbuilder] Draft schema mismatch; discarding.");
+        Log.warning("[MAILING_CONSTRUCTOR] Draft schema mismatch; discarding.");
         try { localStorage.removeItem(getStorageKey(sUserId)); } catch (e) { /* ignore */ }
         return null;
       }
       return oDraft;
     } catch (e) {
-      Log.warning("[emailbuilder] Failed to parse draft: " + e.message);
+      Log.warning("[MAILING_CONSTRUCTOR] Failed to parse draft: " + e.message);
       try { localStorage.removeItem(getStorageKey(sUserId)); } catch (e2) { /* ignore */ }
       return null;
     }
@@ -96,10 +96,11 @@ sap.ui.define([
    * Persists the given draft object to localStorage.
    *
    * Recipients are deliberately NOT persisted: they're personal data (names/
-   * emails), and localStorage is unencrypted, machine-wide, and outlives the
-   * session — a draft is meant to restore the compose work, not double as a
-   * store of who a mailing was about to go to. Callers that still pass
-   * oDraft.recipients have it silently dropped here, not just left unread.
+   * emails) and localStorage is unencrypted/machine-wide.
+   *
+   * Attachment `base64` payload is stripped — only metadata (id/name/size/
+   * mimeType) needed to render the chip survives; the user re-adds the
+   * actual file on resume.
    *
    * @param {object} oDraft draft payload
    * @param {string} [sUserId] user ID for key isolation
@@ -114,7 +115,16 @@ sap.ui.define([
       localId:     oDraft.localId || "",
       subject:     oDraft.subject || "",
       content:     oDraft.content || "",
-      attachments: Array.isArray(oDraft.attachments) ? oDraft.attachments : [],
+      // Strip `base64` — only metadata the chip needs survives; the file
+      // is re-added from disk on resume.
+      attachments: (Array.isArray(oDraft.attachments) ? oDraft.attachments : []).map((a) => ({
+        id:       a.id,
+        name:     a.name,
+        size:     a.size,
+        sizeStr:  a.sizeStr,
+        mimeType: a.mimeType
+        // NO base64 — too large for localStorage.
+      })),
       sources:     Array.isArray(oDraft.sources) ? oDraft.sources : [],
       newsItems:   Array.isArray(oDraft.newsItems) ? oDraft.newsItems : [],
       savedAt:     new Date().toISOString()
@@ -125,18 +135,18 @@ sap.ui.define([
       localStorage.setItem(sKey, JSON.stringify(oData));
     } catch (e) {
       if (e.name === "QuotaExceededError" || e.name === "NS_ERROR_DOM_QUOTA_REACHED") {
-        Log.warning("[emailbuilder] localStorage quota exceeded");
+        Log.warning("[MAILING_CONSTRUCTOR] localStorage quota exceeded");
         try {
           const sKey = getStorageKey(sUserId);
           localStorage.removeItem(sKey);
           localStorage.setItem(sKey, JSON.stringify(oData));
-          Log.info("[emailbuilder] Draft saved after cleanup");
+          Log.info("[MAILING_CONSTRUCTOR] Draft saved after cleanup");
         } catch (e2) {
-          Log.error("[emailbuilder] Failed to save draft: " + e2.message);
+          Log.error("[MAILING_CONSTRUCTOR] Failed to save draft: " + e2.message);
           throw new Error("Draft storage unavailable");
         }
       } else {
-        Log.error("[emailbuilder] Failed to save draft: " + e.message);
+        Log.error("[MAILING_CONSTRUCTOR] Failed to save draft: " + e.message);
         throw e;
       }
     }
@@ -153,7 +163,7 @@ sap.ui.define([
       const sKey = getStorageKey(sUserId);
       localStorage.removeItem(sKey);
     } catch (e) {
-      Log.warning("[emailbuilder] Failed to clear draft: " + e.message);
+      Log.warning("[MAILING_CONSTRUCTOR] Failed to clear draft: " + e.message);
     }
   }
 

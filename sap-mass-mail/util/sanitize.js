@@ -1,6 +1,6 @@
 sap.ui.define([
   "sap/base/Log",
-  "emailbuilder/util/constants"
+  "MAILING_CONSTRUCTOR/util/constants"
 ], (Log, Constants) => {
   "use strict";
 
@@ -54,8 +54,7 @@ sap.ui.define([
 
   /**
    * Registers the single global DOMPurify hook that hardens links and images
-   * on the DOM level (replaces the former regex-based post-processing, which
-   * produced malformed markup and destroyed data: images).
+   * on the DOM level.
    *
    * @private
    */
@@ -64,17 +63,13 @@ sap.ui.define([
     bHooksRegistered = true;
 
     window.DOMPurify.addHook("afterSanitizeAttributes", (node) => {
-      // ALLOWED_ATTR permits the style attribute (needed for docx/pdf
-      // import to keep direct formatting — color, alignment, borders), but
-      // DOMPurify does not parse CSS values: a raw url(...) inside it
-      // (background-image, cursor, list-style-image) is an unattributable
-      // network request the moment the HTML renders. Same allow/host rules
-      // as <img src> below — a data: URI is always fine, an absolute
-      // http(s) URL only survives when its host is on the allowlist. This
-      // runs unconditionally (not gated on oHookContext.harden) because
-      // isHostAllowed() already fails closed on the empty host list
-      // forImport passes, so import keeps stripping everything while
-      // forEmail keeps only allowlisted hosts — no separate branch needed.
+      // ALLOWED_ATTR permits `style` (needed for docx/pdf import to keep
+      // direct formatting), but DOMPurify does not parse CSS values: a raw
+      // url(...) inside it is an unattributable network request the moment
+      // the HTML renders. Strip to "none" if the host isn't allowlisted;
+      // data: URIs are always fine. Runs unconditionally — isHostAllowed()
+      // fails closed on the empty host list forImport passes, so import
+      // strips everything while forEmail keeps only allowlisted hosts.
       if (node.getAttribute && node.hasAttribute("style")) {
         const sStyle = node.getAttribute("style") || "";
         if (/url\s*\(/i.test(sStyle)) {
@@ -135,7 +130,7 @@ sap.ui.define([
    */
   function sanitizeWithDomPurify(sHtml, oContext) {
     if (!hasDomPurify()) {
-      Log.error("[emailbuilder] DOMPurify not available; refusing to render untrusted HTML.");
+      Log.error("[MAILING_CONSTRUCTOR] DOMPurify not available; refusing to render untrusted HTML.");
       return "";
     }
     registerHooks();
@@ -143,7 +138,7 @@ sap.ui.define([
     try {
       return window.DOMPurify.sanitize(sHtml, buildBaseConfig());
     } catch (e) {
-      Log.error("[emailbuilder] DOMPurify sanitize failed: " + e.message);
+      Log.error("[MAILING_CONSTRUCTOR] DOMPurify sanitize failed: " + e.message);
       return "";
     } finally {
       oHookContext = null;
@@ -176,7 +171,19 @@ sap.ui.define([
     forImport: forImport,
     forEmail: forEmail,
     isHostAllowed: isHostAllowed,
-    isAllowedProtocol: isAllowedProtocol
+    isAllowedProtocol: isAllowedProtocol,
+
+    /**
+     * Removes the global DOMPurify afterSanitizeAttributes hook.
+     * Called from Component#destroy to leave no global side effects
+     * after the application unloads.
+     */
+    removeHooks() {
+      if (bHooksRegistered && typeof window.DOMPurify !== "undefined") {
+        try { window.DOMPurify.removeHook("afterSanitizeAttributes"); } catch (e) { /* ignore */ }
+        bHooksRegistered = false;
+      }
+    }
   };
 });
 

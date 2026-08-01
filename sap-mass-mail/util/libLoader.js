@@ -32,7 +32,7 @@ sap.ui.define([
         };
         oScript.onerror = () => {
           delete mPending[sUrl]; // allow retry on next use
-          Log.error("[emailbuilder] Failed to load library: " + sUrl);
+          Log.error("[MAILING_CONSTRUCTOR] Failed to load library: " + sUrl);
           reject(new Error("Failed to load " + sUrl));
         };
         document.head.appendChild(oScript);

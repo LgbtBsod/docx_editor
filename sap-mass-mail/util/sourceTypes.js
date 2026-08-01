@@ -1,8 +1,15 @@
 sap.ui.define([
-  "emailbuilder/util/fileTypes",
-  "emailbuilder/util/sourceBlock"
-], (FileTypes, SourceBlock) => {
+  "MAILING_CONSTRUCTOR/util/fileTypes",
+  "MAILING_CONSTRUCTOR/util/sourceBlock",
+  "MAILING_CONSTRUCTOR/util/constants"
+], (FileTypes, SourceBlock, Constants) => {
   "use strict";
+
+  // Local alias — news entries use the brand primary, file-type fallback
+  // (unknown extension) uses secondary text. Per-type colors still come
+  // from the fileTypes registry SSOT (success/warning/error shades are
+  // type semantics, not brand colors).
+  const COLORS = Constants.COLORS;
 
   /**
    * Presentation helpers for source list entries.
@@ -17,9 +24,9 @@ sap.ui.define([
     },
 
     color(sType, sExt) {
-      if (sType === SourceBlock.TYPE.NEWS) { return "#0070f2"; }
+      if (sType === SourceBlock.TYPE.NEWS) { return COLORS.PRIMARY; }
       const oType = FileTypes.get(sExt);
-      return oType ? oType.color : "#5b738b";
+      return oType ? oType.color : COLORS.SECONDARY;
     }
   };
 });

@@ -1,35 +1,49 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <edmx:Edmx xmlns:edmx="http://schemas.microsoft.com/ado/2007/06/edmx" Version="1.0">
   <edmx:DataServices xmlns:m="http://schemas.microsoft.com/ado/2008/dataservices/metadata" m:DataServiceVersion="2.0">
-    <Schema xmlns="http://schemas.microsoft.com/ado/2008/09/edm" Namespace="eb">
+    <Schema xmlns="http://schemas.microsoft.com/ado/2008/09/edm" xmlns:sap="http://www.sap.com/Protocols/SAPData" Namespace="eb">
 
       <EntityType Name="Recipient">
         <Key><PropertyRef Name="RecipientId"/></Key>
-        <Property Name="RecipientId" Type="Edm.String" Nullable="false" MaxLength="40"/>
-        <Property Name="FullName"    Type="Edm.String" MaxLength="255"/>
-        <Property Name="Email"       Type="Edm.String" MaxLength="241"/>
-        <Property Name="Role"        Type="Edm.String" MaxLength="100"/>
-        <Property Name="AuthObject"  Type="Edm.String" MaxLength="100"/>
-        <Property Name="FieldName"   Type="Edm.String" MaxLength="100"/>
+        <Property Name="RecipientId" Type="Edm.String" Nullable="false" MaxLength="40" sap:filterable="false" sap:visible="false"/>
+        <Property Name="FullName"    Type="Edm.String" MaxLength="255" sap:label="ФИО" sap:filterable="true" sap:quickinfo="Полное имя получателя"/>
+        <Property Name="Email"       Type="Edm.String" MaxLength="241" sap:label="Email" sap:filterable="true"/>
+        <Property Name="Role"        Type="Edm.String" MaxLength="100" sap:label="Роль" sap:filterable="true"/>
+        <Property Name="AuthObject"  Type="Edm.String" MaxLength="100" sap:label="Объект полномочий" sap:filterable="true"/>
+        <Property Name="FieldName"   Type="Edm.String" MaxLength="100" sap:label="Поле" sap:filterable="true"/>
       </EntityType>
 
-      <!-- IsChange/ChangeNumber/InitiatorName/InitiatorOrg: same News entity,
+      <!-- Grouped-by-user view of recipients. One row per unique email.
+           Roles: comma-joined roles from all auth-object rows.
+           AuthCount: how many auth-object value rows the user has.
+           On ABAP side this is a CDS with GROUP BY uname/email.
+           Used for search by ФИО/role/email where duplicate rows per user
+           would make the result unusable (one user can have thousands of
+           auth-object value rows). -->
+      <EntityType Name="RecipientUser">
+        <Key><PropertyRef Name="Email"/></Key>
+        <Property Name="Email"     Type="Edm.String" Nullable="false" MaxLength="241" sap:label="Email" sap:filterable="true"/>
+        <Property Name="FullName"  Type="Edm.String" MaxLength="255" sap:label="ФИО" sap:filterable="true"/>
+        <Property Name="Roles"     Type="Edm.String" MaxLength="1000" sap:label="Роли" sap:filterable="true"/>
+        <Property Name="AuthCount" Type="Edm.Int32" sap:label="Полномочий"/>
+      </EntityType>
+
            reused for CHG-style change announcements (see ZCDS_News). All four
            are plain strings sourced straight from the existing news table —
-           no new backend lookup, just projected columns. IsChange is the
            filter switch ("change = X") the client's news search toggle sends;
            everything else about News (search, add-as-source) is unchanged. -->
       <EntityType Name="News">
         <Key><PropertyRef Name="NewID"/></Key>
-        <Property Name="NewID"          Type="Edm.String" Nullable="false" MaxLength="32"/>
-        <Property Name="Title"          Type="Edm.String" MaxLength="200"/>
-        <Property Name="Year"           Type="Edm.Int32"/>
-        <Property Name="Quarter"        Type="Edm.Int32"/>
-        <Property Name="Area"           Type="Edm.String" MaxLength="60"/>
-        <Property Name="Content"        Type="Edm.String"/>
-        <Property Name="IsChange"       Type="Edm.String" MaxLength="1"/>
-        <Property Name="ChangeNumber"   Type="Edm.String" MaxLength="20"/>
-        <Property Name="InitiatorName"  Type="Edm.String" MaxLength="120"/>
+        <Property Name="NewID"          Type="Edm.String" Nullable="false" MaxLength="32" sap:filterable="false" sap:visible="false"/>
+        <Property Name="Title"          Type="Edm.String" MaxLength="200" sap:label="Заголовок" sap:filterable="true"/>
+        <Property Name="Year"           Type="Edm.Int32" sap:label="Год" sap:filterable="true"/>
+        <Property Name="Quarter"        Type="Edm.Int32" sap:label="Квартал" sap:filterable="true"/>
+        <Property Name="Area"           Type="Edm.String" MaxLength="60" sap:label="Область" sap:filterable="true"/>
+        <Property Name="Content"        Type="Edm.String" sap:filterable="false" sap:visible="false"/>
+        <Property Name="NewsType"       Type="Edm.String" MaxLength="4" sap:label="Тип новости" sap:filterable="true" sap:text="NewsTypeText"/>
+        <Property Name="NewsTypeText"   Type="Edm.String" MaxLength="40" sap:label="Тип новости (текст)" sap:filterable="false" sap:creatable="false" sap:updatable="false"/>
+        <Property Name="ChangeNumber"   Type="Edm.String" MaxLength="20" sap:label="№ изменения" sap:filterable="true"/>
+        <Property Name="InitiatorName"  Type="Edm.String" MaxLength="120" sap:label="Инициатор" sap:filterable="true"/>
         <Property Name="InitiatorOrg"   Type="Edm.String" MaxLength="200"/>
       </EntityType>
 
@@ -63,15 +77,15 @@
       <!-- Content (LOB) removed from the list entity — served by MailContent on key access -->
       <EntityType Name="MailHistory">
         <Key><PropertyRef Name="Key"/></Key>
-        <Property Name="Key"         Type="Edm.String" Nullable="false" MaxLength="32"/>
-        <Property Name="LocalID"     Type="Edm.String" MaxLength="40"/>
-        <Property Name="Subject"     Type="Edm.String" MaxLength="255"/>
-        <Property Name="Status"      Type="Edm.String" MaxLength="3"/>
-        <Property Name="CreatedAt"   Type="Edm.DateTime"/>
-        <Property Name="CreatedBy"   Type="Edm.String" MaxLength="12"/>
-        <Property Name="TotalCount"  Type="Edm.Int32"/>
-        <Property Name="SentCount"   Type="Edm.Int32"/>
-        <Property Name="ErrorCount"  Type="Edm.Int32"/>
+        <Property Name="Key"         Type="Edm.String" Nullable="false" MaxLength="32" sap:filterable="false" sap:visible="false"/>
+        <Property Name="LocalID"     Type="Edm.String" MaxLength="40" sap:filterable="true" sap:label="Local ID"/>
+        <Property Name="Subject"     Type="Edm.String" MaxLength="255" sap:filterable="true" sap:label="Тема"/>
+        <Property Name="Status"      Type="Edm.String" MaxLength="3" sap:filterable="true" sap:label="Статус"/>
+        <Property Name="CreatedAt"   Type="Edm.DateTime" sap:filterable="true" sap:label="Дата создания"/>
+        <Property Name="CreatedBy"   Type="Edm.String" MaxLength="12" sap:filterable="true" sap:label="Отправитель"/>
+        <Property Name="TotalCount"  Type="Edm.Int32" sap:filterable="false" sap:label="Всего"/>
+        <Property Name="SentCount"   Type="Edm.Int32" sap:filterable="false" sap:label="Отправлено"/>
+        <Property Name="ErrorCount"  Type="Edm.Int32" sap:filterable="false" sap:label="Ошибок"/>
       </EntityType>
 
       <EntityType Name="MailContent">
@@ -108,6 +122,23 @@
         <Property Name="ChunkSize"      Type="Edm.Int32"/>
       </EntityType>
 
+      <!-- Service dictionary: all lookup tables (statuses, news types,
+           allowed hosts) in one entity set. Frontend loads once at init,
+           stores in JSONModel "dict". -->
+      <EntityType Name="ServiceDict">
+        <Key>
+          <PropertyRef Name="DictType"/>
+          <PropertyRef Name="DictKey"/>
+        </Key>
+        <Property Name="DictType"  Type="Edm.String" Nullable="false" MaxLength="20" sap:filterable="true" sap:label="Тип справочника"/>
+        <Property Name="DictKey"   Type="Edm.String" Nullable="false" MaxLength="40" sap:filterable="true" sap:label="Код"/>
+        <Property Name="DictText"  Type="Edm.String" MaxLength="200"  sap:label="Текст"/>
+        <Property Name="UiState"   Type="Edm.String" MaxLength="10"/>
+        <Property Name="UiIcon"    Type="Edm.String" MaxLength="60"/>
+        <Property Name="CssClass"  Type="Edm.String" MaxLength="30"/>
+        <Property Name="SortOrder" Type="Edm.Int16"/>
+      </EntityType>
+
       <Association Name="MailHeader_Recipients">
         <End Type="eb.MailHeader"   Role="MailHeader"   Multiplicity="1"/>
         <End Type="eb.Recipient"    Role="Recipient"    Multiplicity="*"/>
@@ -123,6 +154,7 @@
 
       <EntityContainer Name="eb" m:IsDefaultEntityContainer="true">
         <EntitySet Name="RecipientSet"       EntityType="eb.Recipient"/>
+        <EntitySet Name="RecipientUserSet"    EntityType="eb.RecipientUser"/>
         <EntitySet Name="NewsSet"            EntityType="eb.News"/>
         <EntitySet Name="MailHeaderSet"      EntityType="eb.MailHeader"/>
         <EntitySet Name="TextSet"            EntityType="eb.Text"/>
@@ -132,6 +164,7 @@
         <EntitySet Name="MailingStatusSet"   EntityType="eb.MailingStatus"/>
         <EntitySet Name="AllowedHostSet"     EntityType="eb.AllowedHost"/>
         <EntitySet Name="MailingConfigSet"   EntityType="eb.MailingConfig"/>
+        <EntitySet Name="ServiceDictSet"     EntityType="eb.ServiceDict"/>
         <AssociationSet Name="MailHeader_Recipients_Set"  Association="eb.MailHeader_Recipients">
           <End EntitySet="MailHeaderSet" Role="MailHeader"/>
           <End EntitySet="RecipientSet"  Role="Recipient"/>

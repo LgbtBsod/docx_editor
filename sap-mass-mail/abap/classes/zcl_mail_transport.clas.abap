@@ -8,6 +8,11 @@ CLASS zcl_mail_transport DEFINITION
       tt_recipient_node  TYPE STANDARD TABLE OF /bobf/if_znewsletter_bo_c=>sc_node_data-receivers WITH EMPTY KEY,
       tt_attachment_node TYPE STANDARD TABLE OF /bobf/if_znewsletter_bo_c=>sc_node_data-attachment_folder WITH EMPTY KEY,
 
+      " List of attachment file names build_document had to skip (corrupted
+      " Base64, unsupported codepage), handed back to the caller for SBAL
+      " logging. CHAR(255) matches the attachment_folder node's file_name.
+      tt_attachment_name TYPE STANDARD TABLE OF c LENGTH 255 WITH EMPTY KEY,
+
       BEGIN OF ty_recipient_result,
         key   TYPE /bobf/conf_key,
         email TYPE ad_smtpadr,
@@ -28,11 +33,15 @@ CLASS zcl_mail_transport DEFINITION
         items      TYPE tt_recipient_result,
       END OF ty_send_result.
 
+    " Statement-form signature (with et_skipped EXPORTING) so the caller
+    " can receive both the built document and the list of attachment names
+    " dropped inside the CATCH.
     CLASS-METHODS build_document
       IMPORTING iv_subject     TYPE c LENGTH 255
                 iv_content     TYPE string
                 it_attachments TYPE tt_attachment_node
-      RETURNING VALUE(ro_doc) TYPE REF TO cl_document_bcs
+      EXPORTING eo_document    TYPE REF TO cl_document_bcs
+                et_skipped     TYPE tt_attachment_name
       RAISING   cx_bcs.
 
     CLASS-METHODS send_chunk_with_retry
@@ -66,21 +75,29 @@ ENDCLASS.
 CLASS zcl_mail_transport IMPLEMENTATION.
 
   METHOD build_document.
+    " Per-attachment CATCH APPENDs the dropped attachment's file_name to
+    " et_skipped, which zcl_mail_dispatcher=>send_all feeds to
+    " log_skipped_attachments so each drop surfaces as a warning SBAL entry.
+    " The text body still goes out either way — a single bad attachment
+    " must not abort the entire mailing send.
     DATA(lt_body) = cl_bcs_convert=>string_to_soli( iv_string = iv_content ).
 
-    ro_doc = cl_document_bcs=>create_document(
+    eo_document = cl_document_bcs=>create_document(
                iv_type    = zcl_newsletter_constants=>document-html_type
                iv_text    = lt_body
                iv_subject = CONV so_obj_des( iv_subject ) ).
 
     LOOP AT it_attachments ASSIGNING FIELD-SYMBOL(<att>).
       TRY.
-          ro_doc->add_attachment(
+          eo_document->add_attachment(
             iv_attachment_name    = <att>-file_name
             iv_attachment_type    = <att>-mime_type
             iv_attachment_content = cl_http_utility=>if_http_utility~decode_x_base64( <att>-content_base64 ) ).
-        CATCH cx_root.
-          " Один битый Base64-аттач не должен ронять отправку всей рассылки — текст всё равно уходит.
+        CATCH cx_bcs cx_sy_conv_codepage cx_sy_conversion_no_codepage.
+          " Surface this drop instead of swallowing it. The narrowed
+          " exception list (the three cl_bcs_convert/decode can realistically
+          " raise) stays.
+          APPEND <att>-file_name TO et_skipped.
       ENDTRY.
     ENDLOOP.
   ENDMETHOD.

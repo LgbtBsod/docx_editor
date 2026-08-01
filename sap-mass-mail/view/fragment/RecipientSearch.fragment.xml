@@ -1,15 +1,15 @@
 <core:FragmentDefinition
   xmlns="sap.m"
-  xmlns:core="sap.ui.core"
+  xmlns:u="sap.ui.unified"
+  xmlns:comp="sap.ui.comp.smartfilterbar"
   xmlns:f="sap.f"
-  xmlns:layout="sap.ui.layout"
-  xmlns:search="emailbuilder.control">
+  xmlns:core="sap.ui.core">
 
   <Dialog
     id="recipientDialog"
     title="{i18n>DIALOG_RECIPIENTS}"
-    contentWidth="720px"
-    contentHeight="560px"
+    contentWidth="780px"
+    contentHeight="580px"
     resizable="true"
     draggable="true"
     class="ebDialog ebRecipientDialog">
@@ -25,107 +25,130 @@
           <items>
             <IconTabFilter icon="sap-icon://accept" text="{i18n>TAB_ADDED}" key="added"
               count="{= ${state>/recipients}.length || '' }" />
-            <IconTabFilter icon="sap-icon://person" text="{i18n>TAB_BY_NAME}" key="name">
-              <layout:Grid defaultSpan="L9 M9 S12" containerQuery="false" width="100%" class="sapUiSmallMarginBottom">
-                <search:SearchField label="{i18n>COL_NAME}">
-                  <search:layoutData>
-                    <layout:GridData span="L9 M9 S12" />
-                  </search:layoutData>
-                  <Input
-                    id="nameSearchInput"
-                    placeholder="{i18n>SEARCH_NAME}"
-                    value="{dialog>/nameSearchValue}"
-                    submit="onSearchRecipients" />
-                </search:SearchField>
-                <search:SearchField>
-                  <search:layoutData>
-                    <layout:GridData span="L3 M3 S12" />
-                  </search:layoutData>
-                  <Button
-                    icon="sap-icon://search"
-                    press="onSearchRecipients"
-                    type="Emphasized"
-                    width="100%"
-                    tooltip="{i18n>DIALOG_RECIPIENTS}" />
-                </search:SearchField>
-              </layout:Grid>
+
+            <IconTabFilter icon="sap-icon://search" text="{i18n>TAB_SEARCH}" key="search">
+              <VBox>
+                <!-- Toggle: detailed (by auth object) vs grouped (by user) -->
+                <SegmentedButton id="recipientModeToggle" selectedKey="grouped" select="onRecipientModeChange"
+                  class="sapUiSmallMarginBottom">
+                  <items>
+                    <SegmentedButtonItem key="grouped" icon="sap-icon://person-placeholder"
+                      text="{i18n>RECIP_MODE_GROUPED}" />
+                    <SegmentedButtonItem key="detailed" icon="sap-icon://detail-view"
+                      text="{i18n>RECIP_MODE_DETAILED}" />
+                  </items>
+                </SegmentedButton>
+
+                <!-- SmartFilterBar for both modes.
+                     property was added in 1.84+ and silently ignored here).
+                     Detailed (по полномочиям): Role, AuthObject, FieldName only —
+                     FullName/Email hidden (search is by auth-object structure, not person).
+                     Grouped (by users): FullName, Email, Role — AuthObject/FieldName hidden.
+                     Visibility toggled by _applyRecipientSFBVisibility in DialogMixin. -->
+                <comp:SmartFilterBar
+                  id="recipientSFB"
+                  entitySet="RecipientSet"
+                  liveMode="false"
+                  showGoOnFB="true"
+                  showClearOnFB="true"
+                  useToolbar="false"
+                  search="onSmartFilterSearch"
+                  clear="onSmartFilterSearch">
+                  <comp:controlConfiguration>
+                    <comp:ControlConfiguration
+                      key="RecipientId"
+                      visibleInAdvancedArea="false" />
+                    <comp:ControlConfiguration
+                      id="fullNameControlCfg"
+                      key="FullName"
+                      index="0"
+                      visibleInAdvancedArea="true" />
+                    <comp:ControlConfiguration
+                      id="emailControlCfg"
+                      key="Email"
+                      index="1"
+                      visibleInAdvancedArea="true" />
+                    <comp:ControlConfiguration
+                      id="roleControlCfg"
+                      key="Role"
+                      index="2"
+                      visibleInAdvancedArea="true" />
+                    <comp:ControlConfiguration
+                      id="authObjControlCfg"
+                      key="AuthObject"
+                      index="3"
+                      visibleInAdvancedArea="true" />
+                    <comp:ControlConfiguration
+                      id="fieldNameControlCfg"
+                      key="FieldName"
+                      index="4"
+                      visibleInAdvancedArea="true" />
+                  </comp:controlConfiguration>
+                </comp:SmartFilterBar>
+              </VBox>
             </IconTabFilter>
-            <IconTabFilter icon="sap-icon://role" text="{i18n>TAB_BY_ROLE}" key="role">
-              <layout:Grid defaultSpan="L9 M9 S12" containerQuery="false" width="100%" class="sapUiSmallMarginBottom">
-                <search:SearchField label="{i18n>COL_ROLE}">
-                  <search:layoutData>
-                    <layout:GridData span="L9 M9 S12" />
-                  </search:layoutData>
-                  <Input
-                    id="roleSearchInput"
-                    placeholder="{i18n>SEARCH_ROLE}"
-                    value="{dialog>/roleSearchValue}"
-                    submit="onSearchRecipients" />
-                </search:SearchField>
-                <search:SearchField>
-                  <search:layoutData>
-                    <layout:GridData span="L3 M3 S12" />
-                  </search:layoutData>
+
+            <IconTabFilter icon="sap-icon://csv" text="{i18n>TAB_CSV_UPLOAD}" key="csv">
+              <VBox class="sapUiSmallMarginBegin sapUiSmallMarginEnd">
+                <HBox alignItems="Center" justifyContent="SpaceBetween" wrap="Wrap" class="sapUiSmallMarginBottom">
+                  <VBox>
+                    <Text text="{i18n>CSV_UPLOAD_DESCRIPTION}" class="sapUiSmallMarginBottom" />
+                    <Text text="{i18n>CSV_UPLOAD_FORMAT_HINT}" class="sapUiTinyMarginBottom" />
+                  </VBox>
+                </HBox>
+                <HBox alignItems="Center" wrap="Wrap" class="sapUiMediumMarginBottom">
                   <Button
-                    icon="sap-icon://search"
-                    press="onSearchRecipients"
+                    id="csvDownloadTemplateBtn"
+                    icon="sap-icon://download"
+                    text="{i18n>CSV_DOWNLOAD_TEMPLATE}"
+                    press="onDownloadCsvTemplate"
                     type="Emphasized"
-                    width="100%"
-                    tooltip="{i18n>DIALOG_RECIPIENTS}" />
-                </search:SearchField>
-              </layout:Grid>
-            </IconTabFilter>
-            <IconTabFilter icon="sap-icon://key" text="{i18n>TAB_BY_AUTH}" key="authField">
-              <layout:Grid defaultSpan="L3 M6 S12" containerQuery="false" width="100%" class="sapUiSmallMarginBottom">
-                <search:SearchField label="{i18n>SEARCH_AUTH_OBJ}">
-                  <search:layoutData>
-                    <layout:GridData span="L3 M6 S12" />
-                  </search:layoutData>
-                  <Input
-                    id="authObjInput"
-                    placeholder="{i18n>SEARCH_AUTH_OBJ}"
-                    value="{dialog>/authObject}"
-                    submit="onSearchRecipients" />
-                </search:SearchField>
-                <search:SearchField label="{i18n>SEARCH_AUTH_FIELD}">
-                  <search:layoutData>
-                    <layout:GridData span="L3 M6 S12" />
-                  </search:layoutData>
-                  <Input
-                    id="authFieldInput"
-                    placeholder="{i18n>SEARCH_AUTH_FIELD}"
-                    value="{dialog>/authField}"
-                    submit="onSearchRecipients" />
-                </search:SearchField>
-                <search:SearchField label="{i18n>SEARCH_AUTH_VALUE}">
-                  <search:layoutData>
-                    <layout:GridData span="L3 M6 S12" />
-                  </search:layoutData>
-                  <Input
-                    id="authValueInput"
-                    placeholder="{i18n>SEARCH_AUTH_VALUE}"
-                    value="{dialog>/authValue}"
-                    submit="onSearchRecipients" />
-                </search:SearchField>
-                <search:SearchField>
-                  <search:layoutData>
-                    <layout:GridData span="L3 M12 S12" />
-                  </search:layoutData>
-                  <Button
-                    icon="sap-icon://search"
-                    press="onSearchRecipients"
-                    type="Emphasized"
-                    width="100%"
-                    tooltip="{i18n>DIALOG_RECIPIENTS}" />
-                </search:SearchField>
-              </layout:Grid>
+                    class="sapUiSmallMarginEnd" />
+                  <u:FileUploader
+                    id="csvFileUploader"
+                    buttonText="{i18n>CSV_UPLOAD_FILE}"
+                    icon="sap-icon://upload"
+                    fileType="csv"
+                    sameFilenameAllowed="true"
+                    change="onCsvFileChange"
+                    maximumFileSize="5"
+                    class="sapUiSmallMarginBegin" />
+                </HBox>
+                <VBox id="csvPreviewBox" visible="{= !!${dialog>/csvPreviewCount} }" class="sapUiSmallMarginTop">
+                  <HBox alignItems="Center" justifyContent="SpaceBetween">
+                    <Text text="{i18n>CSV_PREVIEW_TITLE}" />
+                    <Text text="{= ${dialog>/csvPreviewCount} + ' ' + ${i18n>CSV_EMAILS_FOUND} }" />
+                  </HBox>
+                  <!-- 1.71 LTS: sap.m.List has no `height` property; wrap in
+                       ScrollContainer to constrain the preview height. -->
+                  <ScrollContainer
+                    height="250px"
+                    vertical="true"
+                    horizontal="false"
+                    class="ebDialogTable">
+                    <List
+                      id="csvPreviewList"
+                      items="{dialog>/csvPreview}"
+                      growing="true"
+                      growingThreshold="50"
+                      growingScrollToLoad="true"
+                      inset="false"
+                      noDataText="{i18n>CSV_NO_EMAILS}">
+                      <items>
+                        <StandardListItem title="{dialog>email}" />
+                      </items>
+                    </List>
+                  </ScrollContainer>
+                </VBox>
+              </VBox>
             </IconTabFilter>
           </items>
         </IconTabBar>
 
+        <!-- === Detailed table: one row per auth-object value === -->
         <Table
           id="recipientTable"
-          visible="{= ${dialog>/selectedMode} !== 'added' }"
+          visible="{= ${dialog>/selectedMode} !== 'added' &amp;&amp; ${dialog>/selectedMode} !== 'csv' &amp;&amp; ${dialog>/searchMode} === 'detailed' }"
           items="{ path: '/RecipientSet', parameters: { countMode: 'Inline' } }"
           mode="MultiSelect"
           growing="true"
@@ -137,10 +160,10 @@
             <Column width="30%" minScreenWidth="Phone" demandPopin="false">
               <Text text="{i18n>COL_NAME}" />
             </Column>
-            <Column width="20%" minScreenWidth="Tablet" demandPopin="true" popinDisplay="Inline">
+            <Column width="15%" minScreenWidth="Tablet" demandPopin="true" popinDisplay="Inline">
               <Text text="{i18n>COL_ROLE}" />
             </Column>
-            <Column width="50%" minScreenWidth="Desktop" demandPopin="true" popinDisplay="Block">
+            <Column width="55%" minScreenWidth="Desktop" demandPopin="true" popinDisplay="Block">
               <Text text="{i18n>COL_EMAIL}" />
             </Column>
           </columns>
@@ -150,6 +173,46 @@
                 <Text text="{FullName}" wrapping="true" />
                 <Text text="{Role}" wrapping="true" />
                 <Text text="{Email}" wrapping="true" />
+              </cells>
+            </ColumnListItem>
+          </items>
+        </Table>
+
+        <!-- === Grouped table: one row per user (GROUP BY email) ===
+             Bound directly to the OData RecipientUserSet (the ABAP-side
+             GROUP BY CDS); server-side $filter is driven by
+             DialogMixin#_searchRecipients via the table's items binding. -->
+        <Table
+          id="recipientGroupedTable"
+          visible="{= ${dialog>/selectedMode} !== 'added' &amp;&amp; ${dialog>/selectedMode} !== 'csv' &amp;&amp; ${dialog>/searchMode} !== 'detailed' }"
+          items="{ path: '/RecipientUserSet', parameters: { countMode: 'Inline' } }"
+          mode="MultiSelect"
+          growing="true"
+          growingThreshold="20"
+          growingScrollToLoad="true"
+          class="ebDialogTable"
+          noDataText="{i18n>NO_RECIPIENTS_FOUND}">
+          <columns>
+            <Column width="25%" minScreenWidth="Phone" demandPopin="false">
+              <Text text="{i18n>COL_NAME}" />
+            </Column>
+            <Column width="45%" minScreenWidth="Tablet" demandPopin="true" popinDisplay="Inline">
+              <Text text="{i18n>COL_EMAIL}" />
+            </Column>
+            <Column width="20%" minScreenWidth="Desktop" demandPopin="true" popinDisplay="Inline">
+              <Text text="{i18n>COL_ROLES}" />
+            </Column>
+            <Column width="10%" hAlign="End" minScreenWidth="Desktop" demandPopin="true" popinDisplay="Inline">
+              <Text text="{i18n>COL_AUTH_COUNT}" />
+            </Column>
+          </columns>
+          <items>
+            <ColumnListItem type="Active">
+              <cells>
+                <Text text="{FullName}" wrapping="true" />
+                <Text text="{Email}" wrapping="true" />
+                <Text text="{Roles}" wrapping="true" />
+                <ObjectNumber number="{AuthCount}" visible="{= !!${AuthCount} }" />
               </cells>
             </ColumnListItem>
           </items>
@@ -185,7 +248,10 @@
 
     <buttons>
       <Button text="{i18n>ADD_SELECTED}" press="onAddSelectedRecipients" type="Emphasized"
-        visible="{= ${dialog>/selectedMode} !== 'added' }" />
+        visible="{= ${dialog>/selectedMode} !== 'added' &amp;&amp; ${dialog>/selectedMode} !== 'csv' }" />
+      <Button text="{i18n>CSV_ADD_TO_RECIPIENTS}" press="onAddCsvRecipients" type="Emphasized"
+        visible="{= ${dialog>/selectedMode} === 'csv' }"
+        enabled="{= (${dialog>/csvPreviewCount} || 0) &gt; 0 }" />
       <Button text="{i18n>CLEAR_ALL_RECIPIENTS}" press="onClearAllRecipients" type="Transparent"
         visible="{= ${dialog>/selectedMode} === 'added' }" />
       <Button text="{i18n>CANCEL}" press="onCancelDialog" />

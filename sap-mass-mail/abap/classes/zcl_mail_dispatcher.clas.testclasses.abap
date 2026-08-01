@@ -9,7 +9,12 @@ CLASS ltc_dispatcher_test DEFINITION FOR TESTING
       runtime_exceeded_true  FOR TESTING RAISING cx_static_check,
       stuck_cutoff_is_before_now FOR TESTING RAISING cx_static_check,
       partition_split_is_disjoint FOR TESTING RAISING cx_static_check,
-      partition_split_covers_all  FOR TESTING RAISING cx_static_check.
+      partition_split_covers_all  FOR TESTING RAISING cx_static_check,
+      " Pins the CHAR(3) status scheme so a regression fails the build fast.
+      root_status_is_char3 FOR TESTING RAISING cx_static_check,
+      " skipped_attachment (006) is a distinct SBAL slot — must not collide
+      " with send_error (001) so log filters stay separate.
+      skipped_attachment_msgno_distinct FOR TESTING RAISING cx_static_check.
 
 ENDCLASS.
 
@@ -56,6 +61,59 @@ CLASS ltc_dispatcher_test IMPLEMENTATION.
       ENDIF.
     ENDDO.
     cl_abap_unit_assert=>assert_equals( act = lv_count exp = 5 ).
+  ENDMETHOD.
+
+  METHOD root_status_is_char3.
+    " Dispatcher-side guard for the same SSOT contract
+    " ltc_status_map_test=>root_status_is_char3 pins on the constants
+    " class — the dispatcher reads/writes zmail_hdr~status through these
+    " symbols, so a regression to CHAR(10) word codes would silently
+    " break pick_next_mailing's WHERE clause (status = root_status-in_queue)
+    " AND the lock-state comparison in acquire_mailing. Fail fast here too.
+    cl_abap_unit_assert=>assert_equals(
+      act = zcl_newsletter_constants=>root_status-in_queue   exp = '001' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = zcl_newsletter_constants=>root_status-processing exp = '010' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = zcl_newsletter_constants=>root_status-sent_ok    exp = '100' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = zcl_newsletter_constants=>root_status-sent_err   exp = '900' ).
+
+    " Receiver statuses (consumed by fetch_mailing_data's FOR...WHERE
+    " filter, apply_chunk_status's status write, finalize_mailing's
+    " rec-level outcome) — same SSOT contract as the root statuses.
+    cl_abap_unit_assert=>assert_equals(
+      act = zcl_newsletter_constants=>rec_status-new   exp = '010' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = zcl_newsletter_constants=>rec_status-sent  exp = '020' ).
+    cl_abap_unit_assert=>assert_equals(
+      act = zcl_newsletter_constants=>rec_status-error exp = '030' ).
+  ENDMETHOD.
+
+  METHOD skipped_attachment_msgno_distinct.
+    " log_skipped_attachments writes to dispatcher_msgno-skipped_attachment
+    " (006). That slot must NOT alias any other msgno the dispatcher writes,
+    " otherwise a filter on send_error (001) would also sweep up
+    " dropped-attachment warnings.
+    cl_abap_unit_assert=>assert_equals(
+      act = zcl_newsletter_constants=>dispatcher_msgno-skipped_attachment
+      exp = '006' ).
+
+    cl_abap_unit_assert=>assert_differs(
+      act = zcl_newsletter_constants=>dispatcher_msgno-skipped_attachment
+      exp = zcl_newsletter_constants=>dispatcher_msgno-send_error ).
+    cl_abap_unit_assert=>assert_differs(
+      act = zcl_newsletter_constants=>dispatcher_msgno-skipped_attachment
+      exp = zcl_newsletter_constants=>dispatcher_msgno-mailing_finished ).
+    cl_abap_unit_assert=>assert_differs(
+      act = zcl_newsletter_constants=>dispatcher_msgno-skipped_attachment
+      exp = zcl_newsletter_constants=>dispatcher_msgno-no_mailing_found ).
+    cl_abap_unit_assert=>assert_differs(
+      act = zcl_newsletter_constants=>dispatcher_msgno-skipped_attachment
+      exp = zcl_newsletter_constants=>dispatcher_msgno-lock_failed ).
+    cl_abap_unit_assert=>assert_differs(
+      act = zcl_newsletter_constants=>dispatcher_msgno-skipped_attachment
+      exp = zcl_newsletter_constants=>dispatcher_msgno-no_recipients ).
   ENDMETHOD.
 
 ENDCLASS.

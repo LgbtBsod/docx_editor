@@ -1,5 +1,4 @@
 [
   { "Key": "ms-1", "MailingId": "m001", "Status": "040", "Count": 5 },
-  { "Key": "ms-2", "MailingId": "m001", "Status": "030", "Count": 1 },
-  { "Key": "ms-3", "MailingId": "m001", "Status": "050", "Count": 1 }
+  { "Key": "ms-2", "MailingId": "m001", "Status": "050", "Count": 2 }
 ]

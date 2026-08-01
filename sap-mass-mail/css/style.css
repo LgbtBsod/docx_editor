@@ -783,6 +783,19 @@ html, body {
   margin-bottom: var(--eb-space-md) !important;
 }
 
+/* Filter bar (MailingsDialog) */
+.ebFilterBar {
+  padding: var(--eb-space-sm) var(--eb-space-md);
+  background: var(--eb-surface-alt, #f5f5f5);
+  border-radius: 8px;
+  border: 1px solid var(--eb-border-color, #e0e0e0);
+}
+
+.ebFilterBar .ebFieldLabel {
+  font-size: 0.75rem;
+  margin-bottom: 2px;
+}
+
 /* Status chips (HistoryView dialog) — a wrapped row of pills instead of a
    vertical list, each colored by sap.m.ObjectStatus's own semantic state. */
 .ebStatusChipsRow {
@@ -990,6 +1003,57 @@ html, body {
 .ebDialog .sapMInputBaseInner,
 .ebDialog .sapMInputBaseContentWrapper,
 .ebDialog .sapMSlt {
+  border-radius: var(--eb-radius-sm) !important;
+}
+
+/* ============================================================
+   SMART FILTER BAR — rounded corners for SFB controls
+   ============================================================ */
+/* SmartFilterBar container */
+.ebDialog .sapUiSmartFilterBar {
+  padding: var(--eb-space-sm) var(--eb-space-md) !important;
+}
+
+/* SFB basic search field */
+.ebDialog .sapUiSmartFilterBar .sapMSFB,
+.ebDialog .sapUiSmartFilterBar .sapMSFB .sapMInputBase,
+.ebDialog .sapUiSmartFilterBar .sapMSFB .sapMInputBaseInner,
+.ebDialog .sapUiSmartFilterBar .sapMSFB .sapMInputBaseContentWrapper {
+  border-radius: var(--eb-radius-sm) !important;
+}
+
+/* SFB filter row inputs */
+.ebDialog .sapUiSmartFilterBar .sapMInput,
+.ebDialog .sapUiSmartFilterBar .sapMInputBase,
+.ebDialog .sapUiSmartFilterBar .sapMInputBaseInner,
+.ebDialog .sapUiSmartFilterBar .sapMInputBaseContentWrapper,
+.ebDialog .sapUiSmartFilterBar .sapMSlt,
+.ebDialog .sapUiSmartFilterBar .sapMSltTrigger {
+  border-radius: var(--eb-radius-sm) !important;
+}
+
+/* SFB buttons (Go, Clear, etc.) */
+.ebDialog .sapUiSmartFilterBar .sapMBtn,
+.ebDialog .sapUiSmartFilterBar .sapMBtnInner,
+.ebDialog .sapUiSmartFilterBar .sapMBtnContent {
+  border-radius: var(--eb-radius-sm) !important;
+}
+
+/* SFB filter group item labels and values */
+.ebDialog .sapUiSmartFilterBar .sapUiSFBGroupItem {
+  padding: 0 var(--eb-space-xs) !important;
+}
+
+/* SFB expand/collapse button */
+.ebDialog .sapUiSmartFilterBar .sapMBtnTransparent {
+  border-radius: var(--eb-radius-sm) !important;
+}
+
+/* SFB in the main page area (outside dialogs) */
+.emailBuilderPage .sapUiSmartFilterBar .sapMInput,
+.emailBuilderPage .sapUiSmartFilterBar .sapMInputBase,
+.emailBuilderPage .sapUiSmartFilterBar .sapMInputBaseInner,
+.emailBuilderPage .sapUiSmartFilterBar .sapMInputBaseContentWrapper {
   border-radius: var(--eb-radius-sm) !important;
 }
 

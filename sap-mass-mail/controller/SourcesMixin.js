@@ -1,15 +1,20 @@
 sap.ui.define([
   "sap/ui/core/Fragment",
-  "emailbuilder/util/toast",
-  "emailbuilder/util/config",
-  "emailbuilder/util/sourceBlock",
-  "emailbuilder/util/fileProcessor",
-  "emailbuilder/util/sourceTypes",
-  "emailbuilder/model/formatter"
+  "MAILING_CONSTRUCTOR/util/toast",
+  "MAILING_CONSTRUCTOR/util/config",
+  "MAILING_CONSTRUCTOR/util/sourceBlock",
+  "MAILING_CONSTRUCTOR/util/fileProcessor",
+  "MAILING_CONSTRUCTOR/util/sourceTypes",
+  "MAILING_CONSTRUCTOR/model/formatter"
 ], (Fragment, Toast, Config, SourceBlock, FileProcessor,
     SourceTypes, Formatter) => {
   "use strict";
 
+  /**
+   * Maximum number of source files processed in parallel.
+   * Enforced at the mixin-instance level so multiple drop events share
+   * one worker budget (each source may spawn a pdfjs/docx worker).
+   */
   const MAX_CONCURRENT_FILES = 2;
 
   return {
@@ -28,25 +33,51 @@ sap.ui.define([
       this._updateHeaderBadges();
     },
 
+    /**
+     * Handles one or more dropped files. Enforces the global concurrency
+     * limit at the instance level (queue + active counter are created
+     * lazily so the mixin stays plain-object friendly).
+     */
     _handleSourceDrop(fileList) {
       const aFiles = Array.from(fileList || []);
       if (!aFiles.length) { return; }
-      let iActive = 0, iIndex = 0;
-      const processNext = () => {
-        while (iIndex < aFiles.length && iActive < MAX_CONCURRENT_FILES) {
-          iActive++;
-          const file = aFiles[iIndex++];
-          this._processSingleSource(file)
-            .then(() => { iActive--; processNext(); })
-            .catch((err) => {
-              if (err && err.message && err.message !== "PDF import cancelled") {
-                Toast.warning(err.message);
-              }
-              iActive--; processNext();
-            });
-        }
-      };
-      processNext();
+
+      if (!Array.isArray(this._aSourceQueue))        { this._aSourceQueue = []; }
+      if (typeof this._iActiveSources !== "number")  { this._iActiveSources = 0; }
+
+      this._aSourceQueue = this._aSourceQueue.concat(aFiles);
+      this._drainSourceQueue();
+    },
+
+    /**
+     * Pumps the instance-level source queue, launching up to
+     * MAX_CONCURRENT_FILES _processSingleSource calls in parallel.
+     * Called from _handleSourceDrop (initial enqueue) and from each
+     * worker's .then/.catch (slot freed). Idempotent — a no-op when
+     * the queue is empty or the active cap is reached.
+     *
+     * @private
+     */
+    _drainSourceQueue() {
+      while (this._aSourceQueue.length > 0 && this._iActiveSources < MAX_CONCURRENT_FILES) {
+        const file = this._aSourceQueue.shift();
+        this._iActiveSources++;
+        this._processSingleSource(file)
+          .then(() => {
+            this._iActiveSources--;
+            this._drainSourceQueue();
+          })
+          .catch((err) => {
+            // PDF import cancellation is a deliberate user action
+            // (onPdfModeCancel) — don't toast it. Everything else is
+            // a real processing failure worth surfacing.
+            if (err && err.message && err.message !== "PDF import cancelled") {
+              Toast.warning(err.message);
+            }
+            this._iActiveSources--;
+            this._drainSourceQueue();
+          });
+      }
     },
 
     _processSingleSource(file) {
@@ -75,7 +106,23 @@ sap.ui.define([
       this._addSourceToList(sSourceId, SourceBlock.TYPE.FILE, sName);
     },
 
+    /**
+     * Opens the PDF-mode picker (text vs images) and resolves with the
+     * chosen mode. Caches the dialog on first creation.
+     *
+     * An escape handler is attached ONCE on dialog creation so Escape
+     * drives the explicit cancel path (onPdfModeCancel) instead of
+     * orphaning the pending _processSingleSource Promise.
+     *
+     * @param {string} sFileName file name (for logging/future use)
+     * @returns {Promise<string>} resolves with "text" or "images"
+     * @private
+     */
     _promptPdfMode(sFileName) {
+      // If a previous PDF prompt is still pending (user dropped two PDFs
+      // before answering the first dialog), resolve the first as "text"
+      // so its _processSingleSource can move on — the second prompt then
+      // opens below. This avoids stacking two unresolved promises.
       if (this._fnPdfResolve) {
         this._fnPdfResolve("text");
         this._fnPdfResolve = null;
@@ -94,11 +141,18 @@ sap.ui.define([
 
         Fragment.load({
           id: this.getView().getId(),
-          name: "emailbuilder.view.fragment.PdfModeDialog",
+          name: "MAILING_CONSTRUCTOR.view.fragment.PdfModeDialog",
           controller: this
         }).then((oDialog) => {
           this._oPdfModeDialog = oDialog;
           this.getView().addDependent(oDialog);
+
+          // Escape handler is set once on creation — see method JSDoc.
+          oDialog.setEscapeHandler((oPromise) => {
+            oPromise.reject();             // keep the dialog open
+            this.onPdfModeCancel();        // drive the explicit cancel path
+          });
+
           this._oState.setProperty("/pdfModeIndex", 0);
           oDialog.open();
         }).catch((err) => {
@@ -248,16 +302,6 @@ sap.ui.define([
       this._oState.setProperty("/recipients", []);
       this._updateHeaderBadges();
       Toast.success(this._t("MSG_RECIPIENTS_CLEARED"));
-    },
-
-    onCopyLocalId() {
-      const sText = this._oState.getProperty("/localId") || "";
-      if (sText && navigator && navigator.clipboard
-          && typeof navigator.clipboard.writeText === "function") {
-        navigator.clipboard.writeText(sText)
-          .then(() => Toast.success(this._t("MSG_LOCALID_COPIED")))
-          .catch(() => { });
-      }
     }
   };
 });
