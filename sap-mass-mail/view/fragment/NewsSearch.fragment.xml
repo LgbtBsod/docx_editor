@@ -75,9 +75,8 @@
                       visibleInAdvancedArea="false" />
                   </comp:controlConfiguration>
                 </comp:SmartFilterBar>
-                <!-- "Только изменения" toggle removed — the SFB NewsType
-                     dropdown above (index 0) covers the same filter via
-                     Filter("NewsType", EQ, "CHG"). One SSOT, one control. -->
+                <!-- No separate "Только изменения" toggle — the NewsType
+                     dropdown above already covers Filter("NewsType", EQ, "CHG"). -->
               </VBox>
             </IconTabFilter>
           </items>
@@ -123,8 +122,7 @@
           </items>
         </Table>
 
-        <!-- Already-added news: view + remove. Bound to the app "state" model
-             (not the OData model) since it reflects local compose state. -->
+        <!-- Bound to "state" (not OData) — reflects local compose state. -->
         <List
           id="addedNewsList"
           visible="{= ${dialog>/selectedMode} === 'added' }"

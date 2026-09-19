@@ -28,7 +28,8 @@
         <Property Name="AuthCount" Type="Edm.Int32" sap:label="Полномочий"/>
       </EntityType>
 
-           reused for CHG-style change announcements (see ZCDS_News). All four
+      <!-- NewsType is the unified news domain (BASE/NEWS/ERROR/CHG); CHG is
+           reused for CHG-style change announcements (see ZEHS_C_News). All four
            are plain strings sourced straight from the existing news table —
            filter switch ("change = X") the client's news search toggle sends;
            everything else about News (search, add-as-source) is unchanged. -->
@@ -47,6 +48,10 @@
         <Property Name="InitiatorOrg"   Type="Edm.String" MaxLength="200"/>
       </EntityType>
 
+      <!-- Content is a flat property here, not a ToTexts nav prop — a
+           composition child for one field plus four technical BOPF keys
+           wasn't worth it (see ZEHS_C_Mailing_Header). Deep-create sends
+           it as a top-level "Content" string alongside LocalId/Subject. -->
       <EntityType Name="MailHeader">
         <Key><PropertyRef Name="Key"/></Key>
         <Property Name="Key"         Type="Edm.String" Nullable="false" MaxLength="32"/>
@@ -55,15 +60,9 @@
         <Property Name="Status"      Type="Edm.String" MaxLength="3"/>
         <Property Name="CreatedBy"   Type="Edm.String" MaxLength="12"/>
         <Property Name="CreatedAt"   Type="Edm.DateTime"/>
-        <NavigationProperty Name="ToRecipients"   Relationship="eb.MailHeader_Recipients"   FromRole="MailHeader" ToRole="Recipient"/>
-        <NavigationProperty Name="ToTexts"        Relationship="eb.MailHeader_Texts"        FromRole="MailHeader" ToRole="Text"/>
-        <NavigationProperty Name="ToAttachments"  Relationship="eb.MailHeader_Attachments" FromRole="MailHeader" ToRole="Attachment"/>
-      </EntityType>
-
-      <EntityType Name="Text">
-        <Key><PropertyRef Name="Key"/></Key>
-        <Property Name="Key"         Type="Edm.String" Nullable="false" MaxLength="32"/>
         <Property Name="Content"     Type="Edm.String"/>
+        <NavigationProperty Name="ToRecipients"   Relationship="eb.MailHeader_Recipients"   FromRole="MailHeader" ToRole="Recipient"/>
+        <NavigationProperty Name="ToAttachments"  Relationship="eb.MailHeader_Attachments" FromRole="MailHeader" ToRole="Attachment"/>
       </EntityType>
 
       <EntityType Name="Attachment">
@@ -131,7 +130,7 @@
           <PropertyRef Name="DictKey"/>
         </Key>
         <Property Name="DictType"  Type="Edm.String" Nullable="false" MaxLength="20" sap:filterable="true" sap:label="Тип справочника"/>
-        <Property Name="DictKey"   Type="Edm.String" Nullable="false" MaxLength="40" sap:filterable="true" sap:label="Код"/>
+        <Property Name="DictKey"   Type="Edm.String" Nullable="false" MaxLength="255" sap:filterable="true" sap:label="Код"/>
         <Property Name="DictText"  Type="Edm.String" MaxLength="200"  sap:label="Текст"/>
         <Property Name="UiState"   Type="Edm.String" MaxLength="10"/>
         <Property Name="UiIcon"    Type="Edm.String" MaxLength="60"/>
@@ -143,10 +142,6 @@
         <End Type="eb.MailHeader"   Role="MailHeader"   Multiplicity="1"/>
         <End Type="eb.Recipient"    Role="Recipient"    Multiplicity="*"/>
       </Association>
-      <Association Name="MailHeader_Texts">
-        <End Type="eb.MailHeader"   Role="MailHeader"   Multiplicity="1"/>
-        <End Type="eb.Text"         Role="Text"         Multiplicity="1"/>
-      </Association>
       <Association Name="MailHeader_Attachments">
         <End Type="eb.MailHeader"   Role="MailHeader"   Multiplicity="1"/>
         <End Type="eb.Attachment"   Role="Attachment"   Multiplicity="*"/>
@@ -157,7 +152,6 @@
         <EntitySet Name="RecipientUserSet"    EntityType="eb.RecipientUser"/>
         <EntitySet Name="NewsSet"            EntityType="eb.News"/>
         <EntitySet Name="MailHeaderSet"      EntityType="eb.MailHeader"/>
-        <EntitySet Name="TextSet"            EntityType="eb.Text"/>
         <EntitySet Name="AttachmentSet"      EntityType="eb.Attachment"/>
         <EntitySet Name="MailHistorySet"     EntityType="eb.MailHistory"/>
         <EntitySet Name="MailContentSet"     EntityType="eb.MailContent"/>
@@ -168,10 +162,6 @@
         <AssociationSet Name="MailHeader_Recipients_Set"  Association="eb.MailHeader_Recipients">
           <End EntitySet="MailHeaderSet" Role="MailHeader"/>
           <End EntitySet="RecipientSet"  Role="Recipient"/>
-        </AssociationSet>
-        <AssociationSet Name="MailHeader_Texts_Set" Association="eb.MailHeader_Texts">
-          <End EntitySet="MailHeaderSet" Role="MailHeader"/>
-          <End EntitySet="TextSet"        Role="Text"/>
         </AssociationSet>
         <AssociationSet Name="MailHeader_Attachments_Set" Association="eb.MailHeader_Attachments">
           <End EntitySet="MailHeaderSet"  Role="MailHeader"/>

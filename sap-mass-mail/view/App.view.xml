@@ -32,15 +32,15 @@
     <content>
       <HBox class="ebMainHBox" height="100%" alignItems="Stretch">
 
-        <!-- ============ LEFT PANEL ============ -->
         <VBox class="leftPanel" id="leftPanel">
           <ScrollContainer class="leftScrollContainer" vertical="true" horizontal="false" height="100%" width="100%">
 
-            <!-- LocalId Card -->
             <VBox class="ebCard ebLocalIdCard">
               <HBox alignItems="Center" justifyContent="SpaceBetween" width="100%">
                 <Label text="{i18n>LOCAL_ID}" class="ebCardLabel" />
                 <HBox alignItems="Center">
+                  <Button icon="sap-icon://copy" press="onCopyLocalId" type="Transparent"
+                    tooltip="{i18n>TIP_COPY_LOCAL_ID}" class="ebCopyBtn" />
                   <Button icon="sap-icon://history" press="onOpenMailingsDialog" type="Transparent"
                     tooltip="{i18n>TIP_OPEN_MAILINGS}" class="ebHistoryBtn" />
                 </HBox>
@@ -48,15 +48,12 @@
               <Input id="localIdInput" value="{state>/localId}" editable="false" class="ebLocalIdInput" width="100%" />
             </VBox>
 
-            <!-- Sources Card -->
             <VBox class="ebCard">
               <Label text="{i18n>SOURCES_TITLE}" class="ebCardLabel" />
-              <!-- Large DnD drop zone -->
               <VBox id="sourceDropZone" class="ebDropZone" alignItems="Center" justifyContent="Center">
                 <core:Icon src="sap-icon://upload-to-cloud" size="2rem" class="ebDropZoneIcon" />
                 <Text text="{i18n>DROP_HINT}" class="ebDropZoneText" />
                 <Text text="{i18n>DROP_FORMATS}" class="ebDropZoneSub" />
-                <!-- Hidden file uploader for click-to-upload -->
                 <u:FileUploader
                   id="sourceUploader"
                   buttonOnly="true"
@@ -85,7 +82,6 @@
               </List>
             </VBox>
 
-            <!-- Attachments Card -->
             <VBox class="ebCard">
               <Label text="{i18n>ATTACHMENTS_TITLE}" class="ebCardLabel" />
               <VBox id="attachmentDropZone" class="ebDropZone" alignItems="Center" justifyContent="Center">
@@ -120,7 +116,6 @@
               </List>
             </VBox>
 
-            <!-- Recipients Card -->
             <VBox class="ebCard">
               <Label text="{i18n>RECIPIENTS_TITLE}" class="ebCardLabel" />
               <Button
@@ -132,7 +127,6 @@
                 class="ebRecipientsSummaryBtn" />
             </VBox>
 
-            <!-- News Card -->
             <VBox class="ebCard">
               <Label text="{i18n>NEWS_CARD_TITLE}" class="ebCardLabel" />
               <Button
@@ -147,7 +141,6 @@
           </ScrollContainer>
         </VBox>
 
-        <!-- ============ CENTER PANEL ============ -->
         <VBox class="ebCenterPanel">
           <VBox class="ebSubjectCard">
             <Label text="{i18n>SUBJECT}" class="ebCardLabel" />

@@ -3,25 +3,11 @@ sap.ui.define([
 ], (Log) => {
   "use strict";
 
-  /**
-   * Drag & Drop manager. Attaches native HTML5 drag events to a DOM zone
-   * and calls a callback with the dropped FileList. Every listener is
-   * tracked so `detachAll()` can remove them cleanly.
-   *
-   * @constructor
-   * @alias MAILING_CONSTRUCTOR.util.DnDManager
-   */
+  // Every listener is tracked per zone so detachAll() can remove them cleanly.
   function DnDManager() {
     this._aZones = [];
   }
 
-  /**
-   * Attaches drag&drop handlers to a DOM zone.
-   *
-   * @param {HTMLElement} oDomRef DOM element to attach to
-   * @param {Function} fnHandler receives the dropped FileList
-   * @param {string} [sKind="source"] zone kind label (informational)
-   */
   DnDManager.prototype.attachZone = function (oDomRef, fnHandler, sKind) {
     if (!oDomRef) {
       Log.warning("[MAILING_CONSTRUCTOR] DnDManager.attachZone: missing oDomRef");

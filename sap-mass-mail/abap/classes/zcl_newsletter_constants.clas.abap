@@ -94,9 +94,9 @@ CLASS zcl_newsletter_constants DEFINITION
 
     " SSOT guard for the rec_status -> display-status mapping. Not called
     " from production flow (the mapping is only ever consumed via the
-    " ZI_Mailing_Status CDS join) — this exists purely so
+    " ZEHS_C_Mailing_Recipient_Status CDS join) — this exists purely so
     " ZCL_NEWSLETTER_CONSTANTS_UNIT_TEST can fail the build the moment
-    " these constants and ZI_Mail_Status_Map disagree, instead of that
+    " these constants and ZEHS_I_Mail_Status_Map disagree, instead of that
     " drift surfacing later as silently-dropped rows in a status
     " breakdown.
     CLASS-METHODS assert_status_map_consistent
@@ -113,7 +113,7 @@ CLASS zcl_newsletter_constants IMPLEMENTATION.
            END OF tys_map.
     DATA lt_map TYPE STANDARD TABLE OF tys_map WITH EMPTY KEY.
 
-    SELECT FROM zi_mail_status_map
+    SELECT FROM zehs_i_mail_status_map
       FIELDS rec_status AS rec_status, disp_status AS disp_status
       INTO TABLE @lt_map.
 
@@ -127,7 +127,7 @@ CLASS zcl_newsletter_constants IMPLEMENTATION.
     IF lt_map <> lt_expected.
       RAISE EXCEPTION TYPE cx_dynamic_check
         EXPORTING textid = VALUE #( msgid = 'ZEB_MAIL' msgno = '001'
-                                    attr1 = 'rec_status/ZI_Mail_Status_Map mismatch' ).
+                                    attr1 = 'rec_status/ZEHS_I_Mail_Status_Map mismatch' ).
     ENDIF.
   ENDMETHOD.
 

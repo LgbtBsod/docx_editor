@@ -1,8 +1,5 @@
-/**
- * Email template composer.
- * Text encoding (encodeXML) is kept separate from HTML sanitization (Sanitize.forEmail).
- * i18n lives in the caller (App.controller); brand colors come from Constants.COLORS.
- */
+// i18n bundle comes from the caller's component (App.controller); brand
+// colors come from Constants.COLORS.
 sap.ui.define([
   "sap/base/security/encodeXML",
   "MAILING_CONSTRUCTOR/util/sanitize",
@@ -44,25 +41,13 @@ sap.ui.define([
     return sFallback || sKey;
   }
 
-  /**
-   * Composes the final HTML email body.
-   *
-   * Text fields (sTitle, sFooter) are encoded via encodeXML() to escape special characters.
-   * HTML content (sBody) is sanitized via Sanitize.forEmail() to allow tags but prevent XSS.
-   *
-   * @param {string} sEditorHtml raw editor HTML
-   * @param {string[]} aAllowedHosts optional host whitelist forwarded to Sanitize
-   * @param {string} sSubject email subject (will be text-encoded)
-   * @param {sap.ui.core.UIComponent} [oComponent] for i18n
-   * @returns {string} composed HTML body
-   */
+  // Text fields (sTitle, sFooter) go through encodeXML() (escape special
+  // chars, render as literal text); HTML content (sBody) goes through
+  // Sanitize.forEmail() (allow tags, strip XSS) — mixing these up in either
+  // direction is a real injection risk, so keep the split explicit.
   const EmailComposer = {
     compose(sEditorHtml, aAllowedHosts, sSubject, oComponent) {
-      // Sanitize only the HTML content
       const sBody = Sanitize.forEmail(sEditorHtml || "", aAllowedHosts);
-
-      // Text fields are encoded as TEXT (not HTML) — safe against XSS
-      // encodeXML escapes <, >, &, etc. so they render as literal text
       const sTitle = sSubject
         ? encodeXML(sSubject)
         : "";
@@ -102,11 +87,8 @@ sap.ui.define([
   return {
     compose: EmailComposer.compose,
 
-    /**
-     * Clears the cached i18n bundle reference.
-     * Called from Component#destroy to prevent stale closures across
-     * component lifecycles (module singleton, not instance-scoped).
-     */
+    // Module singleton, not instance-scoped — Component#destroy must clear
+    // this or the cached bundle survives across component lifecycles.
     reset() { oBundle = null; }
   };
 });

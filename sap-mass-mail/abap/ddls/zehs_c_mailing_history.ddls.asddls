@@ -9,15 +9,15 @@
 }
 
 /* List view: LOB content is deliberately NOT part of this projection —
-   it is read on demand via ZCDS_Mail_Content (key access).
-   Recipient counts are derived from ZI_Mailing_Status (the SSOT for
+   it is read on demand via ZEHS_C_Mailing_Content (key access).
+   Recipient counts are derived from ZEHS_C_Mailing_Recipient_Status (the SSOT for
    the receiver persistence + status domain mapping) instead of joining
    the receiver table directly here. */
 @Metadata.allowExtensions: true
-define view ZCDS_Mail_History
+define view ZEHS_C_Mailing_History
   as select from zmail_hdr as h
     left outer join (
-      select from ZI_Mailing_Status as s
+      select from ZEHS_C_Mailing_Recipient_Status as s
         group by s.MailingId
         fields
           s.MailingId                                                          as mailing_id,

@@ -21,13 +21,7 @@ sap.ui.define([
       return ID_PREFIX + String(sSourceId || "").replace(/[^a-zA-Z0-9-]/g, "-");
     },
 
-    /**
-     * Strips ID_PREFIX from a DOM id, e.g. "eb-src-abc" -> "abc". Returns
-     * the input unchanged if it isn't prefixed.
-     *
-     * @param {string} sDomId DOM id of a source block
-     * @returns {string} the source id
-     */
+    // "eb-src-abc" -> "abc"; unchanged if not prefixed.
     fromDomId(sDomId) {
       const s = String(sDomId || "");
       return s.indexOf(ID_PREFIX) === 0 ? s.slice(ID_PREFIX.length) : s;

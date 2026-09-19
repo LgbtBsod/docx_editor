@@ -28,7 +28,6 @@
 
             <IconTabFilter icon="sap-icon://search" text="{i18n>TAB_SEARCH}" key="search">
               <VBox>
-                <!-- Toggle: detailed (by auth object) vs grouped (by user) -->
                 <SegmentedButton id="recipientModeToggle" selectedKey="grouped" select="onRecipientModeChange"
                   class="sapUiSmallMarginBottom">
                   <items>
@@ -39,12 +38,10 @@
                   </items>
                 </SegmentedButton>
 
-                <!-- SmartFilterBar for both modes.
-                     property was added in 1.84+ and silently ignored here).
-                     Detailed (по полномочиям): Role, AuthObject, FieldName only —
-                     FullName/Email hidden (search is by auth-object structure, not person).
-                     Grouped (by users): FullName, Email, Role — AuthObject/FieldName hidden.
-                     Visibility toggled by _applyRecipientSFBVisibility in DialogMixin. -->
+                <!-- One SmartFilterBar for both modes: field visibility (Role/
+                     AuthObject/FieldName for detailed vs FullName/Email/Role
+                     for grouped) is toggled by _applyRecipientSFBVisibility
+                     in DialogMixin, not by two separate control sets. -->
                 <comp:SmartFilterBar
                   id="recipientSFB"
                   entitySet="RecipientSet"
@@ -145,7 +142,7 @@
           </items>
         </IconTabBar>
 
-        <!-- === Detailed table: one row per auth-object value === -->
+        <!-- One row per auth-object value (vs. one row per user below). -->
         <Table
           id="recipientTable"
           visible="{= ${dialog>/selectedMode} !== 'added' &amp;&amp; ${dialog>/selectedMode} !== 'csv' &amp;&amp; ${dialog>/searchMode} === 'detailed' }"
@@ -178,10 +175,8 @@
           </items>
         </Table>
 
-        <!-- === Grouped table: one row per user (GROUP BY email) ===
-             Bound directly to the OData RecipientUserSet (the ABAP-side
-             GROUP BY CDS); server-side $filter is driven by
-             DialogMixin#_searchRecipients via the table's items binding. -->
+        <!-- One row per user — bound to RecipientUserSet, the ABAP-side
+             GROUP BY email CDS. -->
         <Table
           id="recipientGroupedTable"
           visible="{= ${dialog>/selectedMode} !== 'added' &amp;&amp; ${dialog>/selectedMode} !== 'csv' &amp;&amp; ${dialog>/searchMode} !== 'detailed' }"
@@ -218,8 +213,7 @@
           </items>
         </Table>
 
-        <!-- Already-added recipients: view + remove. Bound to the app "state"
-             model (not the OData model) since it reflects local compose state. -->
+        <!-- Bound to "state" (not OData) — reflects local compose state. -->
         <List
           id="addedRecipientsList"
           visible="{= ${dialog>/selectedMode} === 'added' }"

@@ -10,11 +10,8 @@ sap.ui.define([
     SourceTypes, Formatter) => {
   "use strict";
 
-  /**
-   * Maximum number of source files processed in parallel.
-   * Enforced at the mixin-instance level so multiple drop events share
-   * one worker budget (each source may spawn a pdfjs/docx worker).
-   */
+  // Enforced at the mixin-instance level so multiple drop events share one
+  // worker budget (each source may spawn a pdfjs/docx worker).
   const MAX_CONCURRENT_FILES = 2;
 
   return {
@@ -33,11 +30,7 @@ sap.ui.define([
       this._updateHeaderBadges();
     },
 
-    /**
-     * Handles one or more dropped files. Enforces the global concurrency
-     * limit at the instance level (queue + active counter are created
-     * lazily so the mixin stays plain-object friendly).
-     */
+    // Queue + active counter are created lazily so the mixin stays a plain object.
     _handleSourceDrop(fileList) {
       const aFiles = Array.from(fileList || []);
       if (!aFiles.length) { return; }
@@ -49,15 +42,7 @@ sap.ui.define([
       this._drainSourceQueue();
     },
 
-    /**
-     * Pumps the instance-level source queue, launching up to
-     * MAX_CONCURRENT_FILES _processSingleSource calls in parallel.
-     * Called from _handleSourceDrop (initial enqueue) and from each
-     * worker's .then/.catch (slot freed). Idempotent — a no-op when
-     * the queue is empty or the active cap is reached.
-     *
-     * @private
-     */
+    // Idempotent — a no-op when the queue is empty or the active cap is reached.
     _drainSourceQueue() {
       while (this._aSourceQueue.length > 0 && this._iActiveSources < MAX_CONCURRENT_FILES) {
         const file = this._aSourceQueue.shift();
@@ -106,18 +91,9 @@ sap.ui.define([
       this._addSourceToList(sSourceId, SourceBlock.TYPE.FILE, sName);
     },
 
-    /**
-     * Opens the PDF-mode picker (text vs images) and resolves with the
-     * chosen mode. Caches the dialog on first creation.
-     *
-     * An escape handler is attached ONCE on dialog creation so Escape
-     * drives the explicit cancel path (onPdfModeCancel) instead of
-     * orphaning the pending _processSingleSource Promise.
-     *
-     * @param {string} sFileName file name (for logging/future use)
-     * @returns {Promise<string>} resolves with "text" or "images"
-     * @private
-     */
+    // Escape handler is attached ONCE on dialog creation so Escape drives
+    // the explicit cancel path (onPdfModeCancel) instead of orphaning the
+    // pending _processSingleSource Promise.
     _promptPdfMode(sFileName) {
       // If a previous PDF prompt is still pending (user dropped two PDFs
       // before answering the first dialog), resolve the first as "text"
@@ -147,7 +123,6 @@ sap.ui.define([
           this._oPdfModeDialog = oDialog;
           this.getView().addDependent(oDialog);
 
-          // Escape handler is set once on creation — see method JSDoc.
           oDialog.setEscapeHandler((oPromise) => {
             oPromise.reject();             // keep the dialog open
             this.onPdfModeCancel();        // drive the explicit cancel path
@@ -233,7 +208,7 @@ sap.ui.define([
 
     _addNewsAsSource(oObj) {
       // CHG-flagged items (IsChange="X") get the structured announcement
-      // layout (change number / initiator / area — see ZCDS_News);
+      // layout (change number / initiator / area — see ZEHS_C_News);
       // regular news keep the plain sanitized Content as before.
       const sClean = Formatter.newsContentHtml(oObj);
       const sSourceId = Config.generateSourceId();
@@ -271,11 +246,24 @@ sap.ui.define([
 
     onAttachmentChange(oEvent) {
       const aFiles = Array.from(oEvent.getParameter("files") || []);
+      const aExisting = this._oState.getProperty("/attachments") || [];
+      // Running total checked synchronously (before the async file read)
+      // so files rejected for size never pay for a FileReader pass, and so
+      // several files dropped in the same batch are weighed against each
+      // other, not just against whatever was already attached.
+      let iRunningTotal = aExisting.reduce((iSum, a) => iSum + (a.size || 0), 0);
+
       aFiles.forEach((file) => {
         if (file.size > Config.MAX_ATTACHMENT_SIZE) {
           Toast.warning(this._t("MSG_ATTACHMENT_TOO_LARGE", [file.name]));
           return;
         }
+        if (iRunningTotal + file.size > Config.MAX_TOTAL_ATTACHMENTS_SIZE) {
+          Toast.warning(this._t("MSG_ATTACHMENTS_TOTAL_TOO_LARGE", [file.name]));
+          return;
+        }
+        iRunningTotal += file.size;
+
         FileProcessor.readAsDataURL(file).then((sDataUrl) => {
           const aAttachments = (this._oState.getProperty("/attachments") || []).slice();
           if (aAttachments.length >= Config.MAX_ATTACHMENTS) {

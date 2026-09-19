@@ -19,10 +19,6 @@ sap.ui.define([
     return oFileSizeFormat;
   }
 
-  /**
-   * Generates a pseudo-unique LocalId like MSG-YYYYMMDD-HHMMSS-mmm-xxxx.
-   * Uses crypto.getRandomValues when available for better entropy.
-   */
   function generateLocalId() {
     const d = new Date();
     const pad = (n) => String(n).padStart(2, "0");
@@ -45,9 +41,6 @@ sap.ui.define([
     return `${LOCAL_ID_PREFIX}-${date}-${time}-${ms}-${rnd}`.toUpperCase();
   }
 
-  /**
-   * Generates a short unique source id.
-   */
   function generateSourceId() {
     if (typeof crypto !== "undefined" && crypto.getRandomValues) {
       const aBytes = new Uint8Array(8);
@@ -61,18 +54,12 @@ sap.ui.define([
     return "src-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 10);
   }
 
-  /**
-   * Returns the lowercase file extension including the dot, e.g. ".pdf".
-   */
   function getFileExt(sName) {
     if (!sName || typeof sName !== "string") { return ""; }
     const iIdx = sName.lastIndexOf(".");
     return iIdx >= 0 ? sName.slice(iIdx).toLowerCase() : "";
   }
 
-  /**
-   * Formats a byte count via the standard sap.ui.core.format.FileSizeFormat.
-   */
   function formatFileSize(iBytes) {
     if (iBytes === null || iBytes === undefined) { return ""; }
     const n = Number(iBytes);
@@ -93,6 +80,12 @@ sap.ui.define([
     MAX_SOURCE_SIZE: 10 * 1024 * 1024,
     MAX_ATTACHMENTS: 10,
     MAX_PDF_PAGES: 30,
+    // Per-file (MAX_ATTACHMENT_SIZE) and per-count (MAX_ATTACHMENTS) caps
+    // alone still allow up to 10 x 5MB = 50MB of attachments — well past
+    // what most mail gateways/ICF request-size limits accept. This bounds
+    // the sum so an oversized batch is rejected here with a clear message
+    // instead of failing later at send time with an opaque server error.
+    MAX_TOTAL_ATTACHMENTS_SIZE: 20 * 1024 * 1024,
 
     generateLocalId: generateLocalId,
     generateSourceId: generateSourceId,

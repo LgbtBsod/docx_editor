@@ -34,16 +34,11 @@ CLASS zcl_eb_mailing_dpc_ext DEFINITION
       END OF tys_attachment,
       tt_attachment TYPE STANDARD TABLE OF tys_attachment WITH EMPTY KEY,
 
-      BEGIN OF tys_text,
-        content TYPE string,
-      END OF tys_text,
-      tt_text TYPE STANDARD TABLE OF tys_text WITH EMPTY KEY,
-
       BEGIN OF tys_mailing_deep,
         local_id       TYPE c LENGTH 40,
         subject        TYPE c LENGTH 255,
+        content        TYPE string,
         to_recipients  TYPE tt_recipient,
-        to_texts       TYPE tt_text,
         to_attachments TYPE tt_attachment,
       END OF tys_mailing_deep,
 
@@ -266,7 +261,7 @@ CLASS zcl_eb_mailing_dpc_ext IMPLEMENTATION.
       is_root        = VALUE #( local_id   = is_mailing-local_id
                                 subject    = is_mailing-subject
                                 created_by = sy-uname )
-      iv_content     = COND #( WHEN is_mailing-to_texts IS NOT INITIAL THEN is_mailing-to_texts[ 1 ]-content )
+      iv_content     = is_mailing-content
       it_recipients  = CORRESPONDING #( is_mailing-to_recipients )
       it_attachments = CORRESPONDING #( is_mailing-to_attachments ) ).
   ENDMETHOD.

@@ -6,7 +6,6 @@ sap.ui.define([
 ], (RichTextEditor, richtexteditorLibrary, Log, SourceBlock) => {
   "use strict";
 
-  /** Debounce for the source-block scan after the iframe body mutates (ms). */
   const SCAN_DEBOUNCE_MS = 300;
 
   /**
@@ -28,11 +27,6 @@ sap.ui.define([
    *    (_oBodyObserver) re-attached to whichever iframe is currently live
    *    reports content edits for the source-block validity scan. Both are
    *    event-driven — no background timer running while the user is idle.
-   *
-   * @param {sap.ui.core.mvc.View} oView the view owning the editor
-   * @param {string} sContainerId the id of the container control
-   * @constructor
-   * @alias MAILING_CONSTRUCTOR.util.Editor
    */
   function Editor(oView, sContainerId) {
     this._oView = oView;
@@ -87,6 +81,7 @@ sap.ui.define([
         });
 
         this._configureTabKey(oRte);
+        this._configureSpellcheck(oRte);
 
         if (typeof oContainer.addContent === "function") {
           oContainer.addContent(oRte);
@@ -115,9 +110,6 @@ sap.ui.define([
    * TinyMCE's own table plugin already owns Tab for cell-to-cell
    * navigation and must run undisturbed.
    *
-   * @param {sap.ui.richtexteditor.RichTextEditor} oRte the editor control,
-   *   not yet rendered
-   * @private
    */
   Editor.prototype._configureTabKey = function (oRte) {
     oRte.attachBeforeEditorInit((oEvent) => {
@@ -137,6 +129,22 @@ sap.ui.define([
     });
   };
 
+  /**
+   * Enables native browser spellcheck inside the editor iframe.
+   *
+   * TinyMCE4 defaults browser_spellcheck to false, which routes spellcheck
+   * through its own "spellchecker" plugin — a paid/server-backed service
+   * that isn't configured here, so without this the editor never spell-checks
+   * anything at all. Setting it true instead lets the iframe body's native
+   * contenteditable spellcheck do the work (red squiggly underlines +
+   * right-click suggestions) — no server, no extra plugin, no cost.
+   */
+  Editor.prototype._configureSpellcheck = function (oRte) {
+    oRte.attachBeforeEditorInit((oEvent) => {
+      oEvent.getParameter("configuration").browser_spellcheck = true;
+    });
+  };
+
   // ------------------------------------------------------------------
   // Iframe-swap / content-edit observation: keeps drag&drop bound to the
   // live iframe and reports which source blocks are still valid. Started
@@ -144,14 +152,7 @@ sap.ui.define([
   // first.
   // ------------------------------------------------------------------
 
-  /**
-   * Resolves the editor's current iframe document, or null if the editor
-   * isn't rendered (yet, or anymore). Always re-reads from the live DOM —
-   * never cached across calls.
-   *
-   * @returns {Document|null} the iframe's document
-   * @private
-   */
+  // Always re-reads from the live DOM — never cached across calls.
   Editor.prototype._resolveEditorDoc = function () {
     if (!this._oRte || !this._oRte.getDomRef) { return null; }
     const oDom = this._oRte.getDomRef();
@@ -159,14 +160,6 @@ sap.ui.define([
     return (oIframe && oIframe.contentDocument) || null;
   };
 
-  /**
-   * (Re-)binds the drag&drop listeners to the given iframe document,
-   * detaching them from whatever document they were previously bound to.
-   * A no-op when already bound to this exact document.
-   *
-   * @param {Document} oDoc the iframe document to bind to
-   * @private
-   */
   Editor.prototype._rebindDnD = function (oDoc) {
     if (oDoc === this._oBoundDoc) { return; }
 
@@ -202,17 +195,8 @@ sap.ui.define([
     });
   };
 
-  /**
-   * Scans for source blocks (<div id="eb-src-{id}">) still holding real
-   * content and reports their ids to the source-sync handler. A block
-   * counts as valid while it has text besides SourceBlock.wrap()'s
-   * trailing filler paragraph, or media (image/table) of its own — used
-   * by the caller to detect blocks the user emptied or deleted by hand
-   * directly in the editor, keeping the sidebar source list in sync.
-   *
-   * @param {Document} oDoc the iframe document to scan
-   * @private
-   */
+  // Lets the caller detect blocks the user emptied or deleted by hand
+  // directly in the editor, to keep the sidebar source list in sync.
   Editor.prototype._scanSourceBlocks = function (oDoc) {
     if (!oDoc || !oDoc.body || !this._fnSourceSyncHandler) { return; }
     const aValidIds = [];
@@ -225,13 +209,6 @@ sap.ui.define([
     this._fnSourceSyncHandler(aValidIds);
   };
 
-  /**
-   * Reacts to a possible iframe swap: re-resolves the live iframe document
-   * and, only when it actually differs from the one currently bound,
-   * rebinds drag&drop and re-attaches the body observer to the new one.
-   *
-   * @private
-   */
   Editor.prototype._checkIframeSwap = function () {
     const oDoc = this._resolveEditorDoc();
     if (oDoc === this._oBoundDoc) { return; }
@@ -239,15 +216,6 @@ sap.ui.define([
     this._rebindBodyObserver(oDoc);
   };
 
-  /**
-   * (Re-)attaches the body-content observer to the given iframe document,
-   * disconnecting it from whatever document it was previously watching.
-   * Also runs one immediate scan so callers see the current state right
-   * away instead of waiting for the first future edit.
-   *
-   * @param {Document} oDoc the iframe document to watch
-   * @private
-   */
   Editor.prototype._rebindBodyObserver = function (oDoc) {
     if (this._oBodyObserver) {
       this._oBodyObserver.disconnect();
@@ -255,19 +223,14 @@ sap.ui.define([
     }
     if (!oDoc || !oDoc.body || !this._fnSourceSyncHandler) { return; }
 
+    // Immediate scan so callers see current state without waiting for the
+    // first future edit.
     this._scanSourceBlocks(oDoc);
 
     this._oBodyObserver = new MutationObserver(() => this._scheduleScan(oDoc));
     this._oBodyObserver.observe(oDoc.body, { childList: true, subtree: true, characterData: true });
   };
 
-  /**
-   * Debounces _scanSourceBlocks so a burst of edit mutations (e.g. typing)
-   * triggers one scan shortly after the user pauses, not one per keystroke.
-   *
-   * @param {Document} oDoc the iframe document to scan once settled
-   * @private
-   */
   Editor.prototype._scheduleScan = function (oDoc) {
     if (this._iScanDebounce) { clearTimeout(this._iScanDebounce); }
     this._iScanDebounce = setTimeout(() => {
@@ -276,16 +239,8 @@ sap.ui.define([
     }, SCAN_DEBOUNCE_MS);
   };
 
-  /**
-   * Starts the container-level observer that detects the RichTextEditor
-   * replacing its internal iframe (see the class doc comment). Idempotent.
-   *
-   * Observer options use `childList: true` only — the iframe swap is a
-   * direct child change of the RTE's root node, never a deeply-nested
-   * mutation.
-   *
-   * @private
-   */
+  // Idempotent. childList: true only — the iframe swap this watches for is
+  // always a direct child change of the RTE's root node, never nested.
   Editor.prototype._ensureContainerObserver = function () {
     if (this._oContainerObserver || !this._oRte || !this._oRte.getDomRef) { return; }
     const oContainerDom = this._oRte.getDomRef();
@@ -297,25 +252,12 @@ sap.ui.define([
     this._oContainerObserver.observe(oContainerDom, { childList: true });
   };
 
-  /**
-   * Registers a handler for files dropped directly onto the editor body.
-   *
-   * @param {function(FileList)} fnHandler called with the dropped files
-   */
   Editor.prototype.setupDnD = function (fnHandler) {
     if (!this._oRte || typeof fnHandler !== "function") { return; }
     this._fnDnDHandler = fnHandler;
     this._ensureContainerObserver();
   };
 
-  /**
-   * Registers a handler that's told, on every content edit inside the live
-   * iframe (debounced), which source block ids are still valid (see
-   * _scanSourceBlocks). The caller reconciles its own source/news lists
-   * against that set.
-   *
-   * @param {function(string[])} fnHandler called with the still-valid ids
-   */
   Editor.prototype.setupSourceSyncWatch = function (fnHandler) {
     if (!this._oRte || typeof fnHandler !== "function") { return; }
     this._fnSourceSyncHandler = fnHandler;
@@ -326,19 +268,12 @@ sap.ui.define([
   // Content API
   // ------------------------------------------------------------------
 
-  /**
-   * Returns the editor's current HTML content.
-   *
-   * Prefers the raw TinyMCE editor's getContent(): it resolves the
-   * blob: object URLs TinyMCE substitutes for data: URI images (so large
-   * embedded images serialize back to their original data: URI, not a
-   * dead blob: reference that only resolves inside this tab). The
-   * RichTextEditor wrapper's own getValue() does not perform this
-   * resolution and silently drops such an image's src entirely — used
-   * only as a fallback when the live TinyMCE instance can't be resolved.
-   *
-   * @returns {string} editor HTML
-   */
+  // Prefers the raw TinyMCE editor's getContent(): it resolves the blob:
+  // object URLs TinyMCE substitutes for data: URI images (so large embedded
+  // images serialize back to their original data: URI, not a dead blob:
+  // reference that only resolves inside this tab). The RichTextEditor
+  // wrapper's own getValue() skips that resolution and silently drops such
+  // an image's src entirely — used only as a fallback below.
   Editor.prototype.getValue = function () {
     const oTinymce = this._getTinymceEditor();
     if (oTinymce && typeof oTinymce.getContent === "function") {
@@ -365,18 +300,11 @@ sap.ui.define([
     }
   };
 
-  /**
-   * Resolves the live TinyMCE editor instance for this control via the
-   * global tinymce registry (tinymce.get(id)).
-   *
-   * NOTE: the per-iframe reference (iframe.contentWindow.tinymce) is NOT
-   * usable here — TinyMCE4 only tracks activeEditor/editors[] on the
-   * top-level `window.tinymce` singleton, so the iframe copy's
-   * `.activeEditor` is always null.
-   *
-   * @returns {Object|null} tinymce.Editor instance or null
-   * @private
-   */
+  // Resolves via the global tinymce registry (tinymce.get(id)) — the
+  // per-iframe reference (iframe.contentWindow.tinymce) is NOT usable here:
+  // TinyMCE4 only tracks activeEditor/editors[] on the top-level
+  // `window.tinymce` singleton, so the iframe copy's `.activeEditor` is
+  // always null.
   Editor.prototype._getTinymceEditor = function () {
     if (!this._oRte || typeof window.tinymce === "undefined") { return null; }
     try {
@@ -386,16 +314,9 @@ sap.ui.define([
     }
   };
 
-  /**
-   * Inserts HTML for a newly added source/news block.
-   *
-   * Appends at the very end of the document rather than at the current
-   * selection — uploads are additive, not cursor-targeted edits, and the
-   * browser has no valid caret position after a wrapping block (e.g. a
-   * docx-rendered <table>).
-   *
-   * @param {string} sHtml HTML to append
-   */
+  // Appends at the very end rather than at the current selection — uploads
+  // are additive, not cursor-targeted edits, and the browser has no valid
+  // caret position after a wrapping block (e.g. a docx-rendered <table>).
   Editor.prototype.insert = function (sHtml) {
     if (!this._oRte || !sHtml) { return; }
     const oTinymce = this._getTinymceEditor();
@@ -417,14 +338,9 @@ sap.ui.define([
     }
   };
 
-  /**
-   * Removes the source block <div id="eb-src-{id}"> from the editor.
-   * Primary path: TinyMCE DOM API. Fallback: DOMParser on the RTE value —
-   * a real HTML parser handles nested <div>s correctly (a regex-based
-   * fallback would truncate blocks at the first closing tag).
-   *
-   * @param {string} sSourceId source id to remove
-   */
+  // Primary path: TinyMCE DOM API. Fallback: DOMParser on the RTE value — a
+  // real HTML parser handles nested <div>s correctly (a regex-based
+  // fallback would truncate blocks at the first closing tag).
   Editor.prototype.removeSource = function (sSourceId) {
     if (!this._oRte || !sSourceId) { return; }
     try {

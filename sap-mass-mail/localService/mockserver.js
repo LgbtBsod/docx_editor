@@ -19,37 +19,22 @@ sap.ui.define([
     return sModulePath.replace(/^MAILING_CONSTRUCTOR\//, "");
   }
 
-  /**
-   * Extracts the deep MailHeader payload object from a raw request body.
-   * Works for both a plain JSON create body and a $batch changeset body
-   * (the app runs with useBatch:true), by scanning for the JSON fragment
-   * that carries LocalId. Returns {} when none is found.
-   *
-   * Uses a string-aware scanner so braces inside JSON string values
-   * (HTML/CSS content) don't break the depth counter.
-   *
-   * @param {string} sBody raw request body (JSON or multipart batch)
-   * @returns {object} parsed payload (unwrapped from any `d` envelope)
-   * @private
-   */
+  // Handles both a plain JSON create body and a $batch changeset body (the
+  // app runs with useBatch:true) by scanning for the JSON fragment carrying
+  // LocalId. The scanner is string-aware so braces inside JSON string
+  // values (HTML/CSS content) don't break the depth counter.
   function extractDeepPayload(sBody) {
     if (!sBody) { return {}; }
-    // Fast path: whole body is the entity JSON.
     try {
       const oWhole = JSON.parse(sBody);
       return oWhole.d || oWhole;
     } catch (e) { /* batch body — scan for the embedded JSON object */ }
 
-    // Batch body: find the JSON object containing "LocalId" using a
-    // string-aware scanner so braces inside JSON string values (HTML/CSS
-    // content) don't break the depth counter.
     const iIdx = sBody.indexOf('"LocalId"');
     if (iIdx < 0) { return {}; }
-    // Walk back to the opening brace of the object holding LocalId.
     let iStart = iIdx;
     while (iStart > 0 && sBody[iStart] !== "{") { iStart--; }
     if (sBody[iStart] !== "{") { return {}; }
-    // Walk forward with a string-aware brace counter.
     let iDepth = 0;
     let iEnd = -1;
     let bInString = false;
@@ -71,16 +56,23 @@ sap.ui.define([
     catch (e2) { return {}; }
   }
 
-  /**
-   * Syncs MailHistorySet (list) and MailContentSet (LOB) after a MailHeaderSet
-   * create. Registered via attachAfter so it fires for BOTH direct and batched
-   * POSTs — the app runs with useBatch:true, where a top-level custom route is
-   * bypassed by the $batch handler. The generated route creates the header and
-   * echoes the client LocalId; this only mirrors it into the read models.
-   *
-   * @param {sap.ui.base.Event} oEvent MockServer after-POST event
-   * @private
-   */
+  // ODataModel needs __metadata to key an entity it never fetched from a
+  // real request. Rows loaded from mockdata/*.json get this for free from
+  // MockServer itself; a row inserted programmatically via setEntitySetData
+  // (like the two below) does not — without it, ODataListBinding resolves
+  // the row's key as null, which poisons getContexts() for the WHOLE page
+  // (not just that row): a list with one un-keyed entry renders zero items
+  // even though getLength() is correct.
+  function buildMetadata(sEntitySet, sEntityType, sKey) {
+    const sUri = getRootUri() + sEntitySet + "('" + encodeURIComponent(sKey) + "')";
+    return { id: sUri, type: sEntityType, uri: sUri };
+  }
+
+  // Registered via attachAfter so it fires for BOTH direct and batched
+  // POSTs — the app runs with useBatch:true, where a top-level custom route
+  // is bypassed by the $batch handler. The generated route creates the
+  // header and echoes the client LocalId; this only mirrors it into the
+  // read models.
   function syncReadModelsAfterCreate(oEvent) {
     try {
       const oEntity = oEvent.getParameter("oEntity") || {};
@@ -91,8 +83,7 @@ sap.ui.define([
       const sLocalId = oEntity.LocalId || oPayload.LocalId || ("MSG-" + Date.now());
       const sSubject = oEntity.Subject || oPayload.Subject || "";
       const aRecipients = oPayload.ToRecipients || [];
-      const aTexts = oPayload.ToTexts || [];
-      const sContent = (aTexts.length > 0 ? (aTexts[0].Content || "") : "");
+      const sContent = oEntity.Content || oPayload.Content || "";
       const sOdataDate = "/Date(" + Date.now() + ")/";
 
       const aHistory = _oMockServer.getEntitySetData("MailHistorySet") || [];
@@ -103,24 +94,23 @@ sap.ui.define([
         // zcl_eb_mailing_mod_builder=>build_deep sets on the header.
         // The dispatcher walks it through 010 -> 100/900 asynchronously.
         Status: "001", CreatedAt: sOdataDate, CreatedBy: "PREVIEW",
-        TotalCount: aRecipients.length, SentCount: 0, ErrorCount: 0
+        TotalCount: aRecipients.length, SentCount: 0, ErrorCount: 0,
+        __metadata: buildMetadata("MailHistorySet", "eb.MailHistory", sKey)
       });
       _oMockServer.setEntitySetData("MailHistorySet", aHistory);
 
       const aContent = _oMockServer.getEntitySetData("MailContentSet") || [];
-      aContent.unshift({ Key: sKey, LocalID: sLocalId, Subject: sSubject, Content: sContent });
+      aContent.unshift({
+        Key: sKey, LocalID: sLocalId, Subject: sSubject, Content: sContent,
+        __metadata: buildMetadata("MailContentSet", "eb.MailContent", sKey)
+      });
       _oMockServer.setEntitySetData("MailContentSet", aContent);
     } catch (e) {
       Log.error("[MAILING_CONSTRUCTOR] MockServer read-model sync failed: " + e.message);
     }
   }
 
-  /**
-   * Builds RecipientUserSet mock data by grouping RecipientSet rows by email.
-   * Each unique email gets one row with comma-joined Roles and an AuthCount.
-   * Mirrors the ABAP CDS: GROUP BY bname, email, full_name.
-   * @private
-   */
+  // Mirrors the ABAP CDS: GROUP BY bname, email, full_name.
   function buildGroupedRecipients() {
     try {
       const aDetailed = _oMockServer.getEntitySetData("RecipientSet") || [];
@@ -180,11 +170,8 @@ sap.ui.define([
         bGenerateMissingMockData: true
       });
 
-      // Generate RecipientUserSet (GROUP BY email) from RecipientSet.
-      // On the ABAP side this is a separate CDS with GROUP BY uname/email.
       buildGroupedRecipients();
 
-      // Sync read models after every MailHeaderSet create (direct or batched).
       _oMockServer.attachAfter(MockServer.HTTPMETHOD.POST, syncReadModelsAfterCreate, "MailHeaderSet");
 
       _oMockServer.start();

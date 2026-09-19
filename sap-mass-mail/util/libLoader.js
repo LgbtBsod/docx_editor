@@ -3,19 +3,9 @@ sap.ui.define([
 ], (Log) => {
   "use strict";
 
-  /**
-   * Lazy loader for third-party browser libraries (docx-preview, pdf.js, marked).
-   * Each URL is injected at most once; concurrent callers share one Promise.
-   */
+  // Each URL is injected at most once; concurrent callers share one Promise.
   const mPending = {};
 
-  /**
-   * Loads a script once and resolves when its global is available.
-   *
-   * @param {string} sUrl script URL (app-relative)
-   * @param {function():boolean} fnCheck returns true when the lib is usable
-   * @returns {Promise<void>} resolves when loaded
-   */
   function load(sUrl, fnCheck) {
     if (fnCheck()) { return Promise.resolve(); }
     if (!mPending[sUrl]) {

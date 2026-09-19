@@ -505,15 +505,28 @@ html, body {
 }
 
 /* ============================================================
-   SELECT FIELDS — rounded corners everywhere
-   ============================================================ */
-/* sap.m.Select's actual root class is .sapMSlt (not .sapMSelect/
+   CONTROL ROUNDING (.emailBuilderPage scope) — every plain
+   border-radius:var(--eb-radius-sm) rule for this scope lives here so a
+   design-system radius change is one edit, not a hunt across the file.
+   sap.m.Select's actual root class is .sapMSlt (not .sapMSelect/
    .sapMSelectTrigger — those don't exist on this control; .sapMSelectList
    is the popup's option list, a separate DOM subtree). The theme already
    applies a 2px radius and overflow:hidden to .sapMSlt on its own, which
-   reads as square next to our 8px design-system radius elsewhere. */
+   reads as square next to our 8px design-system radius elsewhere.
+   ============================================================ */
 .emailBuilderPage .sapMSlt,
-.emailBuilderPage .sapMComboBox .sapMInputBase {
+.emailBuilderPage .sapMComboBox .sapMInputBase,
+.emailBuilderPage .sapMBtnInner,
+.emailBuilderPage .sapMSegBtn,
+.emailBuilderPage .sapMSegBtnInner,
+.emailBuilderPage .sapMLIB,
+.emailBuilderPage .sapMListTblRow,
+.emailBuilderPage .sapMOverflowToolbarBtn,
+.emailBuilderPage .sapMOverflowToolbarBtn .sapMBtnInner,
+.emailBuilderPage .sapUiSmartFilterBar .sapMInput,
+.emailBuilderPage .sapUiSmartFilterBar .sapMInputBase,
+.emailBuilderPage .sapUiSmartFilterBar .sapMInputBaseInner,
+.emailBuilderPage .sapUiSmartFilterBar .sapMInputBaseContentWrapper {
   border-radius: var(--eb-radius-sm) !important;
 }
 
@@ -523,10 +536,6 @@ html, body {
 .emailBuilderPage .sapMBtn {
   border-radius: var(--eb-radius-sm) !important;
   overflow: hidden;
-}
-
-.emailBuilderPage .sapMBtnInner {
-  border-radius: var(--eb-radius-sm) !important;
 }
 
 .emailBuilderPage .sapMBtn.emphasized .sapMBtnInner,
@@ -970,19 +979,8 @@ html, body {
   overflow: hidden !important;
 }
 
-.emailBuilderPage .sapMSegBtn,
-.emailBuilderPage .sapMSegBtnInner {
-  border-radius: var(--eb-radius-sm) !important;
-}
-
 .emailBuilderPage .sapMSingleSelectLeft {
   border-radius: var(--eb-radius-sm) 0 0 var(--eb-radius-sm) !important;
-}
-
-/* Card items rounded */
-.emailBuilderPage .sapMLIB,
-.emailBuilderPage .sapMListTblRow {
-  border-radius: var(--eb-radius-sm) !important;
 }
 
 /* Table cells rounded */
@@ -1002,71 +1000,26 @@ html, body {
 .ebDialog .sapMInputBase,
 .ebDialog .sapMInputBaseInner,
 .ebDialog .sapMInputBaseContentWrapper,
-.ebDialog .sapMSlt {
+.ebDialog .sapMSlt,
+.ebDialog .sapUiSmartFilterBar .sapMSFB,
+.ebDialog .sapUiSmartFilterBar .sapMInput,
+.ebDialog .sapUiSmartFilterBar .sapMSltTrigger,
+.ebDialog .sapUiSmartFilterBar .sapMBtnContent,
+.ebDialog .sapUiSmartFilterBar .sapMBtnTransparent {
   border-radius: var(--eb-radius-sm) !important;
 }
 
 /* ============================================================
-   SMART FILTER BAR — rounded corners for SFB controls
+   SMART FILTER BAR — layout (rounding lives in the consolidated
+   .ebDialog rule above)
    ============================================================ */
-/* SmartFilterBar container */
 .ebDialog .sapUiSmartFilterBar {
   padding: var(--eb-space-sm) var(--eb-space-md) !important;
-}
-
-/* SFB basic search field */
-.ebDialog .sapUiSmartFilterBar .sapMSFB,
-.ebDialog .sapUiSmartFilterBar .sapMSFB .sapMInputBase,
-.ebDialog .sapUiSmartFilterBar .sapMSFB .sapMInputBaseInner,
-.ebDialog .sapUiSmartFilterBar .sapMSFB .sapMInputBaseContentWrapper {
-  border-radius: var(--eb-radius-sm) !important;
-}
-
-/* SFB filter row inputs */
-.ebDialog .sapUiSmartFilterBar .sapMInput,
-.ebDialog .sapUiSmartFilterBar .sapMInputBase,
-.ebDialog .sapUiSmartFilterBar .sapMInputBaseInner,
-.ebDialog .sapUiSmartFilterBar .sapMInputBaseContentWrapper,
-.ebDialog .sapUiSmartFilterBar .sapMSlt,
-.ebDialog .sapUiSmartFilterBar .sapMSltTrigger {
-  border-radius: var(--eb-radius-sm) !important;
-}
-
-/* SFB buttons (Go, Clear, etc.) */
-.ebDialog .sapUiSmartFilterBar .sapMBtn,
-.ebDialog .sapUiSmartFilterBar .sapMBtnInner,
-.ebDialog .sapUiSmartFilterBar .sapMBtnContent {
-  border-radius: var(--eb-radius-sm) !important;
 }
 
 /* SFB filter group item labels and values */
 .ebDialog .sapUiSmartFilterBar .sapUiSFBGroupItem {
   padding: 0 var(--eb-space-xs) !important;
-}
-
-/* SFB expand/collapse button */
-.ebDialog .sapUiSmartFilterBar .sapMBtnTransparent {
-  border-radius: var(--eb-radius-sm) !important;
-}
-
-/* SFB in the main page area (outside dialogs) */
-.emailBuilderPage .sapUiSmartFilterBar .sapMInput,
-.emailBuilderPage .sapUiSmartFilterBar .sapMInputBase,
-.emailBuilderPage .sapUiSmartFilterBar .sapMInputBaseInner,
-.emailBuilderPage .sapUiSmartFilterBar .sapMInputBaseContentWrapper {
-  border-radius: var(--eb-radius-sm) !important;
-}
-
-/* Toolbar items rounded */
-.emailBuilderPage .sapMOverflowToolbarBtn,
-.emailBuilderPage .sapMOverflowToolbarBtn .sapMBtnInner {
-  border-radius: var(--eb-radius-sm) !important;
-}
-
-/* Select dropdown rounded — see .sapMSlt rule above for why not
-   .sapMSelectTrigger (kept only so this section isn't silently empty). */
-.emailBuilderPage .sapMSlt {
-  border-radius: var(--eb-radius-sm) !important;
 }
 
 /* Footer buttons alignment */

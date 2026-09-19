@@ -12,7 +12,7 @@
    the sender address for outgoing mass mailings. Also projected as
    AllowedHostSet in Z_EB_MAILING_SRV for the SAPUI5 client's
    link/image host allowlist (Sanitize.forEmail). */
-define view ZCDS_Allowed_Hosts
+define view ZEHS_C_Allowed_Host
   as select from zeb_allowed_hosts
 {
   key host        as Host,

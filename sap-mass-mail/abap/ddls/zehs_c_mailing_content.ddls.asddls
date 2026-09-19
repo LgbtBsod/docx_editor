@@ -15,7 +15,7 @@
 
    zmail_txt is the real BOPF persistence table backing the newsletter BO's
    TEXT_COLLECTION node; it must match the BO's /bobf/if_*_c interface. */
-define view ZCDS_Mail_Content
+define view ZEHS_C_Mailing_Content
   as select from zmail_hdr as h
     left outer join zmail_txt as t on h.key = t.parent_key
 {

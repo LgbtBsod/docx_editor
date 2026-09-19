@@ -53,11 +53,8 @@ sap.ui.define([
       }
     },
 
-    /**
-     * Loads ServiceDictSet and populates the "dict" JSONModel by DictType.
-     * Each DictType becomes a property path: dict>/MAIL_STATUS, dict>/NEWS_TYPE, etc.
-     * @private
-     */
+    // Groups ServiceDictSet rows by DictType into dict>/MAIL_STATUS,
+    // dict>/NEWS_TYPE, etc.
     _loadServiceDict() {
       Service.getServiceDict(this).then((aAll) => {
         const oDict = this.getModel("dict");
@@ -67,12 +64,10 @@ sap.ui.define([
           if (!mGroups[sType]) { mGroups[sType] = []; }
           mGroups[sType].push(oEntry);
         });
-        // Sort each group by SortOrder
         Object.keys(mGroups).forEach((sType) => {
           mGroups[sType].sort((a, b) => (a.SortOrder || 0) - (b.SortOrder || 0));
           oDict.setProperty("/" + sType, mGroups[sType]);
         });
-        // Also populate config>/allowedHosts from ALLOWED_HOST entries
         const aHosts = (mGroups["ALLOWED_HOST"] || []).map((h) => h.DictKey);
         this.getModel("config").setProperty("/allowedHosts", aHosts);
         Log.info("[MAILING_CONSTRUCTOR] Service dictionary loaded: " + (aAll || []).length + " entries");
@@ -81,12 +76,6 @@ sap.ui.define([
       });
     },
 
-    /**
-     * Initial (and reset) shape of the "state" model.
-     *
-     * @returns {object} fresh state payload
-     * @private
-     */
     _initialState() {
       return {
         localId: Config.generateLocalId(),
@@ -103,17 +92,12 @@ sap.ui.define([
       };
     },
 
-    /**
-     * Resets the composer state to a pristine draft with a fresh LocalId.
-     * Shared reset routine for "after send", "clear template" and
-     * "back to current".
-     */
+    // Shared by "after send", "clear template" and draft-reset callers.
     resetState() {
       this.getModel("state").setData(this._initialState());
     },
 
     destroy() {
-      // Explicit cleanup of all created models
       ["state", "config", "constants"].forEach((sModelName) => {
         const oModel = this.getModel(sModelName);
         if (oModel && !oModel.isDestroyed()) {
@@ -139,18 +123,12 @@ sap.ui.define([
       this._oMockServer = oMockServer;
     },
 
-    /**
-     * Raises the "state" JSONModel's array size limit to the backend-delivered
-     * MaxRecipients once MailingConfigSet resolves (see App.controller#_loadMailingConfig).
-     *
-     * The "state" model carries the local recipients list (which can grow past
-     * the JSONModel's default sizeLimit of 100), so this cap must follow the
-     * backend's MaxRecipients. A no-op no-lower-than-default guard: never
-     * shrinks below the pre-load fallback, so a transient bad backend value
-     * can't silently truncate.
-     *
-     * @param {number} iMaxRecipients backend-delivered recipient cap
-     */
+    // The "state" model carries the local recipients list (which can grow
+    // past the JSONModel's default sizeLimit of 100), so this cap must
+    // follow the backend's MaxRecipients once MailingConfigSet resolves
+    // (see App.controller#_loadMailingConfig). Never shrinks below the
+    // pre-load fallback, so a transient bad backend value can't silently
+    // truncate.
     setStateSizeLimit(iMaxRecipients) {
       const oStateModel = this.getModel("state");
       if (oStateModel && iMaxRecipients > Constants.PERFORMANCE.MAX_RECIPIENTS_PER_MAILING) {

@@ -133,11 +133,8 @@ sap.ui.define([
       }
     },
 
-    /**
-     * Copies the LocalId to the system clipboard.
-     * Placed here (not in SourcesMixin) as it is a generic UI action,
-     * not a source-management concern.
-     */
+    // Placed here (not in SourcesMixin) — generic UI action, not a
+    // source-management concern.
     onCopyLocalId() {
       const sText = this._oState.getProperty("/localId") || "";
       if (sText && navigator && navigator.clipboard
@@ -156,13 +153,6 @@ sap.ui.define([
     onTestSend()  { this._handleSend(true);  },
     onSaveDraft() { this._saveDraft(); },
 
-    /**
-     * Validates email addresses against Constants.VALIDATION.EMAIL_PATTERN.
-     *
-     * @param {object[]} aRecipients
-     * @returns {object} { valid: boolean, message: string }
-     * @private
-     */
     _validateEmails(aRecipients) {
       const aInvalid = aRecipients.filter(
         (r) => !Constants.VALIDATION.EMAIL_PATTERN.test(r.email)
@@ -236,10 +226,6 @@ sap.ui.define([
         });
     },
 
-    /**
-     * Resets the composer to a pristine draft (fresh LocalId, empty editor).
-     * @private
-     */
     _resetComposer() {
       this._oEditor.setValue("");
       this.getOwnerComponent().resetState();
@@ -262,6 +248,11 @@ sap.ui.define([
     // Draft
     // ----------------------------------------------------------------
 
+    /**
+     * Restores localId/subject/content only — recipients, attachments,
+     * sources and news items are never persisted (see draftManager.js) and
+     * always start empty, same as a fresh compose.
+     */
     _restoreDraft() {
       const oDraft = DraftManager.load(this._sUserId);
       if (!oDraft) { return; }
@@ -269,9 +260,9 @@ sap.ui.define([
       this._oState.setProperty("/localId", oDraft.localId);
       this._oState.setProperty("/viewingSubject", oDraft.subject || "");
       this._oState.setProperty("/recipients", []);
-      this._oState.setProperty("/attachments", oDraft.attachments || []);
-      this._oState.setProperty("/sources", oDraft.sources || []);
-      this._oState.setProperty("/newsItems", oDraft.newsItems || []);
+      this._oState.setProperty("/attachments", []);
+      this._oState.setProperty("/sources", []);
+      this._oState.setProperty("/newsItems", []);
       this._updateHeaderBadges();
 
       if (oDraft.content) { this._oEditor.setValue(oDraft.content); }
@@ -281,12 +272,9 @@ sap.ui.define([
     _saveDraft() {
       try {
         DraftManager.save({
-          localId:     this._oState.getProperty("/localId"),
-          subject:     this._oState.getProperty("/viewingSubject") || "",
-          content:     this._oEditor.getValue() || "",
-          attachments: this._oState.getProperty("/attachments") || [],
-          sources:     this._oState.getProperty("/sources")     || [],
-          newsItems:   this._oState.getProperty("/newsItems")   || []
+          localId: this._oState.getProperty("/localId"),
+          subject: this._oState.getProperty("/viewingSubject") || "",
+          content: this._oEditor.getValue() || ""
         }, this._sUserId);
         Toast.success(this._t("DRAFT_SAVED"));
       } catch (e) {
@@ -299,12 +287,8 @@ sap.ui.define([
     // Data loading
     // ----------------------------------------------------------------
 
-    /**
-     * Loads MaxRecipients/SubjectMaxLen from MailingConfigSet.
-     * Failure is silently ignored — the pre-load fallback in util/constants.js
-     * keeps the UI usable with client-side defaults.
-     * @private
-     */
+    // Failure is silently ignored — the pre-load fallback in
+    // util/constants.js keeps the UI usable with client-side defaults.
     _loadMailingConfig() {
       const oComponent = this.getOwnerComponent();
       Service.getMailingConfig(oComponent)

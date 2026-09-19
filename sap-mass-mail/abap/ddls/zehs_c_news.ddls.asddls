@@ -23,16 +23,19 @@
    изменения" toggle filters on NewsType = 'CHG'; one domain field drives
    both the toggle and the SmartFilterBar NewsType dropdown (SSOT).
    NewsType = 'CHG') but is not the primary filter path. */
-@Search.searchable: true
-define view ZCDS_News
+/* @Search annotations commented out for SAP NW 750 compatibility —
+   they require HANA Text Search Engine which may not be available in dev
+   systems. If HANA Text Search is enabled, uncomment the lines below and
+   rebuild. Otherwise, the UI will use standard $filter (LIKE substring). */
+define view ZEHS_C_News
   as select from znews
 {
   @Semantics.uuid: true
   key news_id as NewID,
 
-  @Search.defaultSearchElement: true
-  @Search.fuzzinessThreshold: 0.8
-  @Search.ranking: #HIGH
+  /* @Search.defaultSearchElement: true
+     @Search.fuzzinessThreshold: 0.8
+     @Search.ranking: #HIGH */
   @Semantics.text: true
   title       as Title,
 
@@ -43,9 +46,9 @@ define view ZCDS_News
   @Semantics.text: true
   area        as Area,
 
-  @Search.defaultSearchElement: true
-  @Search.fuzzinessThreshold: 0.8
-  @Search.ranking: #LOW
+  /* @Search.defaultSearchElement: true
+     @Search.fuzzinessThreshold: 0.8
+     @Search.ranking: #LOW */
   @Semantics.largeText: true
   content     as Content,
 
@@ -54,7 +57,7 @@ define view ZCDS_News
      the code to its display text via the associated ZZD_NEWS_TYPE domain
      text view (NewsTypeText) — the SmartFilterBar renders a dropdown. */
   @Consumption.filter: { selectionType: #SINGLE, multipleSelection: true }
-  @ObjectModel.text.element: ['NewsTypeText']
+  @ObjectModel.text.element: 'NewsTypeText'
   @EndUserText.label: 'Тип новости'
   news_type      as NewsType,
 

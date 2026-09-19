@@ -4,18 +4,15 @@ sap.ui.define([
 ], (Log, Constants) => {
   "use strict";
 
-  // v3: attachments no longer persist their `base64` content alongside
-  // metadata — see save(). v2 drafts (which may carry large base64 blobs)
-  // are discarded by isValidDraft() on next load instead of migrated;
-  // attachments get re-added from disk on resume.
-  const SCHEMA_VERSION = 3;
+  // v4: draft scope cut down to subject + content only. Attachments,
+  // recipients, sources and news items are never persisted — attachments
+  // and sources/news are either large (base64) or link back to files/state
+  // the user re-adds anyway, and a partially-restored chip that LOOKS
+  // complete but silently carries no data was worse than not restoring it
+  // at all. v3-and-earlier drafts (which may carry those fields) are
+  // discarded by isValidDraft() on next load instead of migrated.
+  const SCHEMA_VERSION = 4;
 
-  /**
-   * Генерирует уникальный ключ для draft, изолированный по пользователю.
-   * @param {string} [sUserId] опциональный userId
-   * @returns {string} storage key
-   * @private
-   */
   function getStorageKey(sUserId) {
     if (!sUserId) {
       try {
@@ -30,33 +27,15 @@ sap.ui.define([
     return `${Constants.STORAGE.DRAFT_KEY_PREFIX}_${sUserId}`;
   }
 
-  /**
-   * Validates the basic shape of a draft object loaded from storage.
-   *
-   * @param {object} oDraft parsed draft
-   * @returns {boolean} true when shape matches the current schema
-   * @private
-   */
   function isValidDraft(oDraft) {
     if (!oDraft || typeof oDraft !== "object") { return false; }
     if (oDraft.schemaVersion !== SCHEMA_VERSION) { return false; }
     if (typeof oDraft.localId !== "string") { return false; }
-    if (oDraft.attachments && !Array.isArray(oDraft.attachments)) { return false; }
-    if (oDraft.sources && !Array.isArray(oDraft.sources)) { return false; }
-    if (oDraft.newsItems && !Array.isArray(oDraft.newsItems)) { return false; }
     if (oDraft.subject && typeof oDraft.subject !== "string") { return false; }
     if (oDraft.content && typeof oDraft.content !== "string") { return false; }
     return true;
   }
 
-  /**
-   * Safely reads a string from localStorage. Returns null on any error or
-   * when the key is absent.
-   *
-   * @param {string} [sUserId] user ID for key isolation
-   * @returns {string|null} raw stored JSON or null
-   * @private
-   */
   function readRaw(sUserId) {
     try {
       const sKey = getStorageKey(sUserId);
@@ -67,12 +46,6 @@ sap.ui.define([
     }
   }
 
-  /**
-   * Loads the stored draft, validating shape and schema version.
-   *
-   * @param {string} [sUserId] user ID for key isolation
-   * @returns {object|null} draft object or null when absent/invalid
-   */
   function load(sUserId) {
     const sRaw = readRaw(sUserId);
     if (!sRaw) { return null; }
@@ -92,21 +65,13 @@ sap.ui.define([
     }
   }
 
-  /**
-   * Persists the given draft object to localStorage.
-   *
-   * Recipients are deliberately NOT persisted: they're personal data (names/
-   * emails) and localStorage is unencrypted/machine-wide.
-   *
-   * Attachment `base64` payload is stripped — only metadata (id/name/size/
-   * mimeType) needed to render the chip survives; the user re-adds the
-   * actual file on resume.
-   *
-   * @param {object} oDraft draft payload
-   * @param {string} [sUserId] user ID for key isolation
-   * @returns {void}
-   * @throws {Error} when storage write fails (e.g. quota exceeded)
-   */
+  // Only localId/subject/content are kept. Recipients (personal data —
+  // names/emails — on an unencrypted, machine-wide store) and attachments
+  // (base64 payload, too large for localStorage) are deliberately never
+  // persisted. Sources/news-item sidebar chips aren't persisted either —
+  // their actual content already lives inside `content` (they're just
+  // blocks in the editor HTML); only the sidebar bookkeeping list is lost
+  // on restore, which the user re-adds by re-importing if they need it back.
   function save(oDraft, sUserId) {
     if (!oDraft) { return; }
 
@@ -115,18 +80,6 @@ sap.ui.define([
       localId:     oDraft.localId || "",
       subject:     oDraft.subject || "",
       content:     oDraft.content || "",
-      // Strip `base64` — only metadata the chip needs survives; the file
-      // is re-added from disk on resume.
-      attachments: (Array.isArray(oDraft.attachments) ? oDraft.attachments : []).map((a) => ({
-        id:       a.id,
-        name:     a.name,
-        size:     a.size,
-        sizeStr:  a.sizeStr,
-        mimeType: a.mimeType
-        // NO base64 — too large for localStorage.
-      })),
-      sources:     Array.isArray(oDraft.sources) ? oDraft.sources : [],
-      newsItems:   Array.isArray(oDraft.newsItems) ? oDraft.newsItems : [],
       savedAt:     new Date().toISOString()
     };
 
@@ -152,12 +105,6 @@ sap.ui.define([
     }
   }
 
-  /**
-   * Removes the stored draft (if any).
-   *
-   * @param {string} [sUserId] user ID for key isolation
-   * @returns {void}
-   */
   function clear(sUserId) {
     try {
       const sKey = getStorageKey(sUserId);

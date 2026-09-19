@@ -9,7 +9,7 @@
 @EndUserText.label: 'Mail receiver status domain map (SSOT)'
 
 /* Single source of truth for the receiver-status -> unified display-status
-   mapping. ZI_Mailing_Status joins it instead of re-declaring the CASE,
+   mapping. ZEHS_C_Mailing_Recipient_Status joins it instead of re-declaring the CASE,
    and ZCL_NEWSLETTER_CONSTANTS=>ASSERT_STATUS_MAP_CONSISTENT SELECTs from
    it in an ABAP Unit test so a literal drift fails the build fast.
 
@@ -17,9 +17,9 @@
    map is a fixed domain contract shared by exactly two consumers, not
    master data an end user edits.
 
-   The Category column ('PENDING'/'SENT'/'ERROR') lets ZCDS_Mail_History
+   The Category column ('PENDING'/'SENT'/'ERROR') lets ZEHS_C_Mailing_History
    filter by category instead of branching on the DispStatus literal. */
-define view ZI_Mail_Status_Map
+define view ZEHS_I_Mail_Status_Map
   as select from ( select 1 as dummy from sysdummy1 ) as _one
 {
   key cast( '010' as abap.char( 3 ) ) as RecStatus,

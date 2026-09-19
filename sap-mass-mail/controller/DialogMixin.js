@@ -18,38 +18,52 @@ sap.ui.define([
   const parseODataDate = DateUtils.parseODataDate;
   const URLHelper = mobileLibrary.URLHelper;
 
-  /**
-   * Applies a filter array to a table's "items" binding.
-   * Centralised so the dialog table binding lookup isn't repeated.
-   *
-   * @param {sap.m.Table} oTable  table whose items binding should be filtered
-   * @param {sap.ui.model.Filter[]} aFilters filters (empty clears)
-   * @private
-   */
+  // Centralised so the dialog table binding lookup isn't repeated.
   function applyItemsFilter(oTable, aFilters) {
     const oBinding = oTable && oTable.getBinding("items");
     if (oBinding) { oBinding.filter(aFilters); }
   }
 
-  /**
-   * Adapts SmartFilterBar#getFilters() output for the currently active table.
-   *
-   * 1. EQ → Contains: SFB 1.71 defaults to EQ for text fields. Business UX
-   *    requires partial-match (Contains) for name/email/role — a user typing
-   *    "Кузнецов" in ФИО expects all names containing that substring, not an
-   *    exact match. This adapter converts EQ to Contains for known text fields.
-   * 2. Grouped mode: Role → Roles rename, AuthObject/FieldName dropped.
-   *
-   * @param {sap.ui.model.Filter[]} aFilters from SmartFilterBar#getFilters()
-   * @param {boolean} bDetailed true for detailed (RecipientSet) table
-   * @returns {sap.ui.model.Filter[]} adapted filters safe for the active entity
-   * @private
-   */
+  // Shared by the recipient/news dialogs: land on "added" when the compose
+  // state already has items, otherwise default to "search".
+  function setDialogDefaultTab(oDialog, aItems) {
+    const oModel = oDialog && oDialog.getModel("dialog");
+    if (!oModel) { return; }
+    oModel.setProperty("/selectedMode", (aItems || []).length > 0 ? "added" : "search");
+  }
+
+  // Shared by all three dialog search handlers below (recipients/news/
+  // mailings): basic-search OR group across aBasicSearchFields, plus
+  // adaptSfbFiltersForMode()'s structured filters, with an optional
+  // exclusion predicate (news drops the free-text Title field).
+  function buildSfbFilters(oSmartFilter, aBasicSearchFields, bDetailed, fnExclude) {
+    if (!oSmartFilter) { return []; }
+
+    const sSearch = oSmartFilter.getBasicSearchValue
+      ? (oSmartFilter.getBasicSearchValue() || "").trim()
+      : "";
+    const aFilters = (sSearch && aBasicSearchFields.length > 0)
+      ? [new Filter(
+          aBasicSearchFields.map((sField) => new Filter(sField, FilterOperator.Contains, sSearch)),
+          false // OR
+        )]
+      : [];
+
+    const aSfbFilters = oSmartFilter.getFilters ? (oSmartFilter.getFilters() || []) : [];
+    let aAdapted = adaptSfbFiltersForMode(aSfbFilters, bDetailed);
+    if (fnExclude) { aAdapted = aAdapted.filter((oF) => !fnExclude(oF)); }
+
+    return aFilters.concat(aAdapted);
+  }
+
+  // Adapts SmartFilterBar#getFilters() output for the currently active table:
+  // 1. EQ → Contains: SFB 1.71 defaults to EQ for text fields, but a user
+  //    typing "Кузнецов" in ФИО expects a substring match, not exact.
+  // 2. Grouped mode: Role → Roles rename, AuthObject/FieldName dropped.
   function adaptSfbFiltersForMode(aFilters, bDetailed) {
     if (!aFilters || aFilters.length === 0) { return []; }
     const mDrop   = { AuthObject: true, FieldName: true };
     const mRename = { Role: "Roles" };
-    // Text fields where EQ should be converted to Contains (partial match UX).
     const mContainsFields = {
       FullName: true, Email: true, Role: true, Roles: true,
       LocalID: true, Subject: true, CreatedBy: true,
@@ -64,7 +78,6 @@ sap.ui.define([
       if (!bDetailed && mDrop[sPath]) { return null; }
       const sTarget = (!bDetailed && mRename[sPath]) ? mRename[sPath] : sPath;
       const sOp = oF.sOperator || null;
-      // Convert EQ → Contains for text fields (SFB 1.71 defaults to EQ).
       if (sOp === FilterOperator.EQ && mContainsFields[sPath]) {
         return new Filter(sTarget, FilterOperator.Contains, oF.oValue1, oF.oValue2);
       }
@@ -116,9 +129,6 @@ sap.ui.define([
         this._oRecipGroupedTable = Fragment.byId(sViewId, "recipientGroupedTable");
         this.getView().addDependent(oDialog);
 
-        // The grouped table binds to /RecipientUserSet via OData directly
-        // (mirrors the detailed table on /RecipientSet); server-side
-        // $filter + growing="true" handle paging.
         const oModel = new JSONModel({
           selectedMode: "search",
           searchMode: "grouped",
@@ -144,10 +154,7 @@ sap.ui.define([
     },
 
     _setRecipientDialogDefaultTab() {
-      const oModel = this._oRecipDialog && this._oRecipDialog.getModel("dialog");
-      if (!oModel) { return; }
-      const aRecipients = this._oState.getProperty("/recipients") || [];
-      oModel.setProperty("/selectedMode", aRecipients.length > 0 ? "added" : "search");
+      setDialogDefaultTab(this._oRecipDialog, this._oState.getProperty("/recipients"));
     },
 
     onRecipientModeChange(oEvent) {
@@ -164,8 +171,8 @@ sap.ui.define([
       const oDialogModel = this._oRecipDialog && this._oRecipDialog.getModel("dialog");
       const bDetailed = oDialogModel && oDialogModel.getProperty("/searchMode") === "detailed";
 
-      // Detailed (по полномочиям): show AuthObject/FieldName, hide FullName/Email.
-      // Grouped (by users): show FullName/Email, hide AuthObject/FieldName.
+      // Detailed shows AuthObject/FieldName; grouped shows FullName/Email —
+      // never both, they answer different search questions.
       const oAuthCfg    = this.byId("authObjControlCfg");
       if (oAuthCfg)    { oAuthCfg.setVisibleInAdvancedArea(bDetailed); }
 
@@ -230,10 +237,7 @@ sap.ui.define([
     },
 
     _setNewsDialogDefaultTab() {
-      const oModel = this._oNewsDialog && this._oNewsDialog.getModel("dialog");
-      if (!oModel) { return; }
-      const aNews = this._oState.getProperty("/newsItems") || [];
-      oModel.setProperty("/selectedMode", aNews.length > 0 ? "added" : "search");
+      setDialogDefaultTab(this._oNewsDialog, this._oState.getProperty("/newsItems"));
     },
 
     onNewsTabSelect(oEvent) {
@@ -263,9 +267,6 @@ sap.ui.define([
           this._oMailingsTable.attachItemPress((oEvent) => this.onMailingPress(oEvent));
         }
 
-        // The mailings table binds to /MailHistorySet via OData directly,
-        // paging itself via growing="true"; onFilterMailings pushes
-        // server-side Filter objects to the items binding.
         oDialog.open();
       }).catch((err) => {
         Log.error("[MAILING_CONSTRUCTOR] Failed to load MailingsDialog fragment: " + err.message);
@@ -287,18 +288,8 @@ sap.ui.define([
       }
     },
 
-    /**
-     * Recipient search — dispatches to grouped (RecipientUserSet) or
-     * detailed (RecipientSet) table based on the current searchMode.
-     *
-     * Filters come from SmartFilterBar#getFilters() (already-built Filter
-     * objects); adaptSfbFiltersForMode() translates Role -> Roles and drops
-     * AuthObject/FieldName in grouped mode. The basic search value is
-     * folded in as an OR group on FullName/Email.
-     *
-     * @param {sap.ui.base.Event} [oEvent] optional SmartFilterBar search event
-     * @private
-     */
+    // Dispatches to grouped (RecipientUserSet) or detailed (RecipientSet)
+    // table based on the current searchMode.
     _searchRecipients(oEvent) {
       if (!this._oRecipDialog) { return; }
 
@@ -307,36 +298,10 @@ sap.ui.define([
       const oTable = bDetailed ? this._oRecipTable : this._oRecipGroupedTable;
       if (!oTable) { return; }
 
-      let aFilters = [];
-      const oSmartFilter = this.byId("recipientSFB");
-      if (oSmartFilter) {
-        // Basic search: OR across FullName and Email (both entities have these)
-        const sSearch = oSmartFilter.getBasicSearchValue
-          ? oSmartFilter.getBasicSearchValue()
-          : "";
-        if (sSearch) {
-          aFilters.push(new Filter([
-            new Filter("FullName", FilterOperator.Contains, sSearch),
-            new Filter("Email", FilterOperator.Contains, sSearch)
-          ], false)); // false = OR
-        }
-
-        // Structured filters from the SFB (Role/AuthObject/FieldName/Email/FullName)
-        const aSfbFilters = oSmartFilter.getFilters
-          ? (oSmartFilter.getFilters() || [])
-          : [];
-        aFilters = aFilters.concat(adaptSfbFiltersForMode(aSfbFilters, bDetailed));
-      }
-
+      const aFilters = buildSfbFilters(this.byId("recipientSFB"), ["FullName", "Email"], bDetailed);
       applyItemsFilter(oTable, aFilters);
     },
 
-    onSearchRecipients() { this._searchRecipients(); },
-
-    /**
-     * Adds selected recipients to the compose state.
-     * Handles both detailed (RecipientSet) and grouped (RecipientUserSet) tables.
-     */
     onAddSelectedRecipients() {
       if (!this._oRecipDialog) { return; }
 
@@ -398,43 +363,15 @@ sap.ui.define([
     // News search
     // ----------------------------------------------------------------
 
-    /**
-     * News search — structured $filter via SmartFilterBar.getFilters().
-     *
-     * UI5 1.71 ODataListBinding has no changeParameters() for $search, so
-     * the SFB's structured $filter fields (NewsType/Year/Quarter/Area/
-     * ChangeNumber/InitiatorName) cover the practical search UX in the
-     * 1.71 binding path. Title is dropped (free-text, $search-only on prod).
-     *
-     * @param {sap.ui.base.Event} [oEvent] optional SmartFilterBar search event
-     * @private
-     */
+    // UI5 1.71 ODataListBinding has no changeParameters() for $search, so
+    // structured $filter fields cover search here; Title is dropped
+    // (free-text, $search-only on prod).
     _searchNews(oEvent) {
       if (!this._oNewsDialog || !this._oNewsTable) { return; }
 
-      const oSmartFilter = this.byId("newsSFB");
-      const aFilters = [];
-
-      if (oSmartFilter) {
-        const aSfbFilters = oSmartFilter.getFilters
-          ? (oSmartFilter.getFilters() || [])
-          : [];
-        // Adapt EQ → Contains for text fields; drop Title (free-text, $search-only on prod).
-        const aAdapted = adaptSfbFiltersForMode(aSfbFilters, true);
-        aAdapted.forEach((oF) => {
-          const sPath = oF.sPath || null;
-          if (sPath === "Title") { return; }
-          aFilters.push(oF);
-        });
-      }
-
-      const oBinding = this._oNewsTable.getBinding("items");
-      if (oBinding) {
-        oBinding.filter(aFilters);
-      }
+      const aFilters = buildSfbFilters(this.byId("newsSFB"), [], true, (oF) => oF.sPath === "Title");
+      applyItemsFilter(this._oNewsTable, aFilters);
     },
-
-    onSearchNews() { this._searchNews(); },
 
     onAddSelectedNews() {
       if (!this._oNewsDialog || !this._oNewsTable) { return; }
@@ -452,53 +389,11 @@ sap.ui.define([
     // Mailings filter — SmartFilterBar-driven server-side $filter
     // ----------------------------------------------------------------
 
-    /**
-     * SmartFilterBar search handler for MailHistorySet.
-     *
-     * The SmartFilterBar (mailingsSFB) is the SSOT for its own filter state;
-     * the search event calls getFilters() and applies the resulting
-     * server-side Filter objects to the table's items binding. Basic search
-     * (the SFB's searchField) is folded into an OR on LocalID/Subject.
-     */
     onMailingsFilterSearch() {
       if (!this._oMailingsDialog || !this._oMailingsTable) { return; }
 
-      const oSmartFilter = this.byId("mailingsSFB");
-      const aFilters = [];
-
-      if (oSmartFilter) {
-        // Basic search: OR across LocalID and Subject (both text fields).
-        const sSearch = oSmartFilter.getBasicSearchValue
-          ? (oSmartFilter.getBasicSearchValue() || "").trim()
-          : "";
-        if (sSearch) {
-          aFilters.push(new Filter([
-            new Filter("LocalID", FilterOperator.Contains, sSearch),
-            new Filter("Subject", FilterOperator.Contains, sSearch)
-          ], false)); // false = OR
-        }
-
-        // Structured filters from the SFB — adapt EQ → Contains for text fields.
-        const aSfbFilters = oSmartFilter.getFilters
-          ? (oSmartFilter.getFilters() || [])
-          : [];
-        aFilters.push(...adaptSfbFiltersForMode(aSfbFilters, true));
-      }
-
+      const aFilters = buildSfbFilters(this.byId("mailingsSFB"), ["LocalID", "Subject"], true);
       applyItemsFilter(this._oMailingsTable, aFilters);
-    },
-
-    /**
-     * Clears the SmartFilterBar and re-applies an empty filter to the table.
-     */
-    onResetMailingsFilter() {
-      const oSmartFilter = this.byId("mailingsSFB");
-      if (oSmartFilter && typeof oSmartFilter.clear === "function") {
-        oSmartFilter.clear();
-      }
-      if (this._oMailingsTable) {
-        applyItemsFilter(this._oMailingsTable, []);
-      }
     },
 
     // ----------------------------------------------------------------
@@ -513,12 +408,7 @@ sap.ui.define([
       const oMailing = oCtx.getObject();
       if (!oMailing) { return; }
       this._closeDialog(this._oMailingsDialog);
-
-      const oRaw = Object.assign({}, oMailing);
-      if (oRaw.CreatedAt instanceof Date) {
-        oRaw.CreatedAt = "/Date(" + oRaw.CreatedAt.getTime() + ")/";
-      }
-      this._openHistoryView(oRaw);
+      this._openHistoryView(oMailing);
     },
 
     _openHistoryView(mailing) {
@@ -566,17 +456,11 @@ sap.ui.define([
       if (this._oHistoryViewDialog) { this._oHistoryViewDialog.close(); }
     },
 
-    /**
-     * Seeds the HistoryView HUD from the mailing summary's pre-aggregated
-     * SentCount/ErrorCount/TotalCount. The detailed per-status breakdown
-     * arrives asynchronously via _loadStatusHud (MailingStatusSet read);
-     * this method gives the HUD an immediate non-empty state so the
-     * chips render before the network round-trip resolves.
-     *
-     * Status codes use the Constants.STATUS.DISP SSOT (display domain,
-     * 020=pending / 040=sent / 050=failed) so the HistoryView's chip
-     * formatter (which keys off these same display codes) lights up.
-     */
+    // Seeds the HUD from the mailing summary's pre-aggregated counts so
+    // chips render immediately, before the async per-status breakdown from
+    // _loadStatusHud (MailingStatusSet) resolves. Status codes use the
+    // Constants.STATUS.DISP SSOT so the HistoryView's chip formatter
+    // (which keys off the same codes) lights up correctly.
     _applyMailingStatusToHud(oModel, mailing) {
       const iTotal   = mailing.TotalCount || 0;
       const iSent    = mailing.SentCount  || 0;
@@ -629,12 +513,8 @@ sap.ui.define([
     // CSV upload
     // ----------------------------------------------------------------
 
-    /**
-     * Generates and downloads a CSV template file.
-     *
-     * Uses sap.m.URLHelper.download (available from UI5 1.86); on the 1.71
-     * LTS baseline it falls back to a manual anchor click.
-     */
+    // sap.m.URLHelper.download is only available from UI5 1.86 — the 1.71
+    // LTS baseline falls back to a manual anchor click below.
     onDownloadCsvTemplate() {
       const sContent = "example@noreply.com\n";
       const oBlob = new Blob(["\uFEFF" + sContent], { type: "text/csv;charset=utf-8" });
@@ -647,7 +527,6 @@ sap.ui.define([
         // to give the browser time to start the download.
         setTimeout(() => URL.revokeObjectURL(sUrl), 1000);
       } else {
-        // 1.71 LTS fallback (URLHelper.download not yet available).
         const oLink = document.createElement("a");
         oLink.href = sUrl;
         oLink.download = sFilename;
@@ -659,10 +538,6 @@ sap.ui.define([
       Toast.success(this._t("CSV_TEMPLATE_DOWNLOADED"));
     },
 
-    /**
-     * Handles CSV file selection from the FileUploader.
-     * Reads, sanitizes (DOMPurify), extracts valid emails, deduplicates.
-     */
     onCsvFileChange(oEvent) {
       const oFile = oEvent.getParameter("files") && oEvent.getParameter("files")[0];
       if (!oFile) { return; }
@@ -735,9 +610,6 @@ sap.ui.define([
       oReader.readAsText(oFile, "utf-8");
     },
 
-    /**
-     * Adds all emails from the CSV preview into the recipients list.
-     */
     onAddCsvRecipients() {
       if (!this._oRecipDialog) { return; }
       const oDialogModel = this._oRecipDialog.getModel("dialog");
@@ -772,7 +644,6 @@ sap.ui.define([
       oDialogModel.setProperty("/csvPreview", []);
       oDialogModel.setProperty("/csvPreviewCount", 0);
 
-      // Reset the CSV uploader using Fragment.byId for view-scoped lookup.
       const sViewId = this.getView().getId();
       const oUploader = Fragment.byId(sViewId, "csvFileUploader");
       if (oUploader && typeof oUploader.clear === "function") {
@@ -792,10 +663,7 @@ sap.ui.define([
     // Lifecycle
     // ----------------------------------------------------------------
 
-    /**
-     * Cleanup hook — destroys all dialogs managed by this mixin.
-     * Called from App.controller#onExit.
-     */
+    // Called from App.controller#onExit.
     onExitCleanup() {
       // Destroy dialog models before dialogs — setModel() doesn't auto-destroy
       // the previous model, so the "dialog"/"history" named models leak if

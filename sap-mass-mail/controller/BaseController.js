@@ -7,12 +7,6 @@ sap.ui.define([
 
   return Controller.extend("MAILING_CONSTRUCTOR.controller.BaseController", {
 
-    /**
-     * Lazy-cached i18n resource bundle.
-     *
-     * @returns {sap.base.i18n.ResourceBundle|null} cached bundle or null
-     * @private
-     */
     _getBundle() {
       if (!this._oCachedBundle) {
         const oComp = this.getOwnerComponent();
@@ -22,13 +16,6 @@ sap.ui.define([
       return this._oCachedBundle;
     },
 
-    /**
-     * Looks up a translated text from the i18n resource bundle.
-     *
-     * @param {string} sKey i18n key
-     * @param {Array} [aArgs] format arguments
-     * @returns {string} translated text (or the key when missing)
-     */
     _t(sKey, aArgs) {
       const oBundle = this._getBundle();
       if (!oBundle) { return sKey; }
@@ -40,12 +27,7 @@ sap.ui.define([
       }
     },
 
-    /**
-     * Recomputes header badge texts and the news counter from the state model.
-     * `_oState` is set by App.controller#onInit before any mixin handler fires.
-     *
-     * @protected
-     */
+    // `_oState` is set by App.controller#onInit before any mixin handler fires.
     _updateHeaderBadges() {
       const oState = this._oState;
       if (!oState) { return; }
@@ -59,14 +41,9 @@ sap.ui.define([
       oState.setProperty("/newsCount", aNewsItems.length);
     },
 
-    /**
-     * Ensures the default (unnamed) OData model is present on the view so that
-     * dialogs added via addDependent inherit it. The model is created
-     * asynchronously and is not available at onInit; this is called from the
-     * dialog openers, by which point it is guaranteed ready. Idempotent.
-     *
-     * @returns {void}
-     */
+    // The OData model is created asynchronously and isn't available at
+    // onInit — this runs from the dialog openers instead, by which point
+    // it's guaranteed ready, so dependents added via addDependent inherit it.
     _ensureDefaultModel() {
       const oView = this.getView();
       if (oView && !oView.getModel()) {
@@ -75,12 +52,6 @@ sap.ui.define([
       }
     },
 
-    /**
-     * Closes the sap.m.Dialog that owns the given control (or the dialog
-     * itself when passed directly).
-     *
-     * @param {sap.ui.core.Control|sap.m.Dialog} oControl control inside a dialog, or the dialog
-     */
     _closeDialog(oControl) {
       if (!oControl) { return; }
       if (oControl instanceof Dialog) {
@@ -94,11 +65,6 @@ sap.ui.define([
       if (oDialog) { oDialog.close(); }
     },
 
-    /**
-     * Safely destroys a dialog and all its content (memory leak prevention).
-     * @param {sap.m.Dialog} [oDialog] dialog to destroy
-     * @private
-     */
     _destroyDialog(oDialog) {
       if (!oDialog) { return; }
       if (oDialog instanceof Dialog && !oDialog.isDestroyed()) {
@@ -107,11 +73,7 @@ sap.ui.define([
       }
     },
 
-    /**
-     * Cleanup hook for derived controllers to override.
-     * Called before super().onExit().
-     * @protected
-     */
+    // Override point for derived controllers — runs before onExit() below.
     onExitCleanup() {
       this._oCachedBundle = null;
     },

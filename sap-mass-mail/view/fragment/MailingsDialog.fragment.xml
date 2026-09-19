@@ -22,10 +22,9 @@
 
     <content>
       <VBox class="sapUiSmallMargin">
-        <!-- SmartFilterBar: server-side $filter push-down on MailHistorySet.
-             Replaces the manual DatePicker/Select/SearchField combo — the SFB
-             reads filter metadata from the OData $metadata and builds proper
-             server-side Filter objects via getFilters(). -->
+        <!-- Replaces a manual DatePicker/Select/SearchField combo — reads
+             filter metadata from $metadata and builds server-side Filter
+             objects via getFilters(). -->
         <comp:SmartFilterBar
           id="mailingsSFB"
           entitySet="MailHistorySet"
@@ -73,8 +72,6 @@
 
         <Text text="{i18n>MAILING_CLICK_HINT}" class="sapUiSmallMarginBottom" />
 
-        <!-- Bound directly to /MailHistorySet OData — server-side $filter from
-             the SmartFilterBar above is applied via onMailingsFilterSearch. -->
         <Table
           id="mailingsTable"
           items="{ path: '/MailHistorySet', parameters: { countMode: 'Inline' }, sorter: { path: 'CreatedAt', descending: true } }"

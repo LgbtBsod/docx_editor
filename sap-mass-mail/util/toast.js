@@ -24,20 +24,9 @@ sap.ui.define([
     info:    "ebToastInfo"
   };
 
-  /**
-   * Shows a toast tagged with a severity CSS class.
-   *
-   * @param {string} sMessage text to display
-   * @param {string} sType one of "success" | "warning" | "error" | "info"
-   * @param {object} [mOptions] additional sap.m.MessageToast.show options
-   * @private
-   */
   function show(sMessage, sType, mOptions) {
     const sClass = CSS_CLASS[sType] || CSS_CLASS.info;
     MessageToast.show(sMessage, mOptions);
-    // UI5 1.71: MessageToast.show() renders synchronously into the static
-    // UI area, so the just-created node is reliably the last .sapMMessageToast.
-    // Scope to #sap-ui-static to avoid scanning the whole document.
     const oStatic = document.getElementById("sap-ui-static");
     const aToasts = oStatic
       ? oStatic.querySelectorAll(".sapMMessageToast")

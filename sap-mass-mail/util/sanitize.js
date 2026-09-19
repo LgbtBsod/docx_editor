@@ -4,11 +4,8 @@ sap.ui.define([
 ], (Log, Constants) => {
   "use strict";
 
-  /**
-   * Context of the current sanitize run. DOMPurify hooks are global and
-   * registered once; per-run behaviour is switched via this module state.
-   * @type {{harden:boolean, hosts:string[]}|null}
-   */
+  // DOMPurify hooks are global and registered once; per-run behaviour
+  // (harden/hosts) is switched via this module state instead.
   let oHookContext = null;
   let bHooksRegistered = false;
 
@@ -17,12 +14,6 @@ sap.ui.define([
       && typeof window.DOMPurify.addHook === "function");
   }
 
-  /**
-   * Returns true if the URL uses an allowed protocol (or is relative).
-   *
-   * @param {string} sUrl URL to check
-   * @returns {boolean} true when allowed
-   */
   function isAllowedProtocol(sUrl) {
     if (!sUrl) { return false; }
     const sLower = sUrl.toLowerCase().trim();
@@ -32,15 +23,8 @@ sap.ui.define([
     );
   }
 
-  /**
-   * Checks whether an absolute http(s) URL host is allowlisted.
-   * FAIL-CLOSED: an empty allowlist or an unparseable URL rejects the host.
-   * Non-http URLs (mailto/tel/cid/relative) are protocol-gated elsewhere.
-   *
-   * @param {string} sUrl URL to check
-   * @param {string[]} aAllowedHosts list of allowed hostnames
-   * @returns {boolean} true when host is allowed
-   */
+  // FAIL-CLOSED: an empty allowlist or an unparseable URL rejects the host.
+  // Non-http URLs (mailto/tel/cid/relative) are protocol-gated elsewhere.
   function isHostAllowed(sUrl, aAllowedHosts) {
     const sLower = (sUrl || "").toLowerCase().trim();
     if (sLower.indexOf("http") !== 0) { return true; }
@@ -52,12 +36,6 @@ sap.ui.define([
     }
   }
 
-  /**
-   * Registers the single global DOMPurify hook that hardens links and images
-   * on the DOM level.
-   *
-   * @private
-   */
   function registerHooks() {
     if (bHooksRegistered || !hasDomPurify()) { return; }
     bHooksRegistered = true;
@@ -119,15 +97,7 @@ sap.ui.define([
     };
   }
 
-  /**
-   * Sanitizes HTML using DOMPurify. If DOMPurify is unavailable, returns an
-   * empty string for safety (never returns unsanitized HTML).
-   *
-   * @param {string} sHtml raw HTML
-   * @param {{harden:boolean, hosts:string[]}} oContext hook context for this run
-   * @returns {string} sanitized HTML or empty string
-   * @private
-   */
+  // Never returns unsanitized HTML — an unavailable DOMPurify fails to "".
   function sanitizeWithDomPurify(sHtml, oContext) {
     if (!hasDomPurify()) {
       Log.error("[MAILING_CONSTRUCTOR] DOMPurify not available; refusing to render untrusted HTML.");
@@ -145,24 +115,12 @@ sap.ui.define([
     }
   }
 
-  /**
-   * Sanitizes untrusted HTML for insertion into the editor.
-   *
-   * @param {string} sHtml raw HTML
-   * @returns {string} sanitized HTML
-   */
   function forImport(sHtml) {
     return sHtml ? sanitizeWithDomPurify(sHtml, { harden: false, hosts: [] }) : "";
   }
 
-  /**
-   * Sanitizes and hardens HTML for the outgoing email body: link/image hosts
-   * are enforced against the allowlist, external links get rel=noopener.
-   *
-   * @param {string} sHtml raw editor HTML
-   * @param {string[]} aAllowedHosts allowed hostnames
-   * @returns {string} sanitized, hardened HTML
-   */
+  // Unlike forImport, also enforces the host allowlist on links/images and
+  // adds rel=noopener to external links — this is the outgoing email path.
   function forEmail(sHtml, aAllowedHosts) {
     return sHtml ? sanitizeWithDomPurify(sHtml, { harden: true, hosts: aAllowedHosts || [] }) : "";
   }
@@ -173,11 +131,7 @@ sap.ui.define([
     isHostAllowed: isHostAllowed,
     isAllowedProtocol: isAllowedProtocol,
 
-    /**
-     * Removes the global DOMPurify afterSanitizeAttributes hook.
-     * Called from Component#destroy to leave no global side effects
-     * after the application unloads.
-     */
+    // Called from Component#destroy — leaves no global side effects after unload.
     removeHooks() {
       if (bHooksRegistered && typeof window.DOMPurify !== "undefined") {
         try { window.DOMPurify.removeHook("afterSanitizeAttributes"); } catch (e) { /* ignore */ }

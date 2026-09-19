@@ -369,7 +369,7 @@ CLASS zcl_mail_dispatcher IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD resolve_sender.
-    SELECT SINGLE host FROM zcds_allowed_hosts WHERE is_noreply = @abap_true INTO @rv_sender.
+    SELECT SINGLE host FROM zehs_c_allowed_host WHERE is_noreply = @abap_true INTO @rv_sender.
     IF sy-subrc <> 0.
       rv_sender = zcl_newsletter_constants=>behavior-default_sender.
     ENDIF.

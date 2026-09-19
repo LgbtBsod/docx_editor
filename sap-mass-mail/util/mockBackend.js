@@ -40,21 +40,11 @@ sap.ui.define([
     });
   }
 
-  /**
-   * Records a completed send to the local saved_emails/ folder for manual
-   * inspection during development. No-op when not in mock mode.
-   *
-   * @param {object} oPayload the composed mailing payload (LocalId, Subject,
-   *   Content, ToRecipients, Attachments) as sent to the OData service
-   * @param {object[]} aRecipients full recipient list — test sends omit
-   *   ToRecipients on the wire (the backend targets the test send at the
-   *   calling user), so the mock record restores the real list from local
-   *   state purely so it can show what a test send would have looked like
-   * @param {boolean} bIsTest whether this was a test send
-   * @returns {Promise<void>} resolves once the local save attempt settles;
-   *   never rejects — a failed local save must not block the "sent"
-   *   confirmation the user already saw
-   */
+  // Test sends omit ToRecipients on the wire (backend targets the calling
+  // user instead), so aRecipients restores the real list here purely so the
+  // saved record shows what a test send would have looked like. Never
+  // rejects — a failed local save must not block the "sent" confirmation
+  // the user already saw.
   function recordSend(oPayload, aRecipients, bIsTest) {
     if (!isActive()) { return Promise.resolve(); }
 

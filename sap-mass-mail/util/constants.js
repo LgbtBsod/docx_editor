@@ -32,10 +32,11 @@ sap.ui.define([], () => {
     },
 
     STORAGE: {
-      // Schema v3 (draftManager.js) strips base64 from attachments and does
-      // not persist recipient PII. The prefix bump invalidates all legacy
-      // drafts; a clean break is cheaper than migrating on-load.
-      DRAFT_KEY_PREFIX: "eb_draft_v3"
+      // Schema v4 (draftManager.js) keeps only localId/subject/content —
+      // recipients, attachments, sources and news items are never persisted.
+      // The prefix bump invalidates all legacy drafts; a clean break is
+      // cheaper than migrating on-load.
+      DRAFT_KEY_PREFIX: "eb_draft_v4"
     },
 
     /**
@@ -48,7 +49,7 @@ sap.ui.define([], () => {
      *   001 In Queue, 010 Processing, 100 Sent OK, 900 Sent with Errors.
      * Recipient statuses (zeb_mailing_rec.status):
      *   010 New, 020 Sent, 030 Error.
-     * Display statuses (ZI_Mailing_Status domain, what the UI formatter sees):
+     * Display statuses (ZEHS_C_Mailing_Recipient_Status domain, what the UI formatter sees):
      *   001 Queue (root-only), 010 Processing, 020 Pending,
      *   040 Sent, 050 Failed, 100 Sent OK (root-only), 900 Error (root-only).
      */
@@ -63,11 +64,16 @@ sap.ui.define([], () => {
         NEW:    "010",
         SENT:   "020",
         ERROR:  "030"
+      },
+      DISP: {
+        PENDING: "020",
+        SENT:    "040",
+        FAILED:  "050"
       }
     },
 
     /**
-     * SSOT for the CHAR(4) news-type domain (ZCDS_News.NewsType).
+     * SSOT for the CHAR(4) news-type domain (ZEHS_C_News.NewsType).
      * Mirrors the ABAP domain fixed values. The "Только изменения" toggle
      * in NewsSearch sends Filter("NewsType", EQ, NEWS_TYPE.CHG).
      *

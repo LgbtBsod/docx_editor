@@ -7,11 +7,9 @@ sap.ui.define([
   // entry in constants.js, not a hex literal per file type here.
   const C = Constants.COLORS;
 
-  /**
-   * Single registry (SSOT) for every supported source file type:
-   * processing handler, accepted mime types, list icon and color.
-   * Adding a format = one entry here + one handler in fileProcessor.
-   */
+  // SSOT for every supported source file type: processing handler, accepted
+  // mime types, list icon and color. Adding a format = one entry here + one
+  // handler in fileProcessor.
   const TYPES = {
     ".pdf": {
       handler: "pdf",
@@ -73,24 +71,11 @@ sap.ui.define([
 
   return {
 
-    /**
-     * Returns the type descriptor for a file extension.
-     *
-     * @param {string} sExt lowercase extension incl. dot, e.g. ".pdf"
-     * @returns {object|null} descriptor or null when unsupported
-     */
     get(sExt) {
       return TYPES[sExt] || null;
     },
 
-    /**
-     * Checks whether a mime type plausibly matches a file extension.
-     * Unknown extensions are not vetoed here (process() rejects them).
-     *
-     * @param {string} sExt file extension
-     * @param {string} sMime reported mime type
-     * @returns {boolean} true when plausible
-     */
+    // Unknown extensions are not vetoed here — process() rejects those.
     mimeMatches(sExt, sMime) {
       const oType = TYPES[sExt];
       if (!oType || !sMime) { return true; }

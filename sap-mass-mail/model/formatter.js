@@ -12,22 +12,11 @@ sap.ui.define([
   let oDateTimeFormat = null;
   let oTimeFormat = null;
 
-  /**
-   * Resource bundle injected by the controller (Formatter.setResourceBundle).
-   * @type {sap.base.i18n.ResourceBundle|null}
-   */
   let oInjectedBundle = null;
 
-  /**
-   * Looks up a status entry from the "dict" JSONModel (loaded once from
-   * ServiceDictSet at Component init). Searches MAIL_STATUS first (root
-   * statuses on the mailings grid), then DISP_STATUS (display statuses
-   * from ZI_Mailing_Status aggregation), then REC_STATUS.
-   *
-   * @param {string} sStatus the status code to look up
-   * @returns {object|null} the dict entry {DictKey, DictText, UiState, UiIcon, CssClass}
-   * @private
-   */
+  // Searches MAIL_STATUS first (root statuses on the mailings grid), then
+  // DISP_STATUS (display statuses from ZEHS_C_Mailing_Recipient_Status
+  // aggregation), then REC_STATUS — first match by DictKey wins.
   function dictLookup(sStatus) {
     const oComp = sap.ui.getCore().getComponent("MAILING_CONSTRUCTOR");
     if (!oComp) { return null; }
@@ -43,12 +32,7 @@ sap.ui.define([
     return null;
   }
 
-  /**
-   * Delegates to the shared dateUtils module (SSOT for OData date parsing).
-   * @param {string|number|Date} vValue value to parse
-   * @returns {Date|null} parsed date or null
-   * @private
-   */
+  // Delegates to the shared dateUtils module (SSOT for OData date parsing).
   function parseDate(vValue) {
     if (vValue === null || vValue === undefined || vValue === "") { return null; }
     return DateUtils.parseODataDate(vValue);
@@ -80,18 +64,8 @@ sap.ui.define([
     return sFallback !== undefined ? sFallback : sKey;
   }
 
-  /**
-   * Picks the grammatically correct noun form for a count, Russian plural
-   * rules (1 / 2-4 / 5-20,0 exceptions) vs. simple English singular/plural.
-   *
-   * @param {number} n count
-   * @param {string} sOne RU form for n=1 (e.g. "получатель")
-   * @param {string} sFew RU form for n=2..4 (e.g. "получателя")
-   * @param {string} sMany RU form for n=0,5-20,... (e.g. "получателей")
-   * @param {string} sSingularEn EN singular (e.g. "recipient")
-   * @param {string} sPluralEn EN plural (e.g. "recipients")
-   * @returns {string} noun in the correct form for the active language
-   */
+  // Russian plural rules (1 / 2-4 / 5-20,0 exceptions) vs. simple English
+  // singular/plural.
   function pluralNoun(n, sOne, sFew, sMany, sSingularEn, sPluralEn) {
     if (sap.ui.getCore().getConfiguration().getLanguage() !== "ru") {
       return n === 1 ? sSingularEn : sPluralEn;
@@ -161,13 +135,6 @@ sap.ui.define([
       return m && m.UiIcon ? m.UiIcon : "sap-icon://hint";
     },
 
-    /**
-     * Combined "Label (Count)" text for a status chip.
-     *
-     * @param {string} sStatus status code
-     * @param {number} iCount count for that status
-     * @returns {string} chip text
-     */
     statusChipText(sStatus, iCount) {
       const m = dictLookup(sStatus);
       const sLabel = m ? m.DictText : "—";
@@ -199,30 +166,16 @@ sap.ui.define([
       return getText("NEWS_SUMMARY", [c, sNoun], c + " " + sNoun + " — нажмите для просмотра");
     },
 
-    /**
-     * Sanitizes HTML for safe rendering inside sap.m.FormattedText.
-     *
-     * @param {string} sHtml raw HTML from backend / draft
-     * @returns {string} sanitized HTML
-     */
     sanitizedHtml(sHtml) {
       if (!sHtml) { return ""; }
       return Sanitize.forImport(sHtml);
     },
 
-    /**
-     * Builds the editor-ready HTML block for a single News/NewsSet entry.
-     * When IsChange="X" (see ZCDS_News), this reproduces the CHG-announcement
-     * layout (bold change number, "Инициатор: ...", "Область изменения: ...",
-     * body). Other news items render plain sanitized Content.
-     *
-     * Styling is INLINE (not a CSS class): this block travels in the outgoing
-     * email body where no app stylesheet resolves.
-     *
-     * @param {object} oNews News/NewsSet entity (Title, Area, Content,
-     *   IsChange, ChangeNumber, InitiatorName, InitiatorOrg)
-     * @returns {string} sanitized HTML ready for SourceBlock.wrap
-     */
+    // When IsChange="X" (see ZEHS_C_News), reproduces the CHG-announcement
+    // layout (bold change number, "Инициатор: ...", "Область изменения: ...",
+    // body); other news items render plain sanitized Content. Styling is
+    // INLINE, not a CSS class — this block travels in the outgoing email
+    // body where no app stylesheet resolves.
     newsContentHtml(oNews) {
       const sContent = Sanitize.forImport((oNews && oNews.Content) || "");
       if (!oNews || oNews.IsChange !== "X") {
@@ -260,18 +213,8 @@ sap.ui.define([
       return aParts.join("");
     },
 
-    /**
-     * Substitutes a numeric count into an i18n template with `{0}`.
-     *
-     * @param {string} sTemplate raw i18n text, e.g. "Всего: {0}"
-     * @param {number|string} vCount the count to substitute
-     * @returns {string} formatted text
-     */
-    /**
-     * Clears the cached bundle and format instances.
-     * Called from Component#destroy to prevent stale singleton state
-     * when the component is recreated within the same page lifecycle.
-     */
+    // Called from Component#destroy to prevent stale singleton state when
+    // the component is recreated within the same page lifecycle.
     reset() {
       oInjectedBundle = null;
       oDateTimeFormat = null;

@@ -11,10 +11,7 @@ sap.ui.define([
   // type semantics, not brand colors).
   const COLORS = Constants.COLORS;
 
-  /**
-   * Presentation helpers for source list entries.
-   * Icon/color data comes from the fileTypes registry (SSOT).
-   */
+  // Icon/color data comes from the fileTypes registry (SSOT).
   return {
 
     icon(sType, sExt) {

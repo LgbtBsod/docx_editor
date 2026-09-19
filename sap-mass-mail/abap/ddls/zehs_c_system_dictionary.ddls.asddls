@@ -16,24 +16,25 @@
    DictType разделяет справочники:
      MAIL_STATUS   — статусы рассылки (zmail_hdr.status, ZD_MAIL_STATUS)
      REC_STATUS    — статусы получателя (zeb_mailing_rec.status, ZD_REC_STATUS)
-     DISP_STATUS   — display-статусы (ZI_Mail_Status_Map output)
+     DISP_STATUS   — display-статусы (ZEHS_I_Mail_Status_Map output)
      NEWS_TYPE     — типы новостей (znews.news_type, ZD_NEWS_TYPE)
      ALLOWED_HOST  — разрешённые хосты (zeb_allowed_hosts)
 
-   DictKey  — код (CHAR 40 вмещает и '001' и 'sap.com')
+   DictKey  — код (CHAR 255 — должен вмещать полный host, ZEB_ALLOWED_HOSTS.HOST
+              тоже CHAR(255); CHAR 40 обрезал бы длинные FQDN)
    DictText — текст (CHAR 200 вмещает description хостов)
 
    UNION ALL (не таблица) — справочники фиксированы, не редактируются
    пользователем. AllowedHosts — единственный редактируемый справочник,
    но он вшит сюда как проекция zeb_allowed_hosts. */
-define view ZI_Service_Dict
+define view ZEHS_C_System_Dictionary
   as select from ( select 1 as dummy from sysdummy1 ) as _one
 {
   @EndUserText.label: 'Dictionary Type'
   key cast( 'MAIL_STATUS' as abap.char( 20 ) )  as DictType,
 
   @EndUserText.label: 'Dictionary Key'
-  key cast( '001' as abap.char( 40 ) )          as DictKey,
+  key cast( '001' as abap.char( 255 ) )          as DictKey,
 
   @Semantics.text: true
   @EndUserText.label: 'Dictionary Text'
@@ -54,7 +55,7 @@ define view ZI_Service_Dict
   union all select from ( select 1 as dummy from sysdummy1 ) as _one
   {
     key cast( 'MAIL_STATUS' as abap.char( 20 ) ),
-    key cast( '010' as abap.char( 40 ) ),
+    key cast( '010' as abap.char( 255 ) ),
         cast( 'В процессе' as abap.char( 200 ) ),
         cast( 'Warning' as abap.char( 10 ) ),
         cast( 'sap-icon://process' as abap.char( 60 ) ),
@@ -65,7 +66,7 @@ define view ZI_Service_Dict
   union all select from ( select 1 as dummy from sysdummy1 ) as _one
   {
     key cast( 'MAIL_STATUS' as abap.char( 20 ) ),
-    key cast( '100' as abap.char( 40 ) ),
+    key cast( '100' as abap.char( 255 ) ),
         cast( 'Отправлено' as abap.char( 200 ) ),
         cast( 'Success' as abap.char( 10 ) ),
         cast( 'sap-icon://message-success' as abap.char( 60 ) ),
@@ -76,7 +77,7 @@ define view ZI_Service_Dict
   union all select from ( select 1 as dummy from sysdummy1 ) as _one
   {
     key cast( 'MAIL_STATUS' as abap.char( 20 ) ),
-    key cast( '900' as abap.char( 40 ) ),
+    key cast( '900' as abap.char( 255 ) ),
         cast( 'Ошибка' as abap.char( 200 ) ),
         cast( 'Error' as abap.char( 10 ) ),
         cast( 'sap-icon://message-error' as abap.char( 60 ) ),
@@ -88,7 +89,7 @@ define view ZI_Service_Dict
   union all select from ( select 1 as dummy from sysdummy1 ) as _one
   {
     key cast( 'REC_STATUS' as abap.char( 20 ) ),
-    key cast( '010' as abap.char( 40 ) ),
+    key cast( '010' as abap.char( 255 ) ),
         cast( 'Новый' as abap.char( 200 ) ),
         cast( 'None' as abap.char( 10 ) ),
         cast( 'sap-icon://hint' as abap.char( 60 ) ),
@@ -99,7 +100,7 @@ define view ZI_Service_Dict
   union all select from ( select 1 as dummy from sysdummy1 ) as _one
   {
     key cast( 'REC_STATUS' as abap.char( 20 ) ),
-    key cast( '020' as abap.char( 40 ) ),
+    key cast( '020' as abap.char( 255 ) ),
         cast( 'Отправлено' as abap.char( 200 ) ),
         cast( 'Success' as abap.char( 10 ) ),
         cast( 'sap-icon://message-success' as abap.char( 60 ) ),
@@ -110,7 +111,7 @@ define view ZI_Service_Dict
   union all select from ( select 1 as dummy from sysdummy1 ) as _one
   {
     key cast( 'REC_STATUS' as abap.char( 20 ) ),
-    key cast( '030' as abap.char( 40 ) ),
+    key cast( '030' as abap.char( 255 ) ),
         cast( 'Ошибка' as abap.char( 200 ) ),
         cast( 'Error' as abap.char( 10 ) ),
         cast( 'sap-icon://message-error' as abap.char( 60 ) ),
@@ -118,11 +119,11 @@ define view ZI_Service_Dict
         cast( 3 as abap.int2 )
   }
 
-  /* Display statuses (ZI_Mail_Status_Map output domain) */
+  /* Display statuses (ZEHS_I_Mail_Status_Map output domain) */
   union all select from ( select 1 as dummy from sysdummy1 ) as _one
   {
     key cast( 'DISP_STATUS' as abap.char( 20 ) ),
-    key cast( '020' as abap.char( 40 ) ),
+    key cast( '020' as abap.char( 255 ) ),
         cast( 'Ожидание' as abap.char( 200 ) ),
         cast( 'Warning' as abap.char( 10 ) ),
         cast( 'sap-icon://pending' as abap.char( 60 ) ),
@@ -133,7 +134,7 @@ define view ZI_Service_Dict
   union all select from ( select 1 as dummy from sysdummy1 ) as _one
   {
     key cast( 'DISP_STATUS' as abap.char( 20 ) ),
-    key cast( '040' as abap.char( 40 ) ),
+    key cast( '040' as abap.char( 255 ) ),
         cast( 'Отправлено' as abap.char( 200 ) ),
         cast( 'Success' as abap.char( 10 ) ),
         cast( 'sap-icon://message-success' as abap.char( 60 ) ),
@@ -144,7 +145,7 @@ define view ZI_Service_Dict
   union all select from ( select 1 as dummy from sysdummy1 ) as _one
   {
     key cast( 'DISP_STATUS' as abap.char( 20 ) ),
-    key cast( '050' as abap.char( 40 ) ),
+    key cast( '050' as abap.char( 255 ) ),
         cast( 'Ошибка' as abap.char( 200 ) ),
         cast( 'Error' as abap.char( 10 ) ),
         cast( 'sap-icon://message-error' as abap.char( 60 ) ),
@@ -156,7 +157,7 @@ define view ZI_Service_Dict
   union all select from ( select 1 as dummy from sysdummy1 ) as _one
   {
     key cast( 'NEWS_TYPE' as abap.char( 20 ) ),
-    key cast( 'BASE' as abap.char( 40 ) ),
+    key cast( 'BASE' as abap.char( 255 ) ),
         cast( 'Базовая рассылка' as abap.char( 200 ) ),
         cast( 'None' as abap.char( 10 ) ),
         cast( 'sap-icon://email' as abap.char( 60 ) ),
@@ -167,7 +168,7 @@ define view ZI_Service_Dict
   union all select from ( select 1 as dummy from sysdummy1 ) as _one
   {
     key cast( 'NEWS_TYPE' as abap.char( 20 ) ),
-    key cast( 'NEWS' as abap.char( 40 ) ),
+    key cast( 'NEWS' as abap.char( 255 ) ),
         cast( 'Новости' as abap.char( 200 ) ),
         cast( 'None' as abap.char( 10 ) ),
         cast( 'sap-icon://news' as abap.char( 60 ) ),
@@ -178,7 +179,7 @@ define view ZI_Service_Dict
   union all select from ( select 1 as dummy from sysdummy1 ) as _one
   {
     key cast( 'NEWS_TYPE' as abap.char( 20 ) ),
-    key cast( 'ERROR' as abap.char( 40 ) ),
+    key cast( 'ERROR' as abap.char( 255 ) ),
         cast( 'Ошибки' as abap.char( 200 ) ),
         cast( 'Error' as abap.char( 10 ) ),
         cast( 'sap-icon://alert' as abap.char( 60 ) ),
@@ -189,7 +190,7 @@ define view ZI_Service_Dict
   union all select from ( select 1 as dummy from sysdummy1 ) as _one
   {
     key cast( 'NEWS_TYPE' as abap.char( 20 ) ),
-    key cast( 'CHG' as abap.char( 40 ) ),
+    key cast( 'CHG' as abap.char( 255 ) ),
         cast( 'Изменения' as abap.char( 200 ) ),
         cast( 'Warning' as abap.char( 10 ) ),
         cast( 'sap-icon://change' as abap.char( 60 ) ),
@@ -203,7 +204,7 @@ define view ZI_Service_Dict
   select from zeb_allowed_hosts as h
   {
     key cast( 'ALLOWED_HOST' as abap.char( 20 ) )  as DictType,
-    key cast( h.host as abap.char( 40 ) )           as DictKey,
+    key cast( h.host as abap.char( 255 ) )           as DictKey,
         cast( h.description as abap.char( 200 ) )    as DictText,
         cast( '' as abap.char( 10 ) )                as UiState,
         cast( '' as abap.char( 60 ) )                as UiIcon,

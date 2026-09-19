@@ -160,6 +160,33 @@ sap.ui.define([
     }
   }
 
+  // docx-preview reproduces Word's "wrap text" floating images via
+  // position:absolute/left/top coordinates anchored to the ORIGINAL page's
+  // pixel width. Rendering with ignoreWidth/ignoreHeight below (needed so a
+  // wide fixed-width Word page doesn't force the same width on the editor/
+  // email body) throws away exactly the coordinate system those images were
+  // positioned against, so the picture ends up floating over the wrong spot
+  // relative to the reflowed text. Pixel-exact Word placement can't survive
+  // a different container width anyway, so this trades it for the image
+  // simply sitting inline with the text instead of overlapping it.
+  function neutralizePositionedImages(sHtml) {
+    if (!sHtml || sHtml.indexOf("<img") === -1) { return sHtml; }
+    try {
+      const oDoc = new DOMParser().parseFromString(sHtml, "text/html");
+      oDoc.querySelectorAll("img").forEach((oImg) => {
+        const sStyle = oImg.getAttribute("style") || "";
+        if (!/position\s*:\s*absolute/i.test(sStyle)) { return; }
+        const sCleaned = sStyle
+          .replace(/position\s*:\s*[^;]+;?/gi, "")
+          .replace(/(^|;)\s*(top|left|right|bottom|z-index)\s*:\s*[^;]+;?/gi, "$1");
+        oImg.setAttribute("style", (sCleaned + ";display:inline-block;max-width:100%;height:auto;").replace(/;{2,}/g, ";"));
+      });
+      return oDoc.body.innerHTML;
+    } catch (e) {
+      return sHtml;
+    }
+  }
+
   // docx-preview over mammoth: mammoth only converts document structure and never
   // reads direct formatting (text color, alignment) — docx-preview renders those as
   // inline styles, which is what survives both TinyMCE and an outgoing email.
@@ -173,7 +200,7 @@ sap.ui.define([
     }).then(() => {
       const oSection = oContainer.querySelector("section.docx");
       const sRaw = oSection ? oSection.innerHTML : oContainer.innerHTML;
-      return styleImportedTables(Sanitize.forImport(sRaw));
+      return neutralizePositionedImages(styleImportedTables(Sanitize.forImport(sRaw)));
     });
   }
 

@@ -10,17 +10,9 @@ sap.ui.define([
   const DEFAULT_RETRY_WAIT_MS = 1000;
   const MAX_RETRIES = 3;
 
-  /**
-   * A 4xx response (bad filter, missing entity, auth) is deterministic —
-   * retrying sends the exact same invalid request three more times and
-   * only delays the error reaching the user. Only a missing status (network
-   * failure before any response) or a 5xx (transient server-side issue) is
-   * worth a backoff retry.
-   *
-   * @param {object} oError ODataModel v2 read() error object
-   * @returns {boolean} true if this failure is worth retrying
-   * @private
-   */
+  // A 4xx response (bad filter, missing entity, auth) is deterministic —
+  // retrying just resends the same invalid request. Only a missing status
+  // (network failure before any response) or a 5xx is worth retrying.
   function isRetryable(oError) {
     const vStatus = oError && (
       (oError.response && oError.response.statusCode) || oError.statusCode
@@ -47,42 +39,17 @@ sap.ui.define([
     return oComponent ? oComponent.getModel() : null;
   }
 
-  /**
-   * Builds a canonical entity path via ODataModel#createKey — the standard
-   * API handles OData key escaping (quotes etc.), no manual concatenation.
-   *
-   * @param {sap.ui.core.UIComponent} oComponent owner component
-   * @param {string} sSet entity set name
-   * @param {object} oKeys key property map
-   * @returns {Promise<string>} resolves with the canonical path
-   * @private
-   */
+  // Uses ODataModel#createKey — the standard API handles OData key escaping
+  // (quotes etc.), no manual concatenation.
   function entityPath(oComponent, sSet, oKeys) {
     const oModel = getModel(oComponent);
     if (!oModel) { return Promise.reject(new Error("OData model not available")); }
     return oModel.metadataLoaded().then(() => "/" + oModel.createKey(sSet, oKeys));
   }
 
-  /**
-   * OData read with exponential backoff retry.
-   *
-   * Improves resilience to transient network failures (only 5xx and
-   * connection drops are retried — see isRetryable).
-   *
-   * @param {sap.ui.core.UIComponent} oComponent owner component
-   * @param {string} sPath entity path or entity set
-   * @param {sap.ui.model.Filter[]} [aFilters] filter array
-   * @param {number} [iTop] $top page size; 0 means "no $top"
-   * @param {object} [mExtraUrlParams] extra $-prefixed URL parameters
-   *   (e.g. { "$search": "vendor" }) merged on top of $top; used by
-   *   callers needing $search (unused in 1.71 binding path)
-   * @returns {Promise<object>} resolves with the raw OData response
-   */
+  // mExtraUrlParams merges on top of $top — e.g. { "$search": "vendor" } for
+  // callers needing $search (unused in the 1.71 binding path today).
   function readWithRetry(oComponent, sPath, aFilters, iTop, mExtraUrlParams) {
-    /**
-     * @param {number} iRetry current retry attempt (0-based, internal)
-     * @private
-     */
     return function _attempt(iRetry) {
       iRetry = iRetry || 0;
       return new Promise((resolve, reject) => {
@@ -144,20 +111,12 @@ sap.ui.define([
     });
   }
 
-  /**
-   * Normalises an OData v2 error payload into a JS Error.
-   *
-   * Gateway can answer an error in two wire formats depending on the
-   * Accept header / error contract negotiated by sap.ui.model.odata.v2:
-   *   - JSON:  {"error":{"code":"...","message":{"value":"..."}}}
-   *   - XML:   <error xmlns="..."><message>...</message></error>
-   * Both branches are surfaced as Error messages; the XML branch is parsed
-   * explicitly instead of letting JSON.parse throw and mask the real cause.
-   *
-   * @param {object} oError OData error object
-   * @returns {Error} normalised error with the backend's message, if any
-   * @private
-   */
+  // Gateway can answer an error in two wire formats depending on the Accept
+  // header negotiated by sap.ui.model.odata.v2:
+  //   - JSON:  {"error":{"code":"...","message":{"value":"..."}}}
+  //   - XML:   <error xmlns="..."><message>...</message></error>
+  // The XML branch is parsed explicitly instead of letting JSON.parse throw
+  // and mask the real cause.
   function parseError(oError) {
     let sMsg = "Request failed";
     if (!oError) { return new Error(sMsg); }
@@ -189,15 +148,6 @@ sap.ui.define([
     return new Error(sMsg);
   }
 
-  /**
-   * Sends a mailing (deep create on MailHeaderSet).
-   *
-   * @param {sap.ui.core.UIComponent} oComponent owner component
-   * @param {object} oPayload { LocalId, Subject, Content, ToRecipients, Attachments }
-   * @param {boolean} bIsTest whether this is a test send
-   * @returns {Promise<{localId:string, messageKey:string}>} send result;
-   *   messageKey is a plain i18n key resolved by the caller
-   */
   function sendMailing(oComponent, oPayload, bIsTest) {
     const oDeepEntity = {
       LocalId: oPayload.LocalId,
@@ -208,7 +158,7 @@ sap.ui.define([
         FullName:    r.name || r.FullName || "",
         Role:        r.role || r.Role || ""
       })),
-      ToTexts: oPayload.Content ? [{ Content: oPayload.Content }] : [],
+      Content: oPayload.Content || "",
       ToAttachments: (oPayload.Attachments || []).map((a) => ({
         FileName:      a.name || a.FileName || "",
         MimeType:      a.mimeType || a.MimeType || "application/octet-stream",
@@ -225,14 +175,8 @@ sap.ui.define([
     });
   }
 
-  /**
-   * Returns the status breakdown for a mailing (unified display domain,
-   * mapped in CDS ZI_Mailing_Status).
-   *
-   * @param {sap.ui.core.UIComponent} oComponent owner component
-   * @param {string} sMailingId mailing id
-   * @returns {Promise<Array>} status list
-   */
+  // Status breakdown uses the unified display domain, mapped in CDS
+  // ZEHS_C_Mailing_Recipient_Status.
   function getMailingStatus(oComponent, sMailingId) {
     const aFilters = sMailingId
       ? [new Filter("MailingId", FilterOperator.EQ, sMailingId)]
@@ -241,28 +185,13 @@ sap.ui.define([
       .then(extractResults);
   }
 
-  /**
-   * Reads the full HTML body of a single mailing (key access on the
-   * LOB-carrying MailContentSet — never part of list reads).
-   *
-   * @param {sap.ui.core.UIComponent} oComponent owner component
-   * @param {string} sId mailing key
-   * @returns {Promise<object>} { Key, LocalID, Subject, Content }
-   */
+  // Key access on the LOB-carrying MailContentSet — never part of list reads.
   function getMailingContent(oComponent, sId) {
     return entityPath(oComponent, Constants.ODATA.ENTITY_SETS.MAIL_CONTENT, { Key: sId })
       .then((sPath) => readWithRetry(oComponent, sPath, null, 0))
       .then(extractEntity);
   }
 
-  /**
-   * Copies a mailing into a new draft: reads subject + content by key and
-   * resolves with a fresh LocalId.
-   *
-   * @param {sap.ui.core.UIComponent} oComponent owner component
-   * @param {string} sId source mailing id
-   * @returns {Promise<{LocalId:string, Subject:string, Content:string}>} copy result
-   */
   function copyMailing(oComponent, sId) {
     return getMailingContent(oComponent, sId)
       .then((oEntry) => ({
@@ -277,41 +206,23 @@ sap.ui.define([
       });
   }
 
-  /**
-   * Reads the single-row runtime config entity (MaxRecipients, SubjectMaxLen,
-   * ChunkSize) served by the backend from ZCL_NEWSLETTER_CONSTANTS
-   * (zcl_eb_mailing_dpc_ext#build_mailing_config). This is the single source
-   * of truth for those limits — util/constants.js only holds fallback
-   * defaults for the brief window before this resolves (or if it fails).
-   *
-   * @param {sap.ui.core.UIComponent} oComponent owner component
-   * @returns {Promise<{MaxRecipients:number, SubjectMaxLen:number, ChunkSize:number}>}
-   */
+  // SSOT for MaxRecipients/SubjectMaxLen/ChunkSize is the backend
+  // (ZCL_NEWSLETTER_CONSTANTS via zcl_eb_mailing_dpc_ext#build_mailing_config)
+  // — util/constants.js only holds fallback defaults for the brief window
+  // before this resolves (or if it fails).
   function getMailingConfig(oComponent) {
     return entityPath(oComponent, Constants.ODATA.ENTITY_SETS.MAILING_CONFIG, { Key: "1" })
       .then((sPath) => readWithRetry(oComponent, sPath, null, 0))
       .then(extractEntity);
   }
 
-  /**
-   * Reads the full mailing history (MailHistorySet list).
-   *
-   * @param {sap.ui.core.UIComponent} oComponent owner component
-   * @returns {Promise<Array>} mailing history entries
-   */
   function getMailHistory(oComponent) {
     return readWithRetry(oComponent, "/" + Constants.ODATA.ENTITY_SETS.MAIL_HISTORY, null, Constants.PERFORMANCE.DEFAULT_TOP)
       .then(extractResults);
   }
 
-  /**
-   * Loads the service dictionary — all lookup tables (statuses, news types,
-   * allowed hosts) in one round-trip. Frontend stores the result in a
-   * JSONModel "dict" and formatter.js / SFB value-help read from it.
-   *
-   * @param {sap.ui.core.UIComponent} oComponent owner component
-   * @returns {Promise<Array>} all dictionary entries
-   */
+  // One round-trip for all lookup tables (statuses, news types, allowed
+  // hosts) — stored in JSONModel "dict", read by formatter.js / SFB value-help.
   function getServiceDict(oComponent) {
     return readWithRetry(oComponent, "/" + Constants.ODATA.ENTITY_SETS.SERVICE_DICT, null, 0)
       .then(extractResults);

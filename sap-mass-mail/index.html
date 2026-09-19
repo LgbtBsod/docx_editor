@@ -5,47 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Email Builder</title>
   <script>
-    // ============================================================
-    // BACKEND CONFIGURATION — switch between Mock and Real SAP Gateway
-    // ============================================================
-    //
-    // MODE 1: MOCK (dev / preview / local testing)
-    //   USE_MOCK = true
-    //   SAP_GATEWAY_URI points to the MockServer rootUri (intercepted locally).
-    //
-    // MODE 2: REAL SAP BACKEND (production)
-    //   USE_MOCK = false
-    //   SAP_GATEWAY_URI points to your SAP Gateway OData service.
-    //   The URI must be served from the SAME ORIGIN as this HTML, OR
-    //   SAP Gateway must be configured with CORS headers, OR (preferred)
-    //   a reverse proxy (sap-web-dispatcher / nginx / Caddy) maps
-    //   /sap/opu/odata/sap/ZEB_MAILING_SRV/ → backend:8000/sap/opu/odata/sap/ZEB_MAILING_SRV/
-    //
-    // --- Production checklist (switch to MODE 2) ---
-    // 1. Set USE_MOCK = false
-    // 2. Verify SAP_GATEWAY_URI matches your Gateway service path
-    // 3. Ensure SAP Gateway service ZEB_MAILING_SRV is published (SOAUTH)
-    // 4. Replace UI5 CDN with local ABAP frontend server:
-    //      src="/sap/public/bc/ui5_ui5/ui5/1.71/resources/sap-ui-core.js"
-    //    (CDN is fine for dev, but production should use the on-premise
-    //     UI5 resources served by the ABAP system — no external dependency)
-    // 5. Verify CSRF token endpoint: same-origin POST/PUT requires
-    //    x-csrf-token fetch via GET with X-CSRF-TOKEN=Fetch header
-    //    (ODataModel v2 handles this automatically when useBatch=true)
-    // ============================================================
-
-    // ---- MODE 1: MOCK (current — dev/preview) ----
+    // USE_MOCK=true intercepts OData via MockServer (dev/preview). For
+    // production, flip to false and point SAP_GATEWAY_URI at a real SAP
+    // Gateway service on the SAME ORIGIN as this HTML (CORS or a reverse
+    // proxy otherwise) — see BACKEND_INSTRUCTIONS.md for the full checklist.
     window.USE_MOCK = true;
     window.SAP_GATEWAY_URI = "/sap/opu/odata/sap/ZEB_MAILING_SRV/";
 
-    // ---- MODE 2: REAL SAP BACKEND (uncomment for production) ----
     // window.USE_MOCK = false;
     // window.SAP_GATEWAY_URI = "/sap/opu/odata/sap/ZEB_MAILING_SRV/";
-    // NOTE: if your Gateway is on a different host/port, configure a reverse
-    // proxy in your web server (nginx/Caddy/sap-web-dispatcher) that maps
-    // the relative path above to the absolute backend URL. Same-origin is
-    // required for CSRF tokens and cookies — never put http(s)://host:port
-    // in SAP_GATEWAY_URI for production.
   </script>
   <script
     id="sap-ui-bootstrap"
@@ -57,10 +25,6 @@
     data-sap-ui-resourceroots='{"MAILING_CONSTRUCTOR": "/ui5/"}'
     data-sap-ui-frameOptions="trusted"
   ></script>
-  <!-- PRODUCTION: replace UI5 CDN above with local ABAP frontend server:
-       src="/sap/public/bc/ui5_ui5/ui5/1.71/resources/sap-ui-core.js"
-       This removes the external CDN dependency and pins UI5 to the exact
-       patch level installed on the ABAP system. -->
   <!-- DOMPurify stays eager: the sanitizer must exist before any HTML rendering
        (fail-closed policy in util/sanitize.js). docx-preview / pdf.js / marked
        are lazy-loaded by util/fileProcessor.js on first use (~2 MB off cold start). -->

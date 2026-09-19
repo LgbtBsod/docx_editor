@@ -134,25 +134,52 @@ window.SAP_GATEWAY_URI = "/sap/opu/odata/sap/ZEB_MAILING_SRV/";
 
 **Заполнить** строкой с `IS_NOREPLY = 'X'` для реального noreply-адреса системы.
 
-> **Security:** Создать DCL для `ZCDS_Allowed_Hosts`. Без DCL любой пользователь может прочитать allowlist хостов.
+> **Security:** Создать DCL для `ZEHS_C_Allowed_Host`. Без DCL любой пользователь может прочитать allowlist хостов.
+
+### 2.7. ZEB_RECIPIENT — Получатели по полномочиям (кэш)
+
+| Поле | Тип | Описание |
+|------|-----|----------|
+| RECIPIENT_ID | CHAR(10) | PK, синтетический (напр. `R000001`) |
+| UNAME | CHAR(12) | Имя пользователя (SU01) |
+| FULL_NAME | CHAR(80) | ФИО (из адресных данных) |
+| EMAIL | AD_SMTPADR | Email получателя |
+| ROLE_TEXT | CHAR(100) | Текст должности/роли |
+| AUTH_OBJECT | CHAR(10) | Объект полномочий (ZNEWS/ZMAIL/ZADMIN/ZUSER) |
+| FIELD_NAME | CHAR(30) | Поле объекта (BUKRS/WERKS/VKORG/EKORG) |
+| FIELD_VALUE | CHAR(40) | Значение поля |
+
+Одна строка = одно значение поля объекта полномочий у пользователя (пользователь с
+несколькими значениями/объектами встречается несколько раз). Таблица не читается
+"вживую" из AGR_1251/AGR_USERS на каждый ввод в поиске — это заведомо слишком
+дорого — а периодически пересобирается фоновым отчётом `ZEB_SYNC_RECIPIENTS`
+(SUIM-логика: AGR_USERS → AGR_1251 → USR21/ADR6 для ФИО и email).
+
+> **Security:** Создать DCL для `ZEHS_C_Recipient` / `ZEHS_C_Recipient_User` — это данные о
+> сотрудниках (ФИО, email), доступ не должен быть `#NOT_REQUIRED`.
 
 ---
 
-## 3. CDS-представления (7 штук)
+## 3. CDS-представления (12 штук)
 
 Создать в порядке зависимостей:
 
 | # | CDS View | Файл | Назначение |
 |---|----------|------|-----------|
-| 1 | `ZI_Mail_Status_Map` | `abap/ddls/zi_mail_status_map.ddls.asddls` | SSOT маппинга rec→disp + Category (PENDING/SENT/ERROR). UNION ALL на sysdummy1. |
-| 2 | `ZI_Mailing_Status` | `abap/ddls/zi_mailing_status.ddls.asddls` | Агрегация статусов получателей (GROUP BY на HANA). INNER JOIN с ZI_Mail_Status_Map. |
-| 3 | `ZCDS_Mail_History` | `abap/ddls/zcds_mail_history.ddls.asddls` | История рассылок с counts. Фильтр по StatusCategory (не литералы). |
-| 4 | `ZCDS_Mail_Content` | `abap/ddls/zcds_mail_content.ddls.asddls` | Ключевой доступ к HTML-телу. JOIN на zmail_txt. |
-| 5 | `ZCDS_News` | `abap/ddls/zcds_news.ddls.asddls` | Поиск новостей с @Search full-text. NewsType + NewsTypeText. |
-| 6 | `ZCDS_Allowed_Hosts` | `abap/ddls/zcds_allowed_hosts.ddls.asddls` | White-list хостов + noreply-отправитель. |
-| 7 | `ZI_Service_Dict` | `abap/ddls/zi_service_dict.ddls.asddls` | **Единый словарь** — все справочники (статусы, типы, хосты) в одном view. UNION ALL. |
+| 1 | `ZEHS_I_Mail_Status_Map` | `abap/ddls/zehs_i_mail_status_map.ddls.asddls` | SSOT маппинга rec→disp + Category (PENDING/SENT/ERROR). UNION ALL на sysdummy1. |
+| 2 | `ZEHS_C_Mailing_Recipient_Status` | `abap/ddls/zehs_c_mailing_recipient_status.ddls.asddls` | Агрегация статусов получателей (GROUP BY на HANA). INNER JOIN с ZEHS_I_Mail_Status_Map. |
+| 3 | `ZEHS_C_Mailing_History` | `abap/ddls/zehs_c_mailing_history.ddls.asddls` | История рассылок с counts. Фильтр по StatusCategory (не литералы). |
+| 4 | `ZEHS_C_Mailing_Content` | `abap/ddls/zehs_c_mailing_content.ddls.asddls` | Ключевой доступ к HTML-телу (для истории/превью). JOIN на zmail_txt. |
+| 5 | `ZEHS_C_News` | `abap/ddls/zehs_c_news.ddls.asddls` | Поиск новостей с @Search full-text. NewsType + NewsTypeText. |
+| 6 | `ZEHS_C_Allowed_Host` | `abap/ddls/zehs_c_allowed_host.ddls.asddls` | White-list хостов + noreply-отправитель. |
+| 7 | `ZEHS_C_System_Dictionary` | `abap/ddls/zehs_c_system_dictionary.ddls.asddls` | **Единый словарь** — все справочники (статусы, типы, хосты) в одном view. UNION ALL. |
+| 8 | `ZEHS_C_Recipient` | `abap/ddls/zehs_c_recipient.ddls.asddls` | Детальный поиск получателей по объекту полномочий (@Search на ФИО). Одна строка = одно значение поля. |
+| 9 | `ZEHS_C_Recipient_User` | `abap/ddls/zehs_c_recipient_user.ddls.asddls` | Получатели, сгруппированные по email (GROUP BY на HANA). Roles через LISTAGG(). |
+| 10 | `ZEHS_C_Mailing_Recipient` | `abap/ddls/zehs_c_mailing_recipient.ddls.asddls` | Read-back дочерняя нода получателей конкретной рассылки (zeb_mailing_rec). НЕ то же самое, что `ZEHS_C_Recipient` — другая таблица, другая форма (см. §6.3). |
+| 11 | `ZEHS_C_Mailing_Attachment` | `abap/ddls/zehs_c_mailing_attachment.ddls.asddls` | Read-back дочерняя нода вложений конкретной рассылки (zmail_att). Форма 1:1 совпадает с EntityType `Attachment`. |
+| 12 | `ZEHS_C_Mailing_Header` | `abap/ddls/zehs_c_mailing_header.ddls.asddls` | Root deep-entity. LEFT OUTER JOIN на zmail_txt даёт плоское поле `Content` (без отдельной ноды текста). Ассоциации на `_Recipients`/`_Attachments` — только для GET $expand, deep-create (POST) от них не зависит. |
 
-### 3.7. ZI_Service_Dict — структура
+### 3.7. ZEHS_C_System_Dictionary — структура
 
 Единая модель `DictType / DictKey / DictText` для всех справочников:
 
@@ -206,24 +233,72 @@ formatter.js и SFB value-help читают из "dict" — **i18n для ста
 
 ## 6. OData-сервис (SEGW / SADL)
 
-### 6.1. Entity Sets (12 шт.)
+### 6.1. Entity Sets (11 шт.)
 
 | # | Entity Set | EntityType | Источник (CDS/таблица) | Назначение |
 |---|-----------|------------|----------------------|------------|
-| 1 | `MailHeaderSet` | MailHeader | BOPF root | Deep-create рассылки (POST) |
-| 2 | `MailHistorySet` | MailHistory | ZCDS_Mail_History | Список рассылок (история) |
-| 3 | `MailContentSet` | MailContent | ZCDS_Mail_Content | HTML-тело (LOB, key-access) |
-| 4 | `MailingStatusSet` | MailingStatus | ZI_Mailing_Status | Агрегация статусов получателей |
+| 1 | `MailHeaderSet` | MailHeader | ZEHS_C_Mailing_Header | Deep-create рассылки (POST), read existing (GET). `Content` — плоское поле, не nav-prop. |
+| 2 | `MailHistorySet` | MailHistory | ZEHS_C_Mailing_History | Список рассылок (история) |
+| 3 | `MailContentSet` | MailContent | ZEHS_C_Mailing_Content | HTML-тело (LOB, key-access для истории/превью) |
+| 4 | `MailingStatusSet` | MailingStatus | ZEHS_C_Mailing_Recipient_Status | Агрегация статусов получателей |
 | 5 | `MailingConfigSet` | MailingConfig | DPC_EXT (computed) | Runtime-лимиты (singleton) |
-| 6 | `ServiceDictSet` | ServiceDict | ZI_Service_Dict | **Единый словарь** всех справочников |
-| 7 | `RecipientSet` | Recipient | CDS на auth-object | Поиск по полномочиям (detailed) |
-| 8 | `RecipientUserSet` | RecipientUser | CDS GROUP BY email | Поиск по пользователям (grouped) |
-| 9 | `NewsSet` | News | ZCDS_News | Поиск новостей (@Search) |
-| 10 | `AllowedHostSet` | AllowedHost | ZCDS_Allowed_Hosts | Allowlist хостов (CRUD) |
-| 11 | `TextSet` | Text | BOPF text_collection | Внутренняя (deep-create nav) |
-| 12 | `AttachmentSet` | Attachment | BOPF attachment_folder | Внутренняя (deep-create nav) |
+| 6 | `ServiceDictSet` | ServiceDict | ZEHS_C_System_Dictionary | **Единый словарь** всех справочников |
+| 7 | `RecipientSet` | Recipient | ZEHS_C_Recipient | Поиск по полномочиям (detailed). Та же форма переиспользуется в `ToRecipients` deep-create payload. |
+| 8 | `RecipientUserSet` | RecipientUser | ZEHS_C_Recipient_User | Поиск по пользователям (grouped) |
+| 9 | `NewsSet` | News | ZEHS_C_News | Поиск новостей (@Search) |
+| 10 | `AllowedHostSet` | AllowedHost | ZEHS_C_Allowed_Host | Allowlist хостов (CRUD) |
+| 11 | `AttachmentSet` | Attachment | ZEHS_C_Mailing_Attachment (read-back) / BOPF (write) | Deep-create nav; GET $expand теперь может читаться из CDS. |
 
-### 6.2. Service Registration
+> `TextSet` убран: тело письма — не отдельная нода, а поле `Content` прямо на `MailHeaderSet` (см. §6.3).
+
+### 6.2. Как создать Data Model в SEGW
+
+**Вариант 1 (рекомендуется): через CDS-source**
+1. Txn. **SEGW** → создать новый проект `ZEB_MAILING_SRV`
+2. Data Model → OData Resources → Create:
+   - **MailHeaderSet** → Source Type: CDS → CDS View: `ZEHS_C_Mailing_Header`
+   - **MailHistorySet** → Source Type: CDS → CDS View: `ZEHS_C_Mailing_History`
+   - **MailContentSet** → Source Type: CDS → CDS View: `ZEHS_C_Mailing_Content`
+   - **NewsSet** → Source Type: CDS → CDS View: `ZEHS_C_News`
+   - **AllowedHostSet** → Source Type: CDS → CDS View: `ZEHS_C_Allowed_Host`
+   - **ServiceDictSet** → Source Type: CDS → CDS View: `ZEHS_C_System_Dictionary`
+   - **RecipientSet** → Source Type: CDS → CDS View: `ZEHS_C_Recipient`
+   - **RecipientUserSet** → Source Type: CDS → CDS View: `ZEHS_C_Recipient_User`
+   - **MailingStatusSet** → Source Type: CDS → CDS View: `ZEHS_C_Mailing_Recipient_Status`
+   - **AttachmentSet** → Source Type: CDS → CDS View: `ZEHS_C_Mailing_Attachment` (форма 1:1 совпадает с EntityType `Attachment` — просто перестаёт быть "без Source")
+3. **Для вложенных сущностей** (Attachment, Recipient внутри MailHeader — нужны и для deep-create, и опционально для read-back):
+   - Создать вручную Association и NavigationProperty (**классический Gateway/SEGW не выводит их из CDS-ассоциаций автоматически** — это RAP/Fiori-Elements механика, здесь она не работает; ассоциации в самих CDS-вьюхах нужны только чтобы SADL мог отдать данные по $expand, когда nav-prop уже создан руками):
+     - MailHeader_Recipients (MailHeaderSet → RecipientSet, 1:*) — **ограничение:** `ZEHS_C_Mailing_Recipient` (mailing_id/email/status из zeb_mailing_rec) — это НЕ та же сущность, что `RecipientSet`/`Recipient` (recipient_id/full_name/role из zeb_recipient, поиск по полномочиям). Deep-create продолжает слать объекты в форме `Recipient` (DPC_EXT читает из них только email) — это не трогали. Если нужен реальный read-back статуса получателей рассылки через `$expand=ToRecipients`, потребуется отдельный nav-prop/EntityType под форму `ZEHS_C_Mailing_Recipient` — этого шага здесь ещё нет, только сама CDS-вьюха.
+     - MailHeader_Attachments (MailHeaderSet → AttachmentSet, 1:*) — здесь конфликта форм нет, можно спокойно оставить как есть и просто дать AttachmentSet CDS-источник.
+   - Пометить MailHeaderSet как **creatable** и **deep-creatable**
+4. Generate Runtime Objects (MPC/MPC_EXT/DPC/DPC_EXT)
+5. Регистрация в `/IWFND/MAINT_SERVICE` → System Alias → добавить сервис `ZEB_MAILING_SRV`
+
+**Вариант 2 (если импорт CDS не сработает):**
+- Создать Entity Types вручную в Data Model
+- Не привязывать никакие Source
+- Весь бизнес-логик в `zcl_eb_mailing_dpc_ext` (read/create через BOPF)
+
+### 6.3. Ключевая особенность Deep-Create
+
+Когда фронт шлёт `POST /MailHeaderSet` с телом:
+```json
+{
+  "LocalId": "mail_001",
+  "Subject": "Test",
+  "Content": "<html>...</html>",
+  "ToRecipients": [
+    { "Email": "user@example.com" }
+  ],
+  "ToAttachments": [...]
+}
+```
+
+`Content` — обычное скалярное свойство корня, **не** `ToTexts`-массив: отдельная BOPF-нода на одно поле плюс четыре технических ключа была признана нерентабельной, поэтому HTML-тело подмешивается в `ZEHS_C_Mailing_Header` через `LEFT OUTER JOIN` на `zmail_txt` и уходит/приходит как плоское поле. Внутри BOPF TEXT_COLLECTION node всё равно существует (`zcl_eb_mailing_mod_builder=>build_deep` создаёт её из `iv_content`), просто наружу в OData она не торчит отдельной нодой.
+
+Gateway распознаёт запрос как **deep entity** по пометке creatable + существующим NavigationProperty (`ToRecipients`, `ToAttachments`), и вызывает `CREATE_DEEP_ENTITY` вместо обычного `CREATE_ENTITY`. Это целиком ручной путь: метод `zcl_eb_mailing_dpc_ext=>handle_mailing_deep_create` разбирает весь payload через `io_data_provider->read_entry_data()` в плоскую структуру `tys_mailing_deep` (включая скалярное поле `content`) и передаёт в BOPF — **CDS-ассоциации в этом пути не участвуют вообще**, они нужны только если понадобится читать существующую рассылку через GET/$expand.
+
+### 6.4. Service Registration
 - Сервис: **ZEB_MAILING_SRV**
 - `/IWFND/MAINT_SERVICE` → добавить System Alias
 - Проверить `$metadata` через REST client
@@ -251,18 +326,18 @@ formatter.js и SFB value-help читают из "dict" — **i18n для ста
 | Recipient (ZEB_MAILING_REC.STATUS) | 010 | Новый | ZD_REC_STATUS |
 | Recipient | 020 | Отправлено | ZD_REC_STATUS |
 | Recipient | 030 | Ошибка | ZD_REC_STATUS |
-| Display (ZI_Mail_Status_Map output) | 020 | Ожидание | ZI_Service_Dict (DISP_STATUS) |
-| Display | 040 | Отправлено | ZI_Service_Dict (DISP_STATUS) |
-| Display | 050 | Ошибка | ZI_Service_Dict (DISP_STATUS) |
+| Display (ZEHS_I_Mail_Status_Map output) | 020 | Ожидание | ZEHS_C_System_Dictionary (DISP_STATUS) |
+| Display | 040 | Отправлено | ZEHS_C_System_Dictionary (DISP_STATUS) |
+| Display | 050 | Ошибка | ZEHS_C_System_Dictionary (DISP_STATUS) |
 
 **SSOT цепочка:**
 ```
 DDIC Domain (ZD_MAIL_STATUS / ZD_REC_STATUS)
     → ABAP Constants (zcl_newsletter_constants)
-    → ZI_Mail_Status_Map (CDS: rec→disp mapping + Category)
-    → ZI_Mailing_Status (CDS: aggregation)
-    → ZCDS_Mail_History (CDS: list with counts)
-    → ZI_Service_Dict (CDS: единый словарь + тексты + UI-атрибуты)
+    → ZEHS_I_Mail_Status_Map (CDS: rec→disp mapping + Category)
+    → ZEHS_C_Mailing_Recipient_Status (CDS: aggregation)
+    → ZEHS_C_Mailing_History (CDS: list with counts)
+    → ZEHS_C_System_Dictionary (CDS: единый словарь + тексты + UI-атрибуты)
     → OData ServiceDictSet → JSONModel "dict" → formatter.js
 ```
 
@@ -357,7 +432,7 @@ public/ui5/
 ├── i18n/                         ← ru, en, default (177 keys each, no status keys)
 └── abap/                         ← ABAP бэкенд
     ├── classes/                  ← 5 классов + 3 тестовых
-    ├── ddls/                     ← 7 CDS DDL sources (incl. ZI_Service_Dict)
+    ├── ddls/                     ← 12 CDS DDL sources (incl. ZEHS_C_System_Dictionary, ZEHS_C_Recipient*, ZEHS_C_Mailing_Header/Recipient/Attachment)
     └── programs/                 ← 3 report'а
 ```
 
@@ -366,9 +441,10 @@ public/ui5/
 ## 12. Проверочный чек-лист
 
 - [ ] 3 DDIC-домена созданы (ZD_MAIL_STATUS, ZD_REC_STATUS, ZD_NEWS_TYPE)
-- [ ] 6 таблиц созданы (ZMAIL_HDR, ZEB_MAILING_REC, ZMAIL_TXT, ZMAIL_ATT, ZNEWS, ZEB_ALLOWED_HOSTS)
+- [ ] 7 таблиц созданы (ZMAIL_HDR, ZEB_MAILING_REC, ZMAIL_TXT, ZMAIL_ATT, ZNEWS, ZEB_ALLOWED_HOSTS, ZEB_RECIPIENT)
 - [ ] UNIQUE-индекс на ZMAIL_HDR~LOCAL_ID
-- [ ] 7 CDS активированы (вкл. ZI_Service_Dict)
+- [ ] Фоновый job ZEB_SYNC_RECIPIENTS настроен (пересборка ZEB_RECIPIENT из AGR_1251/AGR_USERS)
+- [ ] 12 CDS активированы (вкл. ZEHS_C_System_Dictionary, ZEHS_C_Recipient, ZEHS_C_Recipient_User, ZEHS_C_Mailing_Header/Recipient/Attachment)
 - [ ] 5 ABAP-классов активированы (SE24)
 - [ ] 3 программы созданы (SE38)
 - [ ] Класс сообщений ZEB_MAIL создан (SE91)

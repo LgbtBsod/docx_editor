@@ -1,4 +1,5 @@
 [
-  { "Key": "ms-1", "MailingId": "m001", "Status": "040", "Count": 5 },
-  { "Key": "ms-2", "MailingId": "m001", "Status": "050", "Count": 2 }
+  { "Key": "m_seed_001_040", "MailingId": "m_seed_001", "Status": "040", "Count": 3 },
+  { "Key": "m_seed_002_040", "MailingId": "m_seed_002", "Status": "040", "Count": 3 },
+  { "Key": "m_seed_002_050", "MailingId": "m_seed_002", "Status": "050", "Count": 2 }
 ]
