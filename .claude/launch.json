@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "sap-mass-mail",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["C:/Users/lgbtb/Desktop/docx_editor/sap-mass-mail/server.js"],
+      "port": 8001
+    }
+  ]
+}

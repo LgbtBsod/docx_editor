@@ -12,7 +12,13 @@
    it is read on demand via ZEHS_C_Mailing_Content (key access).
    Recipient counts are derived from ZEHS_C_Mailing_Recipient_Status (the SSOT for
    the receiver persistence + status domain mapping) instead of joining
-   the receiver table directly here. */
+   the receiver table directly here.
+
+   SentCount/ErrorCount branch on the literals 'SENT'/'ERROR' from
+   ZEHS_I_Mail_Status_Map's Category column (CDS can't reference an ABAP
+   constant here) — ZCL_NEWSLETTER_CONSTANTS=>ASSERT_STATUS_MAP_CONSISTENT
+   also asserts those exact literals, so a rename on either side fails
+   the build instead of silently zeroing out this view's counts. */
 @Metadata.allowExtensions: true
 define view ZEHS_C_Mailing_History
   as select from zmail_hdr as h

@@ -1,12 +1,13 @@
 sap.ui.define([
   "sap/base/security/encodeXML",
+  "sap/base/Log",
   "MAILING_CONSTRUCTOR/util/config",
   "MAILING_CONSTRUCTOR/util/fileTypes",
   "MAILING_CONSTRUCTOR/util/sourceBlock",
   "MAILING_CONSTRUCTOR/util/sanitize",
   "MAILING_CONSTRUCTOR/util/libLoader",
   "MAILING_CONSTRUCTOR/util/constants"
-], (encodeXML, Config, FileTypes, SourceBlock, Sanitize, LibLoader, Constants) => {
+], (encodeXML, Log, Config, FileTypes, SourceBlock, Sanitize, LibLoader, Constants) => {
   "use strict";
 
   function libUrl(sPath) {
@@ -137,7 +138,7 @@ sap.ui.define([
   }
 
   function styleImportedTables(sHtml) {
-    if (!sHtml || sHtml.indexOf("<table") === -1) { return sHtml; }
+    if (!sHtml || !sHtml.includes("<table")) { return sHtml; }
     try {
       const oDoc = new DOMParser().parseFromString(sHtml, "text/html");
       oDoc.querySelectorAll("table").forEach((oTable) => {
@@ -170,7 +171,7 @@ sap.ui.define([
   // a different container width anyway, so this trades it for the image
   // simply sitting inline with the text instead of overlapping it.
   function neutralizePositionedImages(sHtml) {
-    if (!sHtml || sHtml.indexOf("<img") === -1) { return sHtml; }
+    if (!sHtml || !sHtml.includes("<img")) { return sHtml; }
     try {
       const oDoc = new DOMParser().parseFromString(sHtml, "text/html");
       oDoc.querySelectorAll("img").forEach((oImg) => {
@@ -205,11 +206,22 @@ sap.ui.define([
   }
 
   function processDocx(file, sSourceId, oBundle) {
+    // Distinguishes "jszip/docx-preview failed to load" from "the actual
+    // docx render failed" — both used to collapse into the same generic
+    // "library not loaded" message, discarding the real error even when
+    // the library loaded fine and the file itself was the problem (e.g.
+    // a corrupted .docx).
+    let bLibFailed = false;
     return ensureDocxPreview()
+      .catch(() => { bLibFailed = true; return Promise.reject(); })
       .then(() => renderDocxContent(file))
       .then((sClean) => SourceBlock.wrap(sSourceId, SourceBlock.TYPE.FILE, sClean))
-      .catch(() => {
-        return Promise.reject(new Error(t(oBundle, "MSG_LIB_NOT_LOADED", ["docx-preview"])));
+      .catch((e) => {
+        if (bLibFailed) {
+          return Promise.reject(new Error(t(oBundle, "MSG_LIB_NOT_LOADED", ["docx-preview"])));
+        }
+        Log.error("[MAILING_CONSTRUCTOR] docx render failed: " + (e && e.message));
+        return Promise.reject(e instanceof Error ? e : new Error(t(oBundle, "MSG_FILE_READ_ERROR")));
       });
   }
 

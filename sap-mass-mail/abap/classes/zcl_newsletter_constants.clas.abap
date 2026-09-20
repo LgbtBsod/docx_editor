@@ -38,10 +38,25 @@ CLASS zcl_newsletter_constants DEFINITION
       END OF rec_status,
 
       BEGIN OF behavior,
-        chunk_size      TYPE i         VALUE 50,
-        default_sender  TYPE ad_smtpadr VALUE 'noreply@example.com',
-        stuck_timeout_s TYPE i         VALUE 600,
+        chunk_size         TYPE i         VALUE 50,
+        default_sender     TYPE ad_smtpadr VALUE 'noreply@example.com',
+        stuck_timeout_s    TYPE i         VALUE 600,
+        " Above this recipient count, validate_recipients falls back to a
+        " cheap regex syntax check instead of instantiating
+        " CL_CAM_ADDRESS_BCS per address — avoids risking a Gateway/ICM
+        " validation-only timeout on a bulk mailing near max_recipients.
+        bcs_validation_max TYPE i         VALUE 500,
       END OF behavior,
+
+      " Mirrors util/config.js's MAX_ATTACHMENT_SIZE/MAX_TOTAL_ATTACHMENTS_SIZE/
+      " MAX_ATTACHMENTS — the client enforces these in the browser, but a
+      " caller can POST straight to the OData deep-entity CREATE endpoint,
+      " so the limits must also be enforced server-side.
+      BEGIN OF attachment,
+        max_size       TYPE i VALUE 5242880,  " 5 MB
+        max_total_size TYPE i VALUE 20971520, " 20 MB
+        max_count      TYPE i VALUE 10,
+      END OF attachment,
 
       " OData entity set names (SADL/Gateway side) — must match manifest.json's
       " mainService metadata (MailHeaderSet) on the SAPUI5 side.
@@ -102,6 +117,16 @@ CLASS zcl_newsletter_constants DEFINITION
     CLASS-METHODS assert_status_map_consistent
       RAISING cx_dynamic_check.
 
+    " Same fail-fast rationale as assert_status_map_consistent, for a
+    " different drift risk: ZEHS_C_System_Dictionary hardcodes every
+    " MAIL_STATUS/REC_STATUS/DISP_STATUS DictKey as a CDS literal (CDS
+    " cannot reference this class's constants), so nothing else stops it
+    " from silently disagreeing with root_status/rec_status here. A miss
+    " means the frontend's status badges/SFB dropdowns render with no
+    " icon, label or CSS class for the drifted code instead of erroring.
+    CLASS-METHODS assert_dictionary_consistent
+      RAISING cx_dynamic_check.
+
 ENDCLASS.
 
 CLASS zcl_newsletter_constants IMPLEMENTATION.
@@ -110,17 +135,25 @@ CLASS zcl_newsletter_constants IMPLEMENTATION.
     TYPES: BEGIN OF tys_map,
              rec_status  TYPE c LENGTH 3,
              disp_status TYPE c LENGTH 3,
+             category    TYPE c LENGTH 8,
            END OF tys_map.
     DATA lt_map TYPE STANDARD TABLE OF tys_map WITH EMPTY KEY.
 
+    " Category is checked here too — ZEHS_C_Mailing_History's
+    " SentCount/ErrorCount aggregation branches on the literals 'SENT'/
+    " 'ERROR' (it can't reference this map or these constants from a CDS
+    " CASE WHEN), so if Category is ever renamed here without updating
+    " that view, this guard is the only thing that catches it; otherwise
+    " the drift is invisible — SentCount/ErrorCount would just silently
+    " report 0 for every mailing.
     SELECT FROM zehs_i_mail_status_map
-      FIELDS rec_status AS rec_status, disp_status AS disp_status
+      FIELDS rec_status AS rec_status, disp_status AS disp_status, category AS category
       INTO TABLE @lt_map.
 
     DATA(lt_expected) = VALUE STANDARD TABLE OF tys_map(
-      ( rec_status = rec_status-new   disp_status = '020' )
-      ( rec_status = rec_status-sent  disp_status = '040' )
-      ( rec_status = rec_status-error disp_status = '050' ) ).
+      ( rec_status = rec_status-new   disp_status = '020' category = 'PENDING' )
+      ( rec_status = rec_status-sent  disp_status = '040' category = 'SENT' )
+      ( rec_status = rec_status-error disp_status = '050' category = 'ERROR' ) ).
 
     SORT: lt_map BY rec_status, lt_expected BY rec_status.
 
@@ -128,6 +161,42 @@ CLASS zcl_newsletter_constants IMPLEMENTATION.
       RAISE EXCEPTION TYPE cx_dynamic_check
         EXPORTING textid = VALUE #( msgid = 'ZEB_MAIL' msgno = '001'
                                     attr1 = 'rec_status/ZEHS_I_Mail_Status_Map mismatch' ).
+    ENDIF.
+  ENDMETHOD.
+
+  METHOD assert_dictionary_consistent.
+    TYPES: BEGIN OF tys_key,
+             dict_type TYPE c LENGTH 20,
+             dict_key  TYPE c LENGTH 255,
+           END OF tys_key.
+    DATA lt_actual TYPE STANDARD TABLE OF tys_key WITH EMPTY KEY.
+
+    SELECT FROM zehs_c_system_dictionary
+      FIELDS dicttype AS dict_type, dictkey AS dict_key
+      WHERE dicttype = 'MAIL_STATUS' OR dicttype = 'REC_STATUS' OR dicttype = 'DISP_STATUS'
+      INTO TABLE @lt_actual.
+
+    " DISP_STATUS is checked against the same 020/040/050 literals
+    " assert_status_map_consistent already treats as the expected
+    " rec_status -> disp_status mapping, so both guards stay in lockstep.
+    DATA(lt_expected) = VALUE STANDARD TABLE OF tys_key(
+      ( dict_type = 'MAIL_STATUS' dict_key = root_status-in_queue )
+      ( dict_type = 'MAIL_STATUS' dict_key = root_status-processing )
+      ( dict_type = 'MAIL_STATUS' dict_key = root_status-sent_ok )
+      ( dict_type = 'MAIL_STATUS' dict_key = root_status-sent_err )
+      ( dict_type = 'REC_STATUS'  dict_key = rec_status-new )
+      ( dict_type = 'REC_STATUS'  dict_key = rec_status-sent )
+      ( dict_type = 'REC_STATUS'  dict_key = rec_status-error )
+      ( dict_type = 'DISP_STATUS' dict_key = '020' )
+      ( dict_type = 'DISP_STATUS' dict_key = '040' )
+      ( dict_type = 'DISP_STATUS' dict_key = '050' ) ).
+
+    SORT: lt_actual BY dict_type dict_key, lt_expected BY dict_type dict_key.
+
+    IF lt_actual <> lt_expected.
+      RAISE EXCEPTION TYPE cx_dynamic_check
+        EXPORTING textid = VALUE #( msgid = 'ZEB_MAIL' msgno = '001'
+                                    attr1 = 'ZEHS_C_System_Dictionary status code mismatch' ).
     ENDIF.
   ENDMETHOD.
 

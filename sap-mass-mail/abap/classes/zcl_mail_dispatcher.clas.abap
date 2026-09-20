@@ -91,10 +91,11 @@ CLASS zcl_mail_dispatcher DEFINITION
         RETURNING VALUE(rs_stats) TYPE tys_stats,
 
       apply_chunk_status
-        IMPORTING io_srv_mgr    TYPE REF TO /bobf/if_frw_service_manager
-                  it_recipients TYPE zcl_mail_transport=>tt_recipient_node
-                  iv_status     TYPE zcl_newsletter_constants=>ty_status
-                  iv_log_handle TYPE balloghndl,
+        IMPORTING io_srv_mgr     TYPE REF TO /bobf/if_frw_service_manager
+                  it_recipients  TYPE zcl_mail_transport=>tt_recipient_node
+                  iv_status      TYPE zcl_newsletter_constants=>ty_status
+                  iv_log_handle  TYPE balloghndl
+        RETURNING VALUE(rv_ok)   TYPE abap_bool,
 
       apply_recipient_results
         IMPORTING io_srv_mgr    TYPE REF TO /bobf/if_frw_service_manager
@@ -232,10 +233,16 @@ CLASS zcl_mail_dispatcher IMPLEMENTATION.
 
   METHOD pick_next_mailing.
     DATA(lt_all) = VALUE tt_root_key( ).
+    " ORDER BY carries a unique tiebreaker (key) so every dispatcher
+    " instance's SELECT returns the identical relative order for rows
+    " sharing a created_at value — SQL does not guarantee stable ordering
+    " for ties otherwise, and the position-based partitioning below
+    " assumes identical ordering across instances to split the candidate
+    " batch into disjoint sets.
     SELECT FROM zmail_hdr
       FIELDS key
       WHERE status = @zcl_newsletter_constants=>root_status-in_queue
-      ORDER BY created_at ASCENDING
+      ORDER BY created_at ASCENDING, key ASCENDING
       INTO TABLE @lt_all
       UP TO @c_candidate_batch ROWS.
 
@@ -429,9 +436,24 @@ CLASS zcl_mail_dispatcher IMPLEMENTATION.
                            iv_deadline   = lv_deadline ).
 
       IF ls_result-ok = abap_true.
-        apply_chunk_status( io_srv_mgr = io_srv_mgr it_recipients = lt_chunk
-                            iv_status = zcl_newsletter_constants=>rec_status-sent iv_log_handle = iv_log_handle ).
-        rs_stats-sent_ok += lines( lt_chunk ).
+        IF apply_chunk_status( io_srv_mgr = io_srv_mgr it_recipients = lt_chunk
+                               iv_status = zcl_newsletter_constants=>rec_status-sent iv_log_handle = iv_log_handle ) = abap_true.
+          rs_stats-sent_ok += lines( lt_chunk ).
+        ELSE.
+          " The email was actually sent, but persisting that outcome to
+          " the receivers node failed (rolled back) — the DB rows are
+          " still rec_status-new. Counting them as sent_ok here would let
+          " finalize_mailing close the mailing out with these recipients
+          " silently never retried, so count them as errors instead: it
+          " keeps sent_ok + errors = total (finalize_mailing's own
+          " completeness check) and the mailing reports as sent_err
+          " rather than a false sent_ok.
+          log_msg( iv_log_handle = iv_log_handle iv_msgty = zcl_newsletter_constants=>msg_type-error
+                   iv_msgno = zcl_newsletter_constants=>dispatcher_msgno-send_error
+                   iv_msgv1 = |Sent but status persist failed|
+                   iv_msgv2 = |{ lines( lt_chunk ) } recipients| ).
+          rs_stats-errors += lines( lt_chunk ).
+        ENDIF.
 
       ELSEIF ls_result-items IS NOT INITIAL.
         " Whole-chunk send failed but the per-recipient fallback ran (see
@@ -476,8 +498,9 @@ CLASS zcl_mail_dispatcher IMPLEMENTATION.
       ENDIF.
     ENDLOOP.
 
+    DATA(lv_sent_persisted) = abap_true.
     IF lt_sent IS NOT INITIAL.
-      apply_chunk_status( io_srv_mgr = io_srv_mgr it_recipients = lt_sent
+      lv_sent_persisted = apply_chunk_status( io_srv_mgr = io_srv_mgr it_recipients = lt_sent
                           iv_status = zcl_newsletter_constants=>rec_status-sent iv_log_handle = iv_log_handle ).
     ENDIF.
     IF lt_error IS NOT INITIAL.
@@ -490,8 +513,15 @@ CLASS zcl_mail_dispatcher IMPLEMENTATION.
              iv_msgv1 = |Chunk fallback: { lines( lt_sent ) } sent|
              iv_msgv2 = |{ lines( lt_error ) } failed individually| ).
 
-    cs_stats-sent_ok += lines( lt_sent ).
-    cs_stats-errors  += lines( lt_error ).
+    " Same rationale as send_all's sent-branch: a persist failure on the
+    " "sent" outcome must not be reported as sent_ok, or these recipients
+    " are silently dropped once the mailing finalizes.
+    IF lv_sent_persisted = abap_true.
+      cs_stats-sent_ok += lines( lt_sent ).
+    ELSE.
+      cs_stats-errors += lines( lt_sent ).
+    ENDIF.
+    cs_stats-errors += lines( lt_error ).
   ENDMETHOD.
 
   METHOD apply_chunk_status.
@@ -505,10 +535,32 @@ CLASS zcl_mail_dispatcher IMPLEMENTATION.
         key         = <rec>-key
         change_mode = /bobf/cl_frw_factory=>sc_modify_update
         data        = VALUE #( status = iv_status ) ) ) ).
-    save_bopf( io_srv_mgr = io_srv_mgr iv_log_handle = iv_log_handle ).
+    " Callers must not count these recipients against a stats bucket
+    " (sent_ok in particular) unless this persisted — save_bopf already
+    " logs+rolls back internally on failure, so a caller only needs the
+    " boolean to decide how to count them.
+    rv_ok = save_bopf( io_srv_mgr = io_srv_mgr iv_log_handle = iv_log_handle ).
   ENDMETHOD.
 
   METHOD finalize_mailing.
+    " Only a fully-processed batch may transition to a terminal status.
+    " send_all can EXIT its WHILE loop early once runtime_exceeded fires,
+    " leaving some recipients still rec_status-new — finalizing anyway
+    " would report that partial send as permanently "finished", and those
+    " recipients would never be revisited (pick_next_mailing only selects
+    " status=in_queue; requeue_stuck_mailings only rescues rows still
+    " stuck in processing). Leaving the root in processing instead lets
+    " requeue_stuck_mailings put it back in the queue once it passes the
+    " stuck timeout, so the next run picks up where this one left off —
+    " fetch_mailing_data already only re-fetches rec_status-new recipients.
+    IF is_stats-sent_ok + is_stats-errors < is_stats-total.
+      log_msg( iv_log_handle = iv_log_handle iv_msgty = zcl_newsletter_constants=>msg_type-warning
+               iv_msgno = zcl_newsletter_constants=>dispatcher_msgno-mailing_finished
+               iv_msgv1 = |{ iv_root_key }|
+               iv_msgv2 = |Partial: { is_stats-sent_ok + is_stats-errors }/{ is_stats-total }, left processing| ).
+      RETURN.
+    ENDIF.
+
     DATA(lv_final) = COND #( WHEN is_stats-errors = 0 THEN zcl_newsletter_constants=>root_status-sent_ok
                                                        ELSE zcl_newsletter_constants=>root_status-sent_err ).
 

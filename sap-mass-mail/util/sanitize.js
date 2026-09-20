@@ -14,23 +14,45 @@ sap.ui.define([
       && typeof window.DOMPurify.addHook === "function");
   }
 
+  // Protocol-relative ("//host/...") and backslash ("\\host\...", some
+  // browsers normalize this the same way) forms carry no literal scheme,
+  // but the browser resolves them against the CURRENT page's protocol and
+  // fetches from the named host exactly like an explicit http(s) URL —
+  // they must be gated the same way, not treated as scheme-less/relative.
+  function isNetworkRelative(sTrimmed) {
+    return /^(\/\/|\\\\)/.test(sTrimmed);
+  }
+
   function isAllowedProtocol(sUrl) {
     if (!sUrl) { return false; }
-    const sLower = sUrl.toLowerCase().trim();
-    if (sLower.indexOf(":") < 0) { return true; }
+    const sTrimmed = sUrl.trim();
+    if (isNetworkRelative(sTrimmed)) {
+      return Constants.SECURITY.ALLOWED_PROTOCOLS.some((sProto) => sProto === "http" || sProto === "https");
+    }
+    const sLower = sTrimmed.toLowerCase();
+    if (!sLower.includes(":")) { return true; }
     return Constants.SECURITY.ALLOWED_PROTOCOLS.some(
-      (sProto) => sLower.indexOf(sProto + ":") === 0
+      (sProto) => sLower.startsWith(sProto + ":")
     );
   }
 
   // FAIL-CLOSED: an empty allowlist or an unparseable URL rejects the host.
-  // Non-http URLs (mailto/tel/cid/relative) are protocol-gated elsewhere.
+  // Non-http URLs (mailto/tel/cid/genuinely-relative) are protocol-gated
+  // elsewhere and have no host of their own to check here.
   function isHostAllowed(sUrl, aAllowedHosts) {
-    const sLower = (sUrl || "").toLowerCase().trim();
-    if (sLower.indexOf("http") !== 0) { return true; }
+    const sTrimmed = (sUrl || "").trim();
+    const bNetworkRelative = isNetworkRelative(sTrimmed);
+    if (!bNetworkRelative && !sTrimmed.toLowerCase().startsWith("http")) { return true; }
     if (!aAllowedHosts || aAllowedHosts.length === 0) { return false; }
     try {
-      return aAllowedHosts.indexOf(new URL(sUrl).hostname) >= 0;
+      // Protocol-relative/backslash forms have no scheme of their own to
+      // parse directly — resolve against a fixed https base purely to
+      // extract the real hostname via the URL API (the scheme itself was
+      // already checked by isAllowedProtocol).
+      const oUrl = bNetworkRelative
+        ? new URL(sTrimmed.replace(/^\\\\/, "//"), "https://sentinel.invalid/")
+        : new URL(sTrimmed);
+      return aAllowedHosts.includes(oUrl.hostname);
     } catch (e) {
       return false;
     }

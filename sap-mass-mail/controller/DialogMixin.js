@@ -32,6 +32,37 @@ sap.ui.define([
     oModel.setProperty("/selectedMode", (aItems || []).length > 0 ? "added" : "search");
   }
 
+  // Loads (once) and caches the Fragment.load PROMISE itself, not just the
+  // eventual dialog, keyed by two properties on the controller instance —
+  // a second opener call arriving before the first load resolves (a fast
+  // double-click, or two list-press events firing in quick succession)
+  // reuses this same in-flight promise instead of re-entering
+  // Fragment.load with the same view-scoped id, which fails outright
+  // (the fragment's declared ids are already registered from the first,
+  // still-pending load). fnOnFirstLoad runs exactly once, right after the
+  // dialog is created, for setup that must not repeat on later opens
+  // (caching child tables, creating the dialog's own JSONModel, wiring
+  // one-time event handlers).
+  function loadDialogOnce(oCtrl, sDialogProp, sLoadingProp, sFragmentName, fnOnFirstLoad) {
+    if (oCtrl[sDialogProp]) { return Promise.resolve(oCtrl[sDialogProp]); }
+    if (!oCtrl[sLoadingProp]) {
+      oCtrl[sLoadingProp] = Fragment.load({
+        id: oCtrl.getView().getId(),
+        name: sFragmentName,
+        controller: oCtrl
+      }).then((oDialog) => {
+        oCtrl[sDialogProp] = oDialog;
+        oCtrl.getView().addDependent(oDialog);
+        if (fnOnFirstLoad) { fnOnFirstLoad(oDialog); }
+        return oDialog;
+      }).catch((err) => {
+        oCtrl[sLoadingProp] = null;
+        return Promise.reject(err);
+      });
+    }
+    return oCtrl[sLoadingProp];
+  }
+
   // Shared by all three dialog search handlers below (recipients/news/
   // mailings): basic-search OR group across aBasicSearchFields, plus
   // adaptSfbFiltersForMode()'s structured filters, with an optional
@@ -119,38 +150,42 @@ sap.ui.define([
       }
 
       const sViewId = this.getView().getId();
-      Fragment.load({
-        id: sViewId,
-        name: "MAILING_CONSTRUCTOR.view.fragment.RecipientSearch",
-        controller: this
-      }).then((oDialog) => {
-        this._oRecipDialog = oDialog;
-        this._oRecipTable = Fragment.byId(sViewId, "recipientTable");
-        this._oRecipGroupedTable = Fragment.byId(sViewId, "recipientGroupedTable");
-        this.getView().addDependent(oDialog);
+      loadDialogOnce(this, "_oRecipDialog", "_pRecipDialogLoading",
+        "MAILING_CONSTRUCTOR.view.fragment.RecipientSearch", (oDialog) => {
+          this._oRecipTable = Fragment.byId(sViewId, "recipientTable");
+          this._oRecipGroupedTable = Fragment.byId(sViewId, "recipientGroupedTable");
 
-        const oModel = new JSONModel({
-          selectedMode: "search",
-          searchMode: "grouped",
-          csvPreview: [],
-          csvPreviewCount: 0
+          const oModel = new JSONModel({
+            selectedMode: "search",
+            searchMode: "grouped",
+            csvPreview: [],
+            csvPreviewCount: 0
+          });
+          oModel.setSizeLimit(1000);
+          oDialog.setModel(oModel, "dialog");
+
+          this._setRecipientDialogDefaultTab();
+
+          oDialog.attachAfterOpen(() => {
+            this._applyRecipientSFBVisibility();
+            if (oModel.getProperty("/selectedMode") !== "added") {
+              this._searchRecipients();
+            }
+          });
+
+          // Cancel/Escape/a successful add all end up here — clears a CSV
+          // preview the user uploaded but never added (or already added),
+          // so reopening later never shows stale, already-resolved rows
+          // with "Add to Recipients" still enabled.
+          oDialog.attachAfterClose(() => {
+            oModel.setProperty("/csvPreview", []);
+            oModel.setProperty("/csvPreviewCount", 0);
+          });
+        }).then((oDialog) => {
+          oDialog.open();
+        }).catch(() => {
+          Log.error("[MAILING_CONSTRUCTOR] Failed to load RecipientSearch fragment");
         });
-        oModel.setSizeLimit(1000);
-        oDialog.setModel(oModel, "dialog");
-
-        this._setRecipientDialogDefaultTab();
-
-        oDialog.attachAfterOpen(() => {
-          this._applyRecipientSFBVisibility();
-          if (oModel.getProperty("/selectedMode") !== "added") {
-            this._searchRecipients();
-          }
-        });
-
-        oDialog.open();
-      }).catch(() => {
-        Log.error("[MAILING_CONSTRUCTOR] Failed to load RecipientSearch fragment");
-      });
     },
 
     _setRecipientDialogDefaultTab() {
@@ -187,13 +222,7 @@ sap.ui.define([
     },
 
     onRemoveAddedRecipient(oEvent) {
-      const oCtx = oEvent.getSource().getBindingContext("state");
-      if (!oCtx) { return; }
-      const sId = oCtx.getProperty("id");
-      const aRecipients = (this._oState.getProperty("/recipients") || [])
-        .filter((r) => r.id !== sId);
-      this._oState.setProperty("/recipients", aRecipients);
-      this._updateHeaderBadges();
+      this._removeStateItem(oEvent, "/recipients");
     },
 
     // ----------------------------------------------------------------
@@ -209,31 +238,26 @@ sap.ui.define([
       }
 
       const sViewId = this.getView().getId();
-      Fragment.load({
-        id: sViewId,
-        name: "MAILING_CONSTRUCTOR.view.fragment.NewsSearch",
-        controller: this
-      }).then((oDialog) => {
-        this._oNewsDialog = oDialog;
-        this._oNewsTable = Fragment.byId(sViewId, "newsTable");
-        this.getView().addDependent(oDialog);
+      loadDialogOnce(this, "_oNewsDialog", "_pNewsDialogLoading",
+        "MAILING_CONSTRUCTOR.view.fragment.NewsSearch", (oDialog) => {
+          this._oNewsTable = Fragment.byId(sViewId, "newsTable");
 
-        const oModel = new JSONModel({ selectedMode: "search" });
-        oModel.setSizeLimit(1000);
-        oDialog.setModel(oModel, "dialog");
+          const oModel = new JSONModel({ selectedMode: "search" });
+          oModel.setSizeLimit(1000);
+          oDialog.setModel(oModel, "dialog");
 
-        this._setNewsDialogDefaultTab();
+          this._setNewsDialogDefaultTab();
 
-        oDialog.attachAfterOpen(() => {
-          if (oModel.getProperty("/selectedMode") !== "added") {
-            this._searchNews();
-          }
+          oDialog.attachAfterOpen(() => {
+            if (oModel.getProperty("/selectedMode") !== "added") {
+              this._searchNews();
+            }
+          });
+        }).then((oDialog) => {
+          oDialog.open();
+        }).catch(() => {
+          Log.error("[MAILING_CONSTRUCTOR] Failed to load NewsSearch fragment");
         });
-
-        oDialog.open();
-      }).catch(() => {
-        Log.error("[MAILING_CONSTRUCTOR] Failed to load NewsSearch fragment");
-      });
     },
 
     _setNewsDialogDefaultTab() {
@@ -255,22 +279,17 @@ sap.ui.define([
         return;
       }
       const sViewId = this.getView().getId();
-      Fragment.load({
-        id: sViewId,
-        name: "MAILING_CONSTRUCTOR.view.fragment.MailingsDialog",
-        controller: this
-      }).then((oDialog) => {
-        this._oMailingsDialog = oDialog;
-        this._oMailingsTable = Fragment.byId(sViewId, "mailingsTable");
-        this.getView().addDependent(oDialog);
-        if (this._oMailingsTable) {
-          this._oMailingsTable.attachItemPress((oEvent) => this.onMailingPress(oEvent));
-        }
-
-        oDialog.open();
-      }).catch((err) => {
-        Log.error("[MAILING_CONSTRUCTOR] Failed to load MailingsDialog fragment: " + err.message);
-      });
+      loadDialogOnce(this, "_oMailingsDialog", "_pMailingsDialogLoading",
+        "MAILING_CONSTRUCTOR.view.fragment.MailingsDialog", (oDialog) => {
+          this._oMailingsTable = Fragment.byId(sViewId, "mailingsTable");
+          if (this._oMailingsTable) {
+            this._oMailingsTable.attachItemPress((oEvent) => this.onMailingPress(oEvent));
+          }
+        }).then((oDialog) => {
+          oDialog.open();
+        }).catch((err) => {
+          Log.error("[MAILING_CONSTRUCTOR] Failed to load MailingsDialog fragment: " + (err && err.message));
+        });
     },
 
     // ----------------------------------------------------------------
@@ -279,11 +298,11 @@ sap.ui.define([
 
     onSmartFilterSearch(oEvent) {
       const oSource = oEvent.getSource();
-      if (oSource && oSource.getId().indexOf("recipientSFB") !== -1) {
+      if (oSource && oSource.getId().includes("recipientSFB")) {
         this._searchRecipients(oEvent);
-      } else if (oSource && oSource.getId().indexOf("newsSFB") !== -1) {
+      } else if (oSource && oSource.getId().includes("newsSFB")) {
         this._searchNews(oEvent);
-      } else if (oSource && oSource.getId().indexOf("mailingsSFB") !== -1) {
+      } else if (oSource && oSource.getId().includes("mailingsSFB")) {
         this.onMailingsFilterSearch();
       }
     },
@@ -310,28 +329,20 @@ sap.ui.define([
       const oTable = bDetailed ? this._oRecipTable : this._oRecipGroupedTable;
       if (!oTable) { return; }
 
-      let aNew;
-      if (bDetailed) {
-        aNew = oTable.getSelectedContexts()
-          .map((oCtx) => oCtx.getObject())
-          .filter(Boolean)
-          .map((oObj) => ({
+      const aSelected = oTable.getSelectedContexts().map((oCtx) => oCtx.getObject()).filter(Boolean);
+      const aNew = bDetailed
+        ? aSelected.map((oObj) => ({
             id: oObj.RecipientId,
             name: oObj.FullName,
             email: oObj.Email,
             role: oObj.Role
-          }));
-      } else {
-        aNew = oTable.getSelectedContexts()
-          .map((oCtx) => oCtx.getObject())
-          .filter(Boolean)
-          .map((oObj) => ({
+          }))
+        : aSelected.map((oObj) => ({
             id: "grp_" + (oObj.Email || "").replace(/[^a-zA-Z0-9@._-]/g, "_"),
             name: oObj.FullName,
             email: oObj.Email,
             role: oObj.Roles || ""
           }));
-      }
 
       if (aNew.length === 0) {
         Toast.warning(this._t("WARN_NO_RECIPIENTS"));
@@ -427,29 +438,26 @@ sap.ui.define([
         this._loadStatusHud(oModel, mailing.Key);
 
         Service.getMailingContent(this.getOwnerComponent(), mailing.Key)
-          .then((oEntry) => oModel.setProperty("/content", oEntry.Content || ""))
+          .then((oEntry) => {
+            // Discard a stale response: the user may have closed this
+            // mailing and opened a different one on this same long-lived
+            // "history" model before this resolved.
+            if (oModel.getProperty("/mailingId") !== mailing.Key) { return; }
+            oModel.setProperty("/content", oEntry.Content || "");
+          })
           .catch(() => { Log.warning("[MAILING_CONSTRUCTOR] Failed to load mailing content"); });
 
         this._oHistoryViewDialog.open();
       };
 
-      if (this._oHistoryViewDialog) {
-        openWithModel(this._oHistoryViewDialog.getModel("history"));
-        return;
-      }
-
-      Fragment.load({
-        id: this.getView().getId(),
-        name: "MAILING_CONSTRUCTOR.view.fragment.HistoryView",
-        controller: this
-      }).then((oDialog) => {
-        this._oHistoryViewDialog = oDialog;
-        oDialog.setModel(new JSONModel(oData), "history");
-        this.getView().addDependent(oDialog);
-        openWithModel(oDialog.getModel("history"));
-      }).catch((err) => {
-        Log.error("[MAILING_CONSTRUCTOR] Failed to load HistoryView fragment: " + err.message);
-      });
+      loadDialogOnce(this, "_oHistoryViewDialog", "_pHistoryViewDialogLoading",
+        "MAILING_CONSTRUCTOR.view.fragment.HistoryView", (oDialog) => {
+          oDialog.setModel(new JSONModel(oData), "history");
+        }).then((oDialog) => {
+          openWithModel(oDialog.getModel("history"));
+        }).catch((err) => {
+          Log.error("[MAILING_CONSTRUCTOR] Failed to load HistoryView fragment: " + (err && err.message));
+        });
     },
 
     onCloseHistoryView() {
@@ -476,6 +484,9 @@ sap.ui.define([
     _loadStatusHud(oModel, sId) {
       Service.getMailingStatus(this.getOwnerComponent(), sId)
         .then((aStatuses) => {
+          // Same stale-response guard as the content load in
+          // _openHistoryView — this model outlives any single mailing.
+          if (oModel.getProperty("/mailingId") !== sId) { return; }
           if (aStatuses && aStatuses.length > 0) {
             const iTotal = aStatuses.reduce((acc, s) => acc + (s.Count || s.Cnt || 0), 0);
             oModel.setProperty("/hud", {
@@ -685,6 +696,11 @@ sap.ui.define([
         this._oPdfModeDialog = this._oHistoryViewDialog = null;
       this._oRecipTable = this._oRecipGroupedTable = this._oNewsTable =
         this._oMailingsTable = null;
+      // loadDialogOnce caches these as long-lived promises — a stale
+      // resolved one left behind would resolve a post-reinit opener call
+      // straight to the dialog instance just destroyed above.
+      this._pRecipDialogLoading = this._pNewsDialogLoading =
+        this._pMailingsDialogLoading = this._pHistoryViewDialogLoading = null;
     }
   };
 });

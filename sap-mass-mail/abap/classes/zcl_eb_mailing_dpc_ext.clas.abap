@@ -21,18 +21,17 @@ CLASS zcl_eb_mailing_dpc_ext DEFINITION
 
   PRIVATE SECTION.
     TYPES:
-      BEGIN OF tys_recipient,
-        recipient_id TYPE /bobf/conf_key,
-        email        TYPE ad_smtpadr,
-      END OF tys_recipient,
-      tt_recipient TYPE STANDARD TABLE OF tys_recipient WITH EMPTY KEY,
-
-      BEGIN OF tys_attachment,
-        file_name   TYPE c LENGTH 255,
-        mime_type   TYPE c LENGTH 100,
-        content_b64 TYPE string,
-      END OF tys_attachment,
-      tt_attachment TYPE STANDARD TABLE OF tys_attachment WITH EMPTY KEY,
+      " Aliases (not independent copies) of zcl_eb_mailing_mod_builder's
+      " public recipient/attachment types — that class owns the BOPF-facing
+      " shape, and build_modifications below bridges into it via
+      " CORRESPONDING #(); redeclaring the same fields here let the two
+      " definitions silently drift apart (a field added to one side would
+      " not raise a compile error, just quietly vanish through the
+      " CORRESPONDING mapping).
+      tys_recipient  TYPE zcl_eb_mailing_mod_builder=>tys_recipient,
+      tt_recipient   TYPE zcl_eb_mailing_mod_builder=>tt_recipient,
+      tys_attachment TYPE zcl_eb_mailing_mod_builder=>tys_attachment,
+      tt_attachment  TYPE zcl_eb_mailing_mod_builder=>tt_attachment,
 
       BEGIN OF tys_mailing_deep,
         local_id       TYPE c LENGTH 40,
@@ -60,19 +59,27 @@ CLASS zcl_eb_mailing_dpc_ext DEFINITION
       BEGIN OF c_validation,
         local_id_pattern TYPE string VALUE `^[A-Za-z0-9_\-.]{1,40}$`,
         filename_pattern TYPE string VALUE `[/\\:*?"<>|]`,
+        " Cheap syntax-only fallback used above behavior-bcs_validation_max
+        " recipients — not as strict as CL_CAM_ADDRESS_BCS, just enough to
+        " reject obviously malformed input at bulk scale.
+        email_pattern    TYPE string VALUE `^[^@\s]+@[^@\s]+\.[^@\s]+$`,
         max_recipients   TYPE i VALUE 10000,
         max_subject_len  TYPE i VALUE 50, " so_obj_des length — outbound BCS document truncates above this
       END OF c_validation.
 
     CLASS-DATA:
       go_localid_regex  TYPE REF TO cl_abap_regex,
-      go_filename_regex TYPE REF TO cl_abap_regex.
+      go_filename_regex TYPE REF TO cl_abap_regex,
+      go_email_regex    TYPE REF TO cl_abap_regex.
 
     CLASS-METHODS:
       get_localid_regex
         RETURNING VALUE(ro_regex) TYPE REF TO cl_abap_regex,
 
       get_filename_regex
+        RETURNING VALUE(ro_regex) TYPE REF TO cl_abap_regex,
+
+      get_email_regex
         RETURNING VALUE(ro_regex) TYPE REF TO cl_abap_regex.
 
     METHODS:
@@ -198,6 +205,10 @@ CLASS zcl_eb_mailing_dpc_ext IMPLEMENTATION.
       raise_business_error( 'Subject is required' ).
     ENDIF.
 
+    IF is_mailing-content IS INITIAL.
+      raise_business_error( 'Content is required' ).
+    ENDIF.
+
     IF strlen( is_mailing-subject ) > c_validation-max_subject_len.
       raise_business_error( |Subject exceeds { c_validation-max_subject_len } characters (outbound mail limit)| ).
     ENDIF.
@@ -215,16 +226,34 @@ CLASS zcl_eb_mailing_dpc_ext IMPLEMENTATION.
       RETURN.
     ENDIF.
 
+    " CL_CAM_ADDRESS_BCS is the thorough (RFC/SMTP-aware) check, but it is
+    " expensive to instantiate per address; c_validation-max_recipients
+    " allows up to 10,000 recipients in one synchronous OData request, and
+    " validating that many with BCS risks a Gateway/ICM timeout on
+    " validation alone. Past the threshold, fall back to a cheap regex
+    " syntax check — reserving the heavier BCS check for smaller inputs.
+    DATA(lv_use_bcs) = xsdbool( lines( it_recipients ) <= zcl_newsletter_constants=>behavior-bcs_validation_max ).
+
     LOOP AT it_recipients ASSIGNING FIELD-SYMBOL(<rec>).
       IF <rec>-email IS INITIAL.
         raise_business_error( 'Recipient email cannot be empty' ).
       ENDIF.
 
-      TRY.
-          cl_cam_address_bcs=>create_internet_address( CONV #( <rec>-email ) ).
-        CATCH cx_address_bcs_invalid.
-          raise_business_error( |Invalid email format: { <rec>-email }| ).
-      ENDTRY.
+      IF lv_use_bcs = abap_true.
+        TRY.
+            cl_cam_address_bcs=>create_internet_address( CONV #( <rec>-email ) ).
+          CATCH cx_address_bcs_invalid.
+            raise_business_error( |Invalid email format: { <rec>-email }| ).
+        ENDTRY.
+      ELSE.
+        TRY.
+            IF get_email_regex( )->create_matcher( text = <rec>-email )->match( ) = abap_false.
+              raise_business_error( |Invalid email format: { <rec>-email }| ).
+            ENDIF.
+          CATCH cx_sy_regex cx_sy_matcher.
+            raise_business_error( |Invalid email format: { <rec>-email }| ).
+        ENDTRY.
+      ENDIF.
     ENDLOOP.
   ENDMETHOD.
 
@@ -232,6 +261,17 @@ CLASS zcl_eb_mailing_dpc_ext IMPLEMENTATION.
     IF it_attachments IS INITIAL.
       RETURN.
     ENDIF.
+
+    " Mirrors the client-side guards in util/fileProcessor.js /
+    " SourcesMixin.js (per-file MAX_ATTACHMENT_SIZE, aggregate
+    " MAX_TOTAL_ATTACHMENTS_SIZE, count MAX_ATTACHMENTS) — those only run in
+    " the browser, so a caller POSTing straight to this deep-entity CREATE
+    " endpoint would otherwise bypass all three limits entirely.
+    IF lines( it_attachments ) > zcl_newsletter_constants=>attachment-max_count.
+      raise_business_error( |Maximum { zcl_newsletter_constants=>attachment-max_count } attachments allowed per request.| ).
+    ENDIF.
+
+    DATA(lv_total_size) = 0.
 
     LOOP AT it_attachments ASSIGNING FIELD-SYMBOL(<att>).
       IF <att>-file_name IS INITIAL.
@@ -253,6 +293,19 @@ CLASS zcl_eb_mailing_dpc_ext IMPLEMENTATION.
       IF <att>-content_b64 IS INITIAL.
         raise_business_error( |Attachment content cannot be empty: { <att>-file_name }| ).
       ENDIF.
+
+      " Base64 inflates raw bytes by ~4/3 — approximate the decoded size
+      " from the encoded string length rather than actually decoding it.
+      DATA(lv_size) = strlen( <att>-content_b64 ) * 3 / 4.
+
+      IF lv_size > zcl_newsletter_constants=>attachment-max_size.
+        raise_business_error( |Attachment '{ <att>-file_name }' exceeds the { zcl_newsletter_constants=>attachment-max_size / 1024 / 1024 } MB per-file limit.| ).
+      ENDIF.
+
+      lv_total_size = lv_total_size + lv_size.
+      IF lv_total_size > zcl_newsletter_constants=>attachment-max_total_size.
+        raise_business_error( |Total attachment size exceeds the { zcl_newsletter_constants=>attachment-max_total_size / 1024 / 1024 } MB aggregate limit.| ).
+      ENDIF.
     ENDLOOP.
   ENDMETHOD.
 
@@ -267,6 +320,20 @@ CLASS zcl_eb_mailing_dpc_ext IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD persist_mailing.
+    " Catches the common duplicate-LocalId case up front with a clear,
+    " logon-language-independent 409 — detect_save_status's message-text
+    " scan below only recognizes EN/DE phrasing for the DB's UNIQUE-
+    " constraint violation, so without this pre-check a user on any other
+    " logon language (this app ships a RU locale) would see a generic 500
+    " instead. A race between two concurrent requests for the same
+    " LocalId is still caught by the UNIQUE index itself and falls through
+    " to detect_save_status as before.
+    SELECT SINGLE @abap_true FROM zehs_c_mailing_header WHERE localid = @iv_local_id INTO @DATA(lv_exists).
+    IF lv_exists = abap_true.
+      raise_business_error( iv_text   = |Mailing with LocalId '{ iv_local_id }' already exists|
+                            iv_status = zcl_newsletter_constants=>http_status-conflict ).
+    ENDIF.
+
     DATA(lo_srv_mgr) = /bobf/cl_tra_serv_mgr_factory=>get_service_manager( /bobf/if_znewsletter_bo_c=>sc_bo_key ).
 
     lo_srv_mgr->modify( EXPORTING it_modification = it_modification IMPORTING eo_message = DATA(lo_msg) ).
@@ -311,13 +378,15 @@ CLASS zcl_eb_mailing_dpc_ext IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD detect_save_status.
-    " Inspects BOPF save()'s message text for the duplicate-key signature
-    " (UNIQUE-constraint violation on zmail_hdr~local_id) — returns 409
-    " for the conflict, 500 for anything else. The DB's duplicate-key
-    " error is carried as free-text, so a case-insensitive substring
-    " scan across German/English phrasings is the cheapest stable
-    " discriminator. Default to 500 so an unmapped message type isn't
-    " mis-reported as a conflict.
+    " Fallback only: persist_mailing's pre-check already catches the
+    " common duplicate-LocalId case language-independently before the
+    " BOPF save ever runs. This only fires for the residual race window
+    " between that check and the actual INSERT, where the DB's own
+    " duplicate-key error is carried back as free-text with no stable
+    " msg_id/msg_number to key on — a case-insensitive substring scan
+    " across this app's supported logon languages (EN/DE/RU) is the
+    " cheapest available discriminator. Default to 500 so an unmapped
+    " message type isn't mis-reported as a conflict.
     rv_status = zcl_newsletter_constants=>http_status-server_error.
 
     CHECK io_save_msg IS BOUND.
@@ -326,7 +395,9 @@ CLASS zcl_eb_mailing_dpc_ext IMPLEMENTATION.
       DATA(lv_text) = to_lower( |{ <msg>-message_text }| ).
       IF    lv_text CS 'duplicate'
          OR lv_text CS 'already exists'
-         OR lv_text CS 'doppelt'.
+         OR lv_text CS 'doppelt'
+         OR lv_text CS 'уже существ'
+         OR lv_text CS 'дублир'.
         rv_status = zcl_newsletter_constants=>http_status-conflict.
         RETURN.
       ENDIF.
@@ -349,6 +420,13 @@ CLASS zcl_eb_mailing_dpc_ext IMPLEMENTATION.
       go_filename_regex = NEW cl_abap_regex( pattern = c_validation-filename_pattern ignore_case = abap_true ).
     ENDIF.
     ro_regex = go_filename_regex.
+  ENDMETHOD.
+
+  METHOD get_email_regex.
+    IF go_email_regex IS INITIAL.
+      go_email_regex = NEW cl_abap_regex( pattern = c_validation-email_pattern ignore_case = abap_true ).
+    ENDIF.
+    ro_regex = go_email_regex.
   ENDMETHOD.
 
   METHOD raise_business_error.

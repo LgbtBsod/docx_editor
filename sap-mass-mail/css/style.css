@@ -941,7 +941,16 @@ html, body {
   }
   .emailBuilderPage .ebCenterPanel {
     padding: var(--eb-space-sm) !important;
-    min-height: 60vh;
+    /* A bounded height, not just a min-height floor: .ebMainHBox is
+       height:auto here, so without a real ceiling this panel (and the
+       RichTextEditor's height:100% chain inside .ebEditorContainer)
+       had nothing definite to compute against and grew to fit the
+       editor's own unconstrained natural content height instead of the
+       other way around — worse the more you typed. TinyMCE scrolls
+       internally once its content exceeds this fixed box, same as the
+       desktop layout. */
+    height: 60vh;
+    flex: 0 0 auto !important;
   }
   .emailBuilderPage #mainPage > header .ebHeader .sapMBarRight {
     display: none !important;

@@ -17,7 +17,7 @@
         <IconTabBar
           id="pdfModeTabs"
           select="onPdfModeTabSelect"
-          selectedKey="0"
+          selectedKey="{= ${state>/pdfModeIndex} === 1 ? '1' : '0' }"
           class="ebIconTabBar"
           expandable="false">
           <items>

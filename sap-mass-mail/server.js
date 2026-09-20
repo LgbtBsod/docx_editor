@@ -22,7 +22,12 @@ const url = require("url");
 const PORT = process.env.PORT || 8001;
 const ROOT = __dirname;
 const SAVED_EMAILS_DIR = path.join(ROOT, "saved_emails");
-const MAX_SAVE_BODY_BYTES = 25 * 1024 * 1024; // generous — HTML body + a few base64 attachments
+// The client's own MAX_TOTAL_ATTACHMENTS_SIZE (util/config.js) caps RAW
+// attachment bytes at 20MB, but this body carries them base64-encoded
+// (~4/3 inflation, ~26.7MB) plus JSON structure/Subject/HTML Content/
+// recipient list on top — a mailing right at the client's own advertised
+// limit must not be rejected here.
+const MAX_SAVE_BODY_BYTES = 40 * 1024 * 1024;
 
 const MIME_TYPES = {
   ".html": "text/html; charset=utf-8",
@@ -87,15 +92,24 @@ function resolveStaticPath(pathname) {
 // but keeps the full payload (including attachments and the real recipient
 // list, even for test sends) on disk for manual inspection.
 function handleSaveEmail(req, res) {
-  let sBody = "";
+  // Buffers are collected and concatenated once at the end, then decoded
+  // in a single toString() pass — decoding each chunk independently (the
+  // previous `sBody += chunk` did this implicitly) corrupts any
+  // multi-byte UTF-8 character that happens to be split across a chunk
+  // boundary (silently, e.g. Cyrillic Subject/Content text becoming
+  // replacement characters in the saved audit copy).
+  const aChunks = [];
+  let iReceived = 0;
   let bTooLarge = false;
 
   req.on("data", (chunk) => {
-    sBody += chunk;
-    if (sBody.length > MAX_SAVE_BODY_BYTES) {
+    iReceived += chunk.length;
+    if (iReceived > MAX_SAVE_BODY_BYTES) {
       bTooLarge = true;
       req.destroy();
+      return;
     }
+    aChunks.push(chunk);
   });
 
   req.on("end", () => {
@@ -103,7 +117,7 @@ function handleSaveEmail(req, res) {
 
     let oPayload;
     try {
-      oPayload = JSON.parse(sBody);
+      oPayload = JSON.parse(Buffer.concat(aChunks).toString("utf-8"));
     } catch (e) {
       sendJson(res, 400, { error: "Invalid JSON" });
       return;

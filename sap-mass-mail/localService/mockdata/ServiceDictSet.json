@@ -15,8 +15,5 @@
   { "DictType": "NEWS_TYPE",   "DictKey": "BASE",  "DictText": "Базовая рассылка", "UiState": "None",   "UiIcon": "sap-icon://email",         "CssClass": "ebNewsBase",  "SortOrder": 1 },
   { "DictType": "NEWS_TYPE",   "DictKey": "NEWS",  "DictText": "Новости",          "UiState": "None",   "UiIcon": "sap-icon://notification",  "CssClass": "ebNewsNews",  "SortOrder": 2 },
   { "DictType": "NEWS_TYPE",   "DictKey": "ERROR", "DictText": "Ошибки",           "UiState": "Error",  "UiIcon": "sap-icon://alert",         "CssClass": "ebNewsError", "SortOrder": 3 },
-  { "DictType": "NEWS_TYPE",   "DictKey": "CHG",   "DictText": "Изменения",        "UiState": "None",   "UiIcon": "sap-icon://edit",          "CssClass": "ebNewsChg",   "SortOrder": 4 },
-
-  { "DictType": "ALLOWED_HOST", "DictKey": "example.com",          "DictText": "Основной корпоративный домен",       "UiState": "", "UiIcon": "", "CssClass": "", "SortOrder": 1 },
-  { "DictType": "ALLOWED_HOST", "DictKey": "noreply.example.com",  "DictText": "Технический адрес для исходящих писем", "UiState": "", "UiIcon": "", "CssClass": "", "SortOrder": 2 }
+  { "DictType": "NEWS_TYPE",   "DictKey": "CHG",   "DictText": "Изменения",        "UiState": "None",   "UiIcon": "sap-icon://edit",          "CssClass": "ebNewsChg",   "SortOrder": 4 }
 ]

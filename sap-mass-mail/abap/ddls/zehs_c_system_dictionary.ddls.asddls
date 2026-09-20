@@ -11,22 +11,27 @@
 /* Единая модель справочников для всего приложения.
    Фронт грузит ServiceDictSet один раз при старте, раскладывает по
    DictType в JSONModel "dict", formatter.js и SFB value-help читают
-   оттуда — i18n для статусов/типов/хостов не нужен.
+   оттуда — i18n для статусов/типов не нужен.
 
    DictType разделяет справочники:
      MAIL_STATUS   — статусы рассылки (zmail_hdr.status, ZD_MAIL_STATUS)
      REC_STATUS    — статусы получателя (zeb_mailing_rec.status, ZD_REC_STATUS)
      DISP_STATUS   — display-статусы (ZEHS_I_Mail_Status_Map output)
      NEWS_TYPE     — типы новостей (znews.news_type, ZD_NEWS_TYPE)
-     ALLOWED_HOST  — разрешённые хосты (zeb_allowed_hosts)
 
-   DictKey  — код (CHAR 255 — должен вмещать полный host, ZEB_ALLOWED_HOSTS.HOST
-              тоже CHAR(255); CHAR 40 обрезал бы длинные FQDN)
-   DictText — текст (CHAR 200 вмещает description хостов)
+   DictKey  — код (CHAR 255)
+   DictText — текст (CHAR 200)
 
    UNION ALL (не таблица) — справочники фиксированы, не редактируются
-   пользователем. AllowedHosts — единственный редактируемый справочник,
-   но он вшит сюда как проекция zeb_allowed_hosts. */
+   пользователем.
+
+   Allowed hosts are deliberately NOT part of this view: it declares
+   @AccessControl.authorizationCheck: #NOT_REQUIRED for these fixed
+   literal branches, and unioning in zeb_allowed_hosts here would have
+   re-exposed that data without the #CHECK that ZEHS_C_Allowed_Host (the
+   dedicated, properly-guarded projection also consumed as AllowedHostSet)
+   already enforces on it. The client reads allowed hosts from
+   AllowedHostSet directly (Component.js#_loadAllowedHosts). */
 define view ZEHS_C_System_Dictionary
   as select from ( select 1 as dummy from sysdummy1 ) as _one
 {
@@ -196,19 +201,5 @@ define view ZEHS_C_System_Dictionary
         cast( 'sap-icon://change' as abap.char( 60 ) ),
         cast( 'ebNewsTypeChg' as abap.char( 30 ) ),
         cast( 4 as abap.int2 )
-  }
-
-  /* Allowed hosts — projected from zeb_allowed_hosts.
-     DictKey=host (the domain), DictText=description. */
-  union all
-  select from zeb_allowed_hosts as h
-  {
-    key cast( 'ALLOWED_HOST' as abap.char( 20 ) )  as DictType,
-    key cast( h.host as abap.char( 255 ) )           as DictKey,
-        cast( h.description as abap.char( 200 ) )    as DictText,
-        cast( '' as abap.char( 10 ) )                as UiState,
-        cast( '' as abap.char( 60 ) )                as UiIcon,
-        cast( '' as abap.char( 30 ) )                as CssClass,
-        cast( 1 as abap.int2 )                       as SortOrder
   }
 }

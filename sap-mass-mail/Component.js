@@ -25,15 +25,16 @@ sap.ui.define([
         subjectMaxLen:  Constants.VALIDATION.SUBJECT_MAX_LEN
       }), "config");
 
-      // Service dictionary — all lookup tables (statuses, news types,
-      // allowed hosts) loaded once from ServiceDictSet. formatter.js reads
-      // status texts/icons/states from here; SFB value-help binds to it.
+      // Service dictionary — read-only lookup tables (statuses, news types)
+      // loaded once from ServiceDictSet. formatter.js reads status
+      // texts/icons/states from here; SFB value-help binds to it. Allowed
+      // hosts are NOT part of this: they are separately authorization-
+      // checked (see _loadAllowedHosts) and must not be re-exposed here.
       this.setModel(new JSONModel({
-        MAIL_STATUS:  [],
-        REC_STATUS:   [],
-        DISP_STATUS:  [],
-        NEWS_TYPE:    [],
-        ALLOWED_HOST: []
+        MAIL_STATUS: [],
+        REC_STATUS:  [],
+        DISP_STATUS: [],
+        NEWS_TYPE:   []
       }), "dict");
 
       this.setModel(new JSONModel(Constants), "constants");
@@ -49,6 +50,7 @@ sap.ui.define([
         // formatter.js and SFB value-help depend on it being populated.
         oODataModel.metadataLoaded().then(() => {
           this._loadServiceDict();
+          this._loadAllowedHosts();
         });
       }
     },
@@ -68,11 +70,21 @@ sap.ui.define([
           mGroups[sType].sort((a, b) => (a.SortOrder || 0) - (b.SortOrder || 0));
           oDict.setProperty("/" + sType, mGroups[sType]);
         });
-        const aHosts = (mGroups["ALLOWED_HOST"] || []).map((h) => h.DictKey);
-        this.getModel("config").setProperty("/allowedHosts", aHosts);
         Log.info("[MAILING_CONSTRUCTOR] Service dictionary loaded: " + (aAll || []).length + " entries");
       }).catch((e) => {
         Log.warning("[MAILING_CONSTRUCTOR] Service dictionary load failed: " + (e.message || e));
+      });
+    },
+
+    // Reads the sanitizer's link/image host allowlist from the properly
+    // authorization-checked AllowedHostSet — kept separate from
+    // _loadServiceDict so this data is never re-exposed through a view
+    // that doesn't carry the same #CHECK (see ZEHS_C_Allowed_Host).
+    _loadAllowedHosts() {
+      Service.getAllowedHosts(this).then((aHosts) => {
+        this.getModel("config").setProperty("/allowedHosts", (aHosts || []).map((h) => h.Host));
+      }).catch((e) => {
+        Log.warning("[MAILING_CONSTRUCTOR] Allowed hosts load failed: " + (e.message || e));
       });
     },
 
@@ -98,7 +110,7 @@ sap.ui.define([
     },
 
     destroy() {
-      ["state", "config", "constants"].forEach((sModelName) => {
+      ["state", "config", "dict", "constants"].forEach((sModelName) => {
         const oModel = this.getModel(sModelName);
         if (oModel && !oModel.isDestroyed()) {
           oModel.destroy();

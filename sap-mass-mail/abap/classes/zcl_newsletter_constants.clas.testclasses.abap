@@ -6,6 +6,7 @@ CLASS ltc_status_map_test DEFINITION FOR TESTING
   PRIVATE SECTION.
     METHODS:
       status_map_matches_cds FOR TESTING RAISING cx_static_check,
+      dictionary_matches_constants FOR TESTING RAISING cx_static_check,
       root_status_is_char3   FOR TESTING RAISING cx_static_check,
       rec_status_is_char3    FOR TESTING RAISING cx_static_check,
       skipped_attachment_msgno_distinct FOR TESTING RAISING cx_static_check.
@@ -27,6 +28,20 @@ CLASS ltc_status_map_test IMPLEMENTATION.
       CATCH cx_dynamic_check INTO DATA(lx_mismatch).
         cl_abap_unit_assert=>fail(
           msg = |rec_status/ZEHS_I_Mail_Status_Map mismatch: { lx_mismatch->get_text( ) }| ).
+    ENDTRY.
+  ENDMETHOD.
+
+  METHOD dictionary_matches_constants.
+    " ZEHS_C_System_Dictionary hardcodes every MAIL_STATUS/REC_STATUS/
+    " DISP_STATUS DictKey as a CDS literal — CDS can't reference this
+    " class's constants, so nothing else stops the two from drifting
+    " apart. Fail fast here the same way status_map_matches_cds does for
+    " ZEHS_I_Mail_Status_Map.
+    TRY.
+        zcl_newsletter_constants=>assert_dictionary_consistent( ).
+      CATCH cx_dynamic_check INTO DATA(lx_mismatch).
+        cl_abap_unit_assert=>fail(
+          msg = |ZEHS_C_System_Dictionary status code mismatch: { lx_mismatch->get_text( ) }| ).
     ENDTRY.
   ENDMETHOD.
 

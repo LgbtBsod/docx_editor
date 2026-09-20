@@ -18,11 +18,17 @@ sap.ui.define([
     return !!window.USE_MOCK;
   }
 
+  const SAVE_TIMEOUT_MS = 8000;
+
   function postToLocalServer(oPayload) {
     return new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();
       xhr.open("POST", "/api/save-email", true);
       xhr.setRequestHeader("Content-Type", "application/json");
+      // Without this, a dev server that accepts the connection but never
+      // responds leaves this promise (and recordSend's whole .then chain,
+      // including clearing isSending) unsettled forever.
+      xhr.timeout = SAVE_TIMEOUT_MS;
 
       xhr.onload = () => {
         if (xhr.status === 200) {
@@ -36,6 +42,7 @@ sap.ui.define([
         }
       };
       xhr.onerror = () => reject(new Error("Network error"));
+      xhr.ontimeout = () => reject(new Error("Request timed out"));
       xhr.send(JSON.stringify(oPayload));
     });
   }

@@ -22,11 +22,6 @@ sap.ui.define([
         "application/zip", "application/msword", "application/octet-stream"],
       icon: "sap-icon://doc-attachment", color: C.INFO
     },
-    ".doc": {
-      handler: "text",
-      mimes: ["application/msword", "application/octet-stream"],
-      icon: "sap-icon://doc-attachment", color: C.INFO
-    },
     ".txt": {
       handler: "text",
       mimes: ["text/plain"],
@@ -79,7 +74,7 @@ sap.ui.define([
     mimeMatches(sExt, sMime) {
       const oType = TYPES[sExt];
       if (!oType || !sMime) { return true; }
-      return oType.mimes.indexOf(sMime) >= 0;
+      return oType.mimes.includes(sMime);
     }
   };
 });

@@ -6,8 +6,6 @@
     "i18n": "i18n/i18n.properties",
     "title": "{{TITLE}}",
     "description": "{{APP_DESC}}",
-    "supportedLocales": ["en", "ru"],
-    "fallbackLocale": "ru",
     "applicationVersion": {
       "version": "2.1.0"
     },
@@ -59,7 +57,11 @@
     "models": {
       "i18n": {
         "type": "sap.ui.model.resource.ResourceModel",
-        "dataSource": "i18n"
+        "dataSource": "i18n",
+        "settings": {
+          "supportedLocales": ["en", "ru"],
+          "fallbackLocale": "ru"
+        }
       },
       "": {
         "type": "sap.ui.model.odata.v2.ODataModel",

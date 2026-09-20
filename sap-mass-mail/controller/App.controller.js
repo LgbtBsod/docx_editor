@@ -93,6 +93,12 @@ sap.ui.define([
       if (typeof this.onExitCleanup === "function") {
         this.onExitCleanup();
       }
+      // SourcesMixin's own teardown — a distinct method name (not
+      // onExitCleanup) so it can't collide with DialogMixin's in the
+      // Object.assign merge; see _destroySourcesQueue's comment.
+      if (typeof this._destroySourcesQueue === "function") {
+        this._destroySourcesQueue();
+      }
 
       if (this._oDnD)    { this._oDnD.destroy();    this._oDnD = null; }
       if (this._oEditor) { this._oEditor.destroy(); this._oEditor = null; }
@@ -114,23 +120,22 @@ sap.ui.define([
       this._closeDialog(oEvent.getSource());
     },
 
+    // UI5 1.71 FileUploader has no openFileSelector() method (added in
+    // 1.84+). The FileUploader with buttonOnly="true" already renders a
+    // native <input type="file"> — trigger its click() directly via the DOM.
+    _triggerFileBrowse(sUploaderId) {
+      const oUploader = this.byId(sUploaderId);
+      const oInput = oUploader && oUploader.getDomRef
+        && oUploader.getDomRef().querySelector("input[type='file']");
+      if (oInput) { oInput.click(); }
+    },
+
     onSourceBrowse() {
-      // UI5 1.71 FileUploader has no openFileSelector() method (added in 1.84+).
-      // The FileUploader with buttonOnly="true" already renders a native <input type="file">
-      // — trigger its click() directly via the DOM. This is the standard 1.71 workaround.
-      const oUploader = this.byId("sourceUploader");
-      if (oUploader && oUploader.getDomRef) {
-        const oInput = oUploader.getDomRef().querySelector("input[type='file']");
-        if (oInput) { oInput.click(); }
-      }
+      this._triggerFileBrowse("sourceUploader");
     },
 
     onAttachmentBrowse() {
-      const oUploader = this.byId("attachmentUploader");
-      if (oUploader && oUploader.getDomRef) {
-        const oInput = oUploader.getDomRef().querySelector("input[type='file']");
-        if (oInput) { oInput.click(); }
-      }
+      this._triggerFileBrowse("attachmentUploader");
     },
 
     // Placed here (not in SourcesMixin) — generic UI action, not a
@@ -173,10 +178,15 @@ sap.ui.define([
         return;
       }
 
-      const oValidation = this._validateEmails(aRecipients);
-      if (!oValidation.valid) {
-        MessageBox.error(oValidation.message, { title: this._t("ERR_TITLE") });
-        return;
+      // A test send discards aRecipients entirely (ToRecipients is sent
+      // empty below) — validating it would block a preview send on stale
+      // or malformed recipient data that will never actually be emailed.
+      if (!bIsTest) {
+        const oValidation = this._validateEmails(aRecipients);
+        if (!oValidation.valid) {
+          MessageBox.error(oValidation.message, { title: this._t("ERR_TITLE") });
+          return;
+        }
       }
 
       this._oState.setProperty("/isSending", true);
@@ -208,7 +218,7 @@ sap.ui.define([
         .then((data) => MockBackend.recordSend(oPayload, aRecipients, bIsTest).then(() => data))
         .then((data) => {
           if (this._oMailingsTable && this._oMailingsTable.getBinding) {
-            var oBinding = this._oMailingsTable.getBinding("items");
+            const oBinding = this._oMailingsTable.getBinding("items");
             if (oBinding) { oBinding.refresh(); }
           }
           MessageBox.success(this._t(data.messageKey, [data.localId]), {

@@ -17,7 +17,11 @@ sap.ui.define([
     const vStatus = oError && (
       (oError.response && oError.response.statusCode) || oError.statusCode
     );
-    if (vStatus === undefined || vStatus === null || vStatus === "") { return true; }
+    // A genuine network-level failure (DNS, connection refused, CORS
+    // block, aborted XHR) commonly surfaces as statusCode 0, not
+    // undefined/null/"" — without this check it falls through to the
+    // >= 500 test below and is wrongly treated as non-retryable.
+    if (vStatus === undefined || vStatus === null || vStatus === "" || Number(vStatus) === 0) { return true; }
     return parseInt(vStatus, 10) >= 500;
   }
 
@@ -126,12 +130,21 @@ sap.ui.define([
         // JSON branch: leading "{" or "[" (some gateways wrap error arrays)
         if (sTrimmed.charAt(0) === "{" || sTrimmed.charAt(0) === "[") {
           const oParsed = JSON.parse(oError.responseText);
-          if (oParsed && oParsed.error && oParsed.error.message
+          // innererror.errordetails carries the actionable per-item
+          // messages (e.g. one per rejected recipient/attachment from
+          // zcl_eb_mailing_dpc_ext's BOPF-message loop) — prefer it over
+          // the generic top-level wrapper message when present.
+          const aDetails = oParsed && oParsed.error && oParsed.error.innererror
+            && oParsed.error.innererror.errordetails;
+          if (Array.isArray(aDetails) && aDetails.length > 0) {
+            sMsg = aDetails.map((d) => (d.message && d.message.value) || d.message || "")
+              .filter(Boolean).join("; ");
+          } else if (oParsed && oParsed.error && oParsed.error.message
             && oParsed.error.message.value) {
             sMsg = oParsed.error.message.value;
           }
-        } else if (oError.responseText.indexOf("<error") >= 0
-          || oError.responseText.indexOf("<?xml") === 0) {
+        } else if (oError.responseText.includes("<error")
+          || oError.responseText.startsWith("<?xml")) {
           // XML branch: <error><message>text</message></error>
           // (DOMParser is the standard, non-regex way to walk XML in 1.71.)
           const oDoc = new DOMParser().parseFromString(oError.responseText, "application/xml");
@@ -221,10 +234,19 @@ sap.ui.define([
       .then(extractResults);
   }
 
-  // One round-trip for all lookup tables (statuses, news types, allowed
-  // hosts) — stored in JSONModel "dict", read by formatter.js / SFB value-help.
+  // One round-trip for the read-only lookup tables (statuses, news types)
+  // — stored in JSONModel "dict", read by formatter.js / SFB value-help.
+  // Allowed hosts are NOT included here: ZEHS_C_System_Dictionary's
+  // ALLOWED_HOST branch re-exposed them with #NOT_REQUIRED, bypassing the
+  // #CHECK authorization on ZEHS_C_Allowed_Host/AllowedHostSet — see
+  // getAllowedHosts, which reads the properly-guarded entity set instead.
   function getServiceDict(oComponent) {
     return readWithRetry(oComponent, "/" + Constants.ODATA.ENTITY_SETS.SERVICE_DICT, null, 0)
+      .then(extractResults);
+  }
+
+  function getAllowedHosts(oComponent) {
+    return readWithRetry(oComponent, "/" + Constants.ODATA.ENTITY_SETS.ALLOWED_HOST, null, 0)
       .then(extractResults);
   }
 
@@ -235,6 +257,7 @@ sap.ui.define([
     getMailingContent: getMailingContent,
     copyMailing: copyMailing,
     getMailingConfig: getMailingConfig,
-    getServiceDict: getServiceDict
+    getServiceDict: getServiceDict,
+    getAllowedHosts: getAllowedHosts
   };
 });

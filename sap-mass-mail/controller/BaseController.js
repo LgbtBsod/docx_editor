@@ -41,6 +41,22 @@ sap.ui.define([
       oState.setProperty("/newsCount", aNewsItems.length);
     },
 
+    // Shared by every "remove this chip" handler (attachments/sources/
+    // news/recipients): pulls the id off the pressed row's "state" binding
+    // context, filters it out of the named state array, and refreshes the
+    // header badges. Returns the removed id (or null) so callers that also
+    // need to detach an editor block (removeSource) can do so afterward.
+    _removeStateItem(oEvent, sStateProperty) {
+      const oCtx = oEvent.getSource().getBindingContext("state");
+      if (!oCtx) { return null; }
+      const sId = oCtx.getProperty("id");
+      const aItems = (this._oState.getProperty(sStateProperty) || [])
+        .filter((oItem) => oItem.id !== sId);
+      this._oState.setProperty(sStateProperty, aItems);
+      this._updateHeaderBadges();
+      return sId;
+    },
+
     // The OData model is created asynchronously and isn't available at
     // onInit — this runs from the dialog openers instead, by which point
     // it's guaranteed ready, so dependents added via addDependent inherit it.
