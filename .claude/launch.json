@@ -2,10 +2,16 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "sap-mass-mail",
+      "name": "email-builder",
       "runtimeExecutable": "node",
-      "runtimeArgs": ["C:/Users/lgbtb/Desktop/docx_editor/sap-mass-mail/server.js"],
+      "runtimeArgs": ["server.js"],
       "port": 8001
+    },
+    {
+      "name": "email-builder-dist",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "8002", "--directory", "dist"],
+      "port": 8002
     }
   ]
 }

@@ -1,0 +1,1046 @@
+/* ============================================================
+   EMAIL BUILDER — SAP Horizon Morning Light
+   Fully redesigned: consistent spacing, no overlaps/truncation,
+   modern Horizon look (rounded corners, soft shadows, #0070f2 accent).
+   ============================================================ */
+
+/* ============================================================
+   1. DESIGN TOKENS & CSS VARIABLES
+   ============================================================ */
+:root {
+  /* === Horizon color palette === */
+  --eb-bg:                var(--sapBackgroundColor,          #f5f6f7);
+  --eb-surface:           var(--sapBaseColor,                #ffffff);
+  --eb-surface-alt:       var(--sapGroup_ContentBackground,  #fafbfc);
+  --eb-border:            var(--sapGroup_ContentBorderColor, #d9dde3);
+  --eb-border-strong:     var(--sapElement_BorderColor,      #b3b8c2);
+  --eb-border-color:      var(--eb-border); /* Compatibility alias for legacy/dialog references */
+  --eb-text:              var(--sapTextColor,                #1d2d3e);
+  --eb-text-secondary:    var(--sapNeutralTextColor,         #5b738b);
+  --eb-text-muted:        var(--sapContent_LabelColor,       #8395a7);
+  --eb-primary:           var(--sapPrimaryColor,             #0070f2);
+  --eb-primary-hover:     var(--sapPrimaryColor--hover,      #0060d8);
+  --eb-success:           var(--sapPositiveColor,            #36a41d);
+  --eb-warning:           var(--sapCriticalColor,            #e76500);
+  --eb-error:             var(--sapNegativeColor,            #ee3939);
+  --eb-tint-02:           rgba(0, 112, 242, 0.02);
+  --eb-tint-04:           rgba(0, 112, 242, 0.04);
+  --eb-tint-06:           rgba(0, 112, 242, 0.06);
+  --eb-tint-08:           rgba(0, 112, 242, 0.08);
+  --eb-tint-12:           rgba(0, 112, 242, 0.12);
+
+  /* === Shape tokens === */
+  --eb-radius-xs:   0.375rem;
+  --eb-radius-sm:   0.5rem;
+  --eb-radius-md:   0.75rem;
+  --eb-radius-lg:   1rem;
+  --eb-radius-xl:   1.25rem;
+  --eb-radius-pill: 999px;
+
+  /* === Spacing scale (4px base) === */
+  --eb-space-xs: 4px;
+  --eb-space-sm: 8px;
+  --eb-space-md: 12px;
+  --eb-space-lg: 16px;
+  --eb-space-xl: 24px;
+  --eb-space-2xl: 32px;
+
+  /* === Layout dimensions === */
+  --eb-panel-width: 340px;
+  --eb-panel-width-md: 300px;
+  --eb-panel-width-sm: 260px;
+  --eb-header-height: 48px;
+  --eb-footer-height: 48px;
+  --eb-editor-min-height: 320px;
+
+  /* === Motion === */
+  --eb-transition: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --eb-transition-fast: 100ms cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* === Elevation (Horizon-style soft shadows) === */
+  --eb-shadow-xs: 0 1px 2px rgba(15, 35, 65, 0.04);
+  --eb-shadow-sm: 0 1px 2px rgba(15, 35, 65, 0.06), 0 1px 1px rgba(15, 35, 65, 0.03);
+  --eb-shadow-md: 0 4px 12px rgba(15, 35, 65, 0.08), 0 2px 4px rgba(15, 35, 65, 0.04);
+  --eb-shadow-lg: 0 12px 32px rgba(15, 35, 65, 0.10), 0 4px 8px rgba(15, 35, 65, 0.05);
+}
+
+/* ============================================================
+   2. DOCUMENT ROOT — OVERFLOW CONTAINMENT
+   Never let a stray absolutely-positioned overlay grow the page.
+   TinyMCE's floating table row/column controls (and any other
+   sap-ui-static-area popup) are appended to <body> as siblings of
+   .emailBuilderPage, so nothing scoped to the app shell can contain them;
+   only the document root can. Only reproduces when the page isn't
+   scrolled to the bottom — the floating panel's position math is based on
+   viewport scroll, and can land past the right edge before that.
+   ============================================================ */
+html, body {
+  overflow-x: hidden;
+}
+
+/* ============================================================
+   3. PAGE LAYOUT — FLEX COLUMN, STICKY HEADER/FOOTER
+   ============================================================ */
+.emailBuilderPage {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--eb-bg);
+  color: var(--eb-text);
+}
+
+.emailBuilderPage .sapMPageContent {
+  padding: 0 !important;
+  flex: 1 1 auto;
+  min-height: 0;
+  background: var(--eb-bg) !important;
+  overflow: hidden !important;
+}
+
+.emailBuilderPage .sapMPage > header {
+  background: var(--eb-surface) !important;
+  border-bottom: 1px solid var(--eb-border) !important;
+  box-shadow: none !important;
+  height: var(--eb-header-height) !important;
+  min-height: var(--eb-header-height) !important;
+  flex-shrink: 0;
+  padding: 0 var(--eb-space-lg) !important;
+}
+
+.emailBuilderPage .sapMPage > footer {
+  background: var(--eb-surface) !important;
+  border-top: 1px solid var(--eb-border) !important;
+  box-shadow: 0 -1px 4px rgba(15, 35, 65, 0.04) !important;
+  height: var(--eb-footer-height) !important;
+  min-height: var(--eb-footer-height) !important;
+  flex-shrink: 0;
+  padding: 0 !important;
+}
+
+/* ============================================================
+   4. HEADER & HEADER BADGES
+   ============================================================ */
+.ebHeader {
+  height: var(--eb-header-height) !important;
+  padding: 0 !important;
+}
+
+.ebAppTitle {
+  font-size: 16px !important;
+  font-weight: 600 !important;
+  letter-spacing: -0.01em !important;
+  color: var(--eb-text) !important;
+  line-height: var(--eb-header-height) !important;
+}
+
+.ebHeaderBadge {
+  background: var(--eb-tint-08) !important;
+  color: var(--eb-primary) !important;
+  padding: 4px 10px !important;
+  border-radius: var(--eb-radius-pill) !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.01em !important;
+  margin-left: var(--eb-space-sm) !important;
+  white-space: nowrap !important;
+}
+
+.ebHeaderBadge .sapMObjStatusText {
+  white-space: nowrap !important;
+}
+
+.ebHeaderBadge .sapMObjStatusIcon {
+  margin-right: 4px !important;
+}
+
+/* ============================================================
+   5. MAIN CONTENT LAYOUT & PANELS
+   ============================================================ */
+.ebMainHBox {
+  height: 100% !important;
+  width: 100% !important;
+}
+
+/* Left panel */
+.emailBuilderPage .leftPanel {
+  width: var(--eb-panel-width);
+  min-width: var(--eb-panel-width);
+  max-width: var(--eb-panel-width);
+  background: var(--eb-bg);
+  border-right: 1px solid var(--eb-border);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+
+.emailBuilderPage .leftScrollContainer {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: var(--eb-space-lg) 0;
+  scrollbar-width: thin;
+  scrollbar-color: var(--eb-border-strong) transparent;
+}
+
+/* Left scroll container custom scrollbar */
+.emailBuilderPage .leftScrollContainer::-webkit-scrollbar {
+  width: 6px;
+}
+
+.emailBuilderPage .leftScrollContainer::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.emailBuilderPage .leftScrollContainer::-webkit-scrollbar-thumb {
+  background-color: var(--eb-border-strong);
+  border-radius: var(--eb-radius-pill);
+}
+
+.emailBuilderPage .leftScrollContainer::-webkit-scrollbar-thumb:hover {
+  background-color: var(--eb-text-muted);
+}
+
+/* Center compose panel */
+.ebCenterPanel {
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+  padding: var(--eb-space-lg) var(--eb-space-xl) var(--eb-space-md) !important;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ============================================================
+   6. CARD SECTIONS
+   ============================================================ */
+.ebCard {
+  box-sizing: border-box;
+  width: calc(100% - 16px);
+  max-width: calc(100% - 16px);
+  overflow: hidden;
+  background: var(--eb-surface);
+  border: 1px solid var(--eb-border);
+  border-radius: var(--eb-radius-md);
+  padding: var(--eb-space-lg);
+  margin-bottom: var(--eb-space-md);
+  margin-left: 8px;
+  margin-right: 8px;
+  box-shadow: var(--eb-shadow-xs);
+  transition: box-shadow var(--eb-transition);
+}
+
+.ebCard:last-child {
+  margin-bottom: 0;
+}
+
+.ebCard:hover {
+  box-shadow: var(--eb-shadow-sm);
+}
+
+.ebCardLabel {
+  display: block !important;
+  margin-bottom: var(--eb-space-sm) !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  color: var(--eb-text-secondary) !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.06em !important;
+}
+
+.ebLocalIdCard {
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+.ebSubjectCard {
+  width: 100%;
+  flex-shrink: 0;
+  margin-bottom: var(--eb-space-md) !important;
+}
+
+/* ============================================================
+   7. FORM CONTROLS & INPUTS (Horizon Style)
+   App-scoped inputs — never restyle sapM internals globally: unscoped
+   selectors leak into every dialog/theme and break on framework patches.
+   ============================================================ */
+.ebFieldLabel {
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  color: var(--eb-text-secondary) !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.06em !important;
+  display: block !important;
+  margin-bottom: var(--eb-space-xs) !important;
+}
+
+.ebSearchInput {
+  margin-bottom: var(--eb-space-md) !important;
+}
+
+/* Local ID input styling — explicit radius/width guarantee */
+.ebLocalIdInput,
+.ebLocalIdInput .sapMInputBase,
+.ebLocalIdInput .sapMInputBaseInner,
+.ebLocalIdInput .sapMInputInner {
+  border-radius: var(--eb-radius-sm) !important;
+  width: 100% !important;
+  min-width: 0 !important;
+}
+
+.ebLocalIdInput {
+  margin-top: var(--eb-space-sm) !important;
+}
+
+.ebLocalIdInput .sapMInputInner {
+  font-family: "72mono", Consolas, monospace !important;
+  font-size: 12px !important;
+  background: var(--eb-surface-alt) !important;
+  padding: var(--eb-space-sm) var(--eb-space-md) !important;
+}
+
+/* Subject input */
+.ebSubjectInput,
+.ebSubjectInput .sapMInputBase,
+.ebSubjectInput .sapMInputBaseInner {
+  border-radius: var(--eb-radius-sm) !important;
+}
+
+/* App-scoped inputs: styling and state (consolidated) */
+.emailBuilderPage .sapMInputBase,
+.emailBuilderPage .sapMInputBaseInner {
+  border-radius: var(--eb-radius-sm);
+  border-color: var(--eb-border) !important;
+  border-width: 1px !important;
+  background: var(--eb-surface) !important;
+  transition: border-color var(--eb-transition), box-shadow var(--eb-transition) !important;
+}
+
+.emailBuilderPage .sapMInputBaseInner {
+  -webkit-appearance: none;
+  appearance: none;
+  padding: var(--eb-space-sm) var(--eb-space-md) !important;
+  font-size: 14px !important;
+}
+
+.emailBuilderPage .sapMInputBaseContentWrapper {
+  border-radius: var(--eb-radius-sm);
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+.emailBuilderPage .sapMInputBase:hover:not(.sapMInputBaseReadonly) {
+  border-color: var(--eb-border-strong) !important;
+}
+
+.emailBuilderPage .sapMInputBase:focus-within {
+  border-color: var(--eb-primary) !important;
+  box-shadow: 0 0 0 3px var(--eb-tint-12) !important;
+  background: var(--eb-surface) !important;
+}
+
+/* Flex items rounding */
+.emailBuilderPage .sapMFlexItem {
+  border-radius: var(--eb-radius-sm);
+}
+
+/* ============================================================
+   8. CONTROL ROUNDING (.emailBuilderPage Scope)
+   Every plain border-radius: var(--eb-radius-sm) rule lives here so a
+   design-system radius change is a single edit across the app.
+   sap.m.Select's root class is .sapMSlt (.sapMSelect does not exist).
+   ============================================================ */
+.emailBuilderPage .sapMSlt,
+.emailBuilderPage .sapMComboBox .sapMInputBase,
+.emailBuilderPage .sapMBtnInner,
+.emailBuilderPage .sapMSegBtn,
+.emailBuilderPage .sapMSegBtnInner,
+.emailBuilderPage .sapMSegmentedButton,
+.emailBuilderPage .sapMLIB,
+.emailBuilderPage .sapMListTblRow,
+.emailBuilderPage .sapMOverflowToolbarBtn,
+.emailBuilderPage .sapMOverflowToolbarBtn .sapMBtnInner,
+.emailBuilderPage .sapUiSmartFilterBar .sapMInput,
+.emailBuilderPage .sapUiSmartFilterBar .sapMInputBase,
+.emailBuilderPage .sapUiSmartFilterBar .sapMInputBaseInner,
+.emailBuilderPage .sapUiSmartFilterBar .sapMInputBaseContentWrapper {
+  border-radius: var(--eb-radius-sm) !important;
+}
+
+.emailBuilderPage .sapMSegmentedButton {
+  overflow: hidden !important;
+}
+
+/* Asymmetric corner roundings */
+.emailBuilderPage .sapMSingleSelectLeft {
+  border-radius: var(--eb-radius-sm) 0 0 var(--eb-radius-sm) !important;
+}
+
+.emailBuilderPage .sapMListTblHeaderCell,
+.emailBuilderPage .sapMColumnHeader {
+  border-radius: var(--eb-radius-sm) var(--eb-radius-sm) 0 0 !important;
+}
+
+/* ============================================================
+   9. BUTTONS — CONSISTENT HORIZON STYLE
+   ============================================================ */
+.emailBuilderPage .sapMBtn {
+  border-radius: var(--eb-radius-sm) !important;
+  overflow: hidden;
+}
+
+.emailBuilderPage .sapMBtn.emphasized .sapMBtnInner,
+.emailBuilderPage .sapMBtn[type="Emphasized"] .sapMBtnInner {
+  box-shadow: 0 1px 2px rgba(0, 112, 242, 0.15);
+}
+
+.ebCopyBtn,
+.ebHistoryBtn {
+  flex-shrink: 0 !important;
+  margin-left: var(--eb-space-xs) !important;
+}
+
+/* ============================================================
+   10. DROP ZONE — DRAG & DROP FILE UPLOADER
+   ============================================================ */
+.ebDropZone {
+  box-sizing: border-box !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-height: 120px !important;
+  padding: var(--eb-space-xl) var(--eb-space-lg) !important;
+  margin-bottom: var(--eb-space-sm) !important;
+  border: 2px dashed var(--eb-border-strong) !important;
+  border-radius: var(--eb-radius-md) !important;
+  background: var(--eb-surface) !important;
+  cursor: pointer !important;
+  transition: all var(--eb-transition) !important;
+  position: relative !important;
+  overflow: hidden !important;
+  -webkit-user-select: none !important;
+  user-select: none !important;
+  gap: var(--eb-space-xs) !important;
+}
+
+.ebDropZone::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, var(--eb-tint-02), transparent);
+  pointer-events: none;
+  border-radius: var(--eb-radius-md);
+}
+
+.ebDropZone:hover {
+  border-color: var(--eb-primary) !important;
+  background: var(--eb-tint-02) !important;
+  transform: translateY(-1px);
+  box-shadow: var(--eb-shadow-sm);
+}
+
+.ebDropZone.drag-over {
+  border-color: var(--eb-primary) !important;
+  background: var(--eb-tint-08) !important;
+  box-shadow: 0 0 0 3px var(--eb-tint-12), var(--eb-shadow-md) !important;
+  transform: scale(1.01);
+}
+
+.ebDropZoneIcon {
+  color: var(--eb-primary) !important;
+  margin-bottom: var(--eb-space-sm) !important;
+  transition: all var(--eb-transition) !important;
+}
+
+.ebDropZone:hover .ebDropZoneIcon {
+  transform: scale(1.1);
+}
+
+.ebDropZoneText {
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  color: var(--eb-text) !important;
+  text-align: center !important;
+}
+
+.ebDropZoneSub {
+  font-size: 11px !important;
+  color: var(--eb-text-muted) !important;
+  text-align: center !important;
+  margin-top: var(--eb-space-xs) !important;
+}
+
+.ebDropZoneBrowseBtn {
+  box-sizing: border-box !important;
+  max-width: 100% !important;
+  margin-top: var(--eb-space-sm) !important;
+  background: var(--eb-tint-06) !important;
+  border: 1px solid var(--eb-tint-12) !important;
+  border-radius: var(--eb-radius-sm) !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  color: var(--eb-primary) !important;
+  padding: var(--eb-space-xs) var(--eb-space-lg) !important;
+}
+
+.ebDropZoneBrowseBtn:hover {
+  background: var(--eb-tint-12) !important;
+  border-color: var(--eb-primary) !important;
+}
+
+/* Neutralize the inner button border to prevent double border on hover/focus */
+.ebDropZoneBrowseBtn .sapMBtnInner,
+.ebDropZoneBrowseBtn:hover .sapMBtnInner,
+.ebDropZoneBrowseBtn:focus .sapMBtnInner {
+  border: none !important;
+  box-shadow: none !important;
+}
+
+/* Hidden file uploader */
+.ebHiddenUploader {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  opacity: 0 !important;
+  overflow: hidden !important;
+  pointer-events: none !important;
+}
+
+/* ============================================================
+   11. SOURCE / ATTACHMENT / RECIPIENT LIST
+   ============================================================ */
+.ebSourceList,
+.ebRecipientList {
+  margin-top: var(--eb-space-sm) !important;
+}
+
+.ebSourceItem {
+  border-radius: var(--eb-radius-sm) !important;
+  padding: var(--eb-space-sm) var(--eb-space-md) !important;
+  margin-bottom: var(--eb-space-xs) !important;
+  border: 1px solid transparent !important;
+  background: var(--eb-surface) !important;
+  transition: all var(--eb-transition-fast) !important;
+}
+
+.ebSourceItem:hover {
+  background: var(--eb-tint-02) !important;
+  border-color: var(--eb-tint-12) !important;
+}
+
+.ebSourceItemRow {
+  gap: var(--eb-space-sm);
+}
+
+.ebSourceIcon {
+  flex-shrink: 0 !important;
+}
+
+.ebSourceInfo {
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+}
+
+.ebSourceName {
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  color: var(--eb-text) !important;
+  text-overflow: ellipsis !important;
+  overflow: hidden !important;
+  max-width: 100% !important;
+}
+
+.ebSourceMeta {
+  font-size: 11px !important;
+  color: var(--eb-text-muted) !important;
+  margin-top: 2px !important;
+}
+
+.ebRecipientInfo {
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+}
+
+/* Recipients summary button */
+.ebRecipientsSummaryBtn {
+  box-sizing: border-box !important;
+  width: 100% !important;
+  margin-top: var(--eb-space-sm) !important;
+  padding: var(--eb-space-sm) var(--eb-space-md) !important;
+  border: 1px dashed var(--eb-border-strong) !important;
+  border-radius: var(--eb-radius-sm) !important;
+  background: var(--eb-surface-alt) !important;
+}
+
+.ebRecipientsSummaryBtn .sapMBtnInner {
+  justify-content: flex-start !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.ebRecipientsSummaryBtn .sapMBtnContent {
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  color: var(--eb-text) !important;
+  white-space: normal !important;
+  text-align: left !important;
+}
+
+.ebRecipientsSummaryBtn:hover {
+  border-color: var(--eb-primary) !important;
+  background: var(--eb-tint-02) !important;
+}
+
+/* ============================================================
+   12. EDITOR CONTAINER & RICHTEXTEDITOR (TinyMCE)
+   ============================================================ */
+.emailBuilderPage .ebEditorContainer {
+  flex: 1 1 0%;
+  min-height: var(--eb-editor-min-height);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  width: 100%;
+  border: 1px solid var(--eb-border);
+  border-radius: var(--eb-radius-md);
+  background: var(--eb-surface);
+  box-shadow: var(--eb-shadow-xs);
+  transition: border-color var(--eb-transition), box-shadow var(--eb-transition);
+}
+
+.emailBuilderPage .ebEditorContainer:focus-within {
+  border-color: var(--eb-primary);
+  box-shadow: 0 0 0 3px var(--eb-tint-12), var(--eb-shadow-xs);
+}
+
+.emailBuilderPage .ebEditorContainer > .sapMFlexItem:first-child {
+  flex: 0 0 auto !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  overflow: visible !important;
+}
+
+.emailBuilderPage .ebEditorContainer > .sapMFlexItem:last-child {
+  flex: 1 1 0% !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+/* RichTextEditor fills container */
+.emailBuilderPage .sapUiRte {
+  border: none !important;
+  border-radius: 0 !important;
+  flex: 1 1 0% !important;
+  overflow: hidden;
+}
+
+/* TinyMCE toolbar — match container radius */
+.emailBuilderPage .mce-tinymce {
+  border: none !important;
+  border-radius: 0 !important;
+  overflow: hidden;
+}
+
+.emailBuilderPage .mce-top-part,
+.emailBuilderPage .mce-toolbar {
+  border-radius: 0 !important;
+  background: var(--eb-surface-alt) !important;
+  border-bottom: 1px solid var(--eb-border) !important;
+}
+
+.emailBuilderPage .mce-btn {
+  border-radius: var(--eb-radius-xs) !important;
+  transition: background var(--eb-transition-fast);
+}
+
+.emailBuilderPage .mce-btn:hover {
+  background: var(--eb-tint-06) !important;
+  border-color: var(--eb-tint-12) !important;
+}
+
+.emailBuilderPage .mce-edit-area,
+.emailBuilderPage .mce-content-body {
+  border: none !important;
+  padding: var(--eb-space-lg) !important;
+}
+
+/* Drag-over state */
+.emailBuilderPage .mce-content-body.mce-drag-over,
+.emailBuilderPage .mce-edit-area .mce-drag-over {
+  background-color: var(--eb-tint-04) !important;
+  outline: 2px dashed var(--eb-primary) !important;
+  outline-offset: -4px !important;
+}
+
+/* PDF Page styles inside editor */
+.pdf-page-text,
+.pdf-page-image {
+  margin: 8px 0;
+  padding: 10px;
+  background: var(--eb-surface);
+  border-radius: var(--eb-radius-sm);
+  border: 1px solid var(--eb-border);
+}
+
+/* ============================================================
+   13. TABLES & LISTS
+   ============================================================ */
+.emailBuilderPage .sapMTable,
+.emailBuilderPage .sapMList {
+  border-radius: var(--eb-radius-sm);
+  overflow: hidden;
+}
+
+.emailBuilderPage .sapMTable .sapMListTblHeader {
+  border-radius: var(--eb-radius-sm) var(--eb-radius-sm) 0 0;
+  overflow: hidden;
+}
+
+.emailBuilderPage .sapMColumnHeader,
+.emailBuilderPage .sapMListTblHeaderCell {
+  background: var(--eb-surface-alt) !important;
+}
+
+.emailBuilderPage .sapMColumnHeader > .sapMLabel {
+  font-weight: 600 !important;
+  font-size: 12px !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.04em !important;
+  color: var(--eb-text-secondary) !important;
+}
+
+.emailBuilderPage .sapMTable .sapMListTblRow:hover {
+  background: var(--eb-tint-02) !important;
+}
+
+/* ============================================================
+   14. ICON TAB BAR & SCROLL CONTAINERS
+   ============================================================ */
+.emailBuilderPage .sapMIconTabBar,
+.ebIconTabBar {
+  border-radius: var(--eb-radius-md);
+  overflow: hidden;
+}
+
+.ebIconTabBar .sapMIconTabHeader {
+  border-radius: var(--eb-radius-md) var(--eb-radius-md) 0 0;
+}
+
+.ebIconTabBar .sapMITBFilter {
+  border-radius: var(--eb-radius-sm) !important;
+  transition: background var(--eb-transition-fast);
+}
+
+.ebIconTabBar .sapMITBFilter:hover {
+  background: var(--eb-tint-04) !important;
+}
+
+.emailBuilderPage .sapMScrollCont {
+  border-radius: var(--eb-radius-md);
+}
+
+/* ============================================================
+   15. DIALOGS, MODALS & FILTER BARS
+   Scoped to ebDialog (sap.m.Dialog mounts into sap-ui-static-area).
+   ============================================================ */
+.ebDialog.sapMDialog {
+  border-radius: var(--eb-radius-lg) !important;
+  overflow: hidden;
+  box-shadow: var(--eb-shadow-lg) !important;
+}
+
+.ebDialog .sapMIBar-CTX {
+  border-radius: var(--eb-radius-lg) var(--eb-radius-lg) 0 0 !important;
+  background: var(--eb-surface) !important;
+  border-bottom: 1px solid var(--eb-border) !important;
+  height: 48px !important;
+  min-height: 48px !important;
+}
+
+.ebDialog .sapMDialogTitle {
+  font-weight: 600 !important;
+  font-size: 16px !important;
+  letter-spacing: -0.01em !important;
+}
+
+.ebDialog .sapMDialogSection {
+  border-radius: 0 !important;
+  padding: 0 !important;
+}
+
+.ebDialog footer.sapMDialogFooter,
+.ebDialog .sapMDialogFooter {
+  border-radius: 0 0 var(--eb-radius-lg) var(--eb-radius-lg) !important;
+  overflow: hidden;
+  border-top: 1px solid var(--eb-border);
+  background: var(--eb-surface) !important;
+}
+
+/* Dialog tables */
+.ebDialogTable {
+  border: 1px solid var(--eb-border);
+  border-radius: var(--eb-radius-md);
+  overflow: hidden;
+  background: var(--eb-surface);
+}
+
+.ebDialogTable .sapMListTblHeader {
+  background: var(--eb-surface-alt) !important;
+}
+
+.ebDialogTable .sapMColumnHeader > .sapMLabel {
+  font-weight: 600 !important;
+  font-size: 12px !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.04em !important;
+  color: var(--eb-text-secondary) !important;
+}
+
+.ebDialogTable .sapMListTblRow:hover {
+  background: var(--eb-tint-02) !important;
+}
+
+/* Dialog internal controls rounded */
+.ebDialog .sapMBtn,
+.ebDialog .sapMBtnInner,
+.ebDialog .sapMInputBase,
+.ebDialog .sapMInputBaseInner,
+.ebDialog .sapMInputBaseContentWrapper,
+.ebDialog .sapMSlt,
+.ebDialog .sapUiSmartFilterBar .sapMSFB,
+.ebDialog .sapUiSmartFilterBar .sapMInput,
+.ebDialog .sapUiSmartFilterBar .sapMSltTrigger,
+.ebDialog .sapUiSmartFilterBar .sapMBtnContent,
+.ebDialog .sapUiSmartFilterBar .sapMBtnTransparent {
+  border-radius: var(--eb-radius-sm) !important;
+}
+
+/* Filter bar (MailingsDialog) — unified tokens */
+.ebFilterBar {
+  padding: var(--eb-space-sm) var(--eb-space-md);
+  background: var(--eb-surface-alt);
+  border-radius: var(--eb-radius-sm);
+  border: 1px solid var(--eb-border);
+}
+
+.ebFilterBar .ebFieldLabel {
+  font-size: 0.75rem;
+  margin-bottom: 2px;
+}
+
+/* Smart Filter Bar layout */
+.ebDialog .sapUiSmartFilterBar {
+  padding: var(--eb-space-sm) var(--eb-space-md) !important;
+}
+
+.ebDialog .sapUiSmartFilterBar .sapUiSFBGroupItem {
+  padding: 0 var(--eb-space-xs) !important;
+}
+
+/* PDF Mode Dialog text */
+.ebPdfModeIntro {
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  color: var(--eb-text) !important;
+}
+
+.ebPdfModeDesc {
+  font-size: 13px !important;
+  color: var(--eb-text-secondary) !important;
+  padding: var(--eb-space-sm) !important;
+}
+
+/* ============================================================
+   16. HISTORY VIEW & FORMATTED CONTENT
+   ============================================================ */
+.ebHistoryContent {
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--eb-text);
+  padding: var(--eb-space-md) !important;
+}
+
+.ebHistoryContent h1,
+.ebHistoryContent h2,
+.ebHistoryContent h3 {
+  margin: 12px 0 6px;
+  color: var(--eb-text);
+}
+
+.ebHistoryContent p {
+  margin: 6px 0;
+}
+
+.ebHistoryContent ul,
+.ebHistoryContent ol {
+  margin: 6px 0;
+  padding-left: 24px;
+}
+
+.ebHistoryContent img {
+  max-width: 100%;
+  height: auto;
+}
+
+.ebHistorySubjectHeading {
+  font-size: 20px !important;
+  font-weight: 700 !important;
+  color: var(--eb-text) !important;
+}
+
+.ebHistoryMetaRow {
+  gap: var(--eb-space-xs) !important;
+  margin: var(--eb-space-xs) 0 var(--eb-space-sm) !important;
+}
+
+.ebHistoryMetaItem {
+  font-size: 12px !important;
+  color: var(--eb-text-secondary) !important;
+  font-family: "72mono", Consolas, monospace !important;
+}
+
+.ebHistoryMetaSep {
+  color: var(--eb-text-muted) !important;
+}
+
+/* Status chips (HistoryView dialog) */
+.ebStatusChipsRow {
+  gap: var(--eb-space-sm) !important;
+  margin-top: var(--eb-space-sm) !important;
+}
+
+.ebStatusChip {
+  background: var(--eb-surface-alt) !important;
+  border: 1px solid var(--eb-border) !important;
+  border-radius: var(--eb-radius-pill) !important;
+  padding: 4px 12px !important;
+  margin: 0 !important;
+}
+
+.ebStatusChip .sapMObjStatusText {
+  font-weight: 600 !important;
+  font-size: 13px !important;
+}
+
+/* ============================================================
+   17. FOOTER
+   ============================================================ */
+.ebFooter {
+  height: var(--eb-footer-height) !important;
+  min-height: var(--eb-footer-height) !important;
+  padding: 0 var(--eb-space-lg) !important;
+}
+
+.ebFooter .sapMBtn {
+  margin-left: var(--eb-space-xs) !important;
+}
+
+.ebFooter .sapMBtnContent {
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  white-space: nowrap !important;
+}
+
+.ebFooter .sapMOTBSpacer {
+  flex: 1 1 auto !important;
+}
+
+/* ============================================================
+   18. MESSAGE TOASTS & SEMANTIC STATES
+   ============================================================ */
+.sapMMessageToast {
+  border-radius: var(--eb-radius-pill) !important;
+  padding: var(--eb-space-sm) var(--eb-space-lg) !important;
+  font-size: 13px !important;
+}
+
+.sapMMessageToast.ebToastSuccess {
+  background-color: var(--eb-success) !important;
+  border: 1px solid rgba(255, 255, 255, 0.25) !important;
+}
+
+.sapMMessageToast.ebToastWarning {
+  background-color: var(--eb-warning) !important;
+  border: 1px solid rgba(255, 255, 255, 0.25) !important;
+}
+
+.sapMMessageToast.ebToastError {
+  background-color: var(--eb-error) !important;
+  border: 1px solid rgba(255, 255, 255, 0.25) !important;
+}
+
+.sapMMessageToast.ebToastInfo {
+  background-color: var(--eb-text) !important;
+}
+
+/* ============================================================
+   19. RESPONSIVE BREAKPOINTS
+   Placed at the bottom so responsive rules reliably override
+   base styles without cascade conflicts.
+   ============================================================ */
+@media (max-width: 1280px) {
+  :root {
+    --eb-panel-width: 300px;
+  }
+}
+
+@media (max-width: 1024px) {
+  :root {
+    --eb-panel-width: 280px;
+  }
+  .emailBuilderPage .ebCenterPanel {
+    padding: var(--eb-space-md) !important;
+  }
+}
+
+@media (max-width: 768px) {
+  :root {
+    --eb-panel-width: 240px;
+  }
+  .ebSourceName {
+    font-size: 12px !important;
+  }
+}
+
+@media (max-width: 600px) {
+  /* Below 600px: stack panels vertically and allow scrolling */
+  .emailBuilderPage .sapMPageContent {
+    overflow: auto !important;
+  }
+  .emailBuilderPage .ebMainHBox {
+    height: auto !important;
+    flex-direction: column;
+  }
+  .emailBuilderPage .leftPanel {
+    position: static;
+    width: 100%;
+    min-width: 100%;
+    max-width: 100%;
+    height: 50vh;
+    border-right: none;
+    border-bottom: 1px solid var(--eb-border);
+    box-shadow: none;
+  }
+  .emailBuilderPage .ebCenterPanel {
+    padding: var(--eb-space-sm) !important;
+    height: 60vh;
+    flex: 0 0 auto !important;
+  }
+  .emailBuilderPage #mainPage > header .ebHeader .sapMBarRight {
+    display: none !important;
+  }
+}
+
+/* ============================================================
+   20. ACCESSIBILITY — REDUCED MOTION
+   ============================================================ */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

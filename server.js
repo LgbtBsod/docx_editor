@@ -78,8 +78,8 @@ function resolveStaticPath(pathname) {
   if (pathname === "/" || pathname === "") {
     return path.join(ROOT, "index.html");
   }
-  if (pathname.indexOf("/ui5/") === 0) {
-    const sRelative = decodeURIComponent(pathname.slice("/ui5/".length));
+  if (pathname.indexOf("/") === 0) {
+    const sRelative = decodeURIComponent(pathname.slice("/".length));
     const sAbs = path.normalize(path.join(ROOT, sRelative));
     // Path-traversal guard: resolved path must stay under ROOT.
     if (sAbs !== ROOT && sAbs.indexOf(ROOT + path.sep) !== 0) { return null; }
