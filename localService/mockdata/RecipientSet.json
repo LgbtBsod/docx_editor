@@ -1,10 +1,74 @@
 [
-  { "RecipientId": "R000001", "FullName": "Иванов Пётр Сергеевич",      "Email": "p.ivanov@example.com",     "Role": "Бухгалтер",           "AuthObject": "ZMAIL",  "FieldName": "BUKRS" },
-  { "RecipientId": "R000002", "FullName": "Иванов Пётр Сергеевич",      "Email": "p.ivanov@example.com",     "Role": "Бухгалтер",           "AuthObject": "ZMAIL",  "FieldName": "BUKRS" },
-  { "RecipientId": "R000003", "FullName": "Петрова Анна Викторовна",    "Email": "a.petrova@example.com",    "Role": "Руководитель отдела", "AuthObject": "ZADMIN", "FieldName": "WERKS" },
-  { "RecipientId": "R000004", "FullName": "Сидоров Игорь Николаевич",   "Email": "i.sidorov@example.com",    "Role": "Специалист",          "AuthObject": "ZMAIL",  "FieldName": "VKORG" },
-  { "RecipientId": "R000005", "FullName": "Кузнецова Мария Дмитриевна", "Email": "m.kuznetsova@example.com", "Role": "Специалист",          "AuthObject": "ZNEWS",  "FieldName": "EKORG" },
-  { "RecipientId": "R000006", "FullName": "Смирнов Алексей Олегович",   "Email": "a.smirnov@example.com",    "Role": "Руководитель отдела", "AuthObject": "ZADMIN", "FieldName": "WERKS" },
-  { "RecipientId": "R000007", "FullName": "Смирнов Алексей Олегович",   "Email": "a.smirnov@example.com",    "Role": "Руководитель отдела", "AuthObject": "ZADMIN", "FieldName": "WERKS" },
-  { "RecipientId": "R000008", "FullName": "Волкова Елена Игоревна",     "Email": "e.volkova@example.com",    "Role": "Специалист",          "AuthObject": "ZUSER",  "FieldName": "VKORG" }
+  {
+    "RecipientId": "R000001",
+    "FullName": "Иванов Пётр Сергеевич",
+    "Email": "p.ivanov@example.com",
+    "Role": "Бухгалтер",
+    "AuthObject": "ZMAIL",
+    "FieldName": "BUKRS",
+    "Low": "1000"
+  },
+  {
+    "RecipientId": "R000002",
+    "FullName": "Иванов Пётр Сергеевич",
+    "Email": "p.ivanov@example.com",
+    "Role": "Бухгалтер",
+    "AuthObject": "ZMAIL",
+    "FieldName": "BUKRS",
+    "Low": "2000"
+  },
+  {
+    "RecipientId": "R000003",
+    "FullName": "Петрова Анна Викторовна",
+    "Email": "a.petrova@example.com",
+    "Role": "Руководитель отдела",
+    "AuthObject": "ZADMIN",
+    "FieldName": "WERKS",
+    "Low": "1001"
+  },
+  {
+    "RecipientId": "R000004",
+    "FullName": "Сидоров Игорь Николаевич",
+    "Email": "i.sidorov@example.com",
+    "Role": "Специалист",
+    "AuthObject": "ZMAIL",
+    "FieldName": "VKORG",
+    "Low": "3000"
+  },
+  {
+    "RecipientId": "R000005",
+    "FullName": "Кузнецова Мария Дмитриевна",
+    "Email": "m.kuznetsova@example.com",
+    "Role": "Специалист",
+    "AuthObject": "ZNEWS",
+    "FieldName": "EKORG",
+    "Low": "4000"
+  },
+  {
+    "RecipientId": "R000006",
+    "FullName": "Смирнов Алексей Олегович",
+    "Email": "a.smirnov@example.com",
+    "Role": "Руководитель отдела",
+    "AuthObject": "ZADMIN",
+    "FieldName": "WERKS",
+    "Low": "1001"
+  },
+  {
+    "RecipientId": "R000007",
+    "FullName": "Смирнов Алексей Олегович",
+    "Email": "a.smirnov@example.com",
+    "Role": "Руководитель отдела",
+    "AuthObject": "ZADMIN",
+    "FieldName": "WERKS",
+    "Low": "1002"
+  },
+  {
+    "RecipientId": "R000008",
+    "FullName": "Волкова Елена Игоревна",
+    "Email": "e.volkova@example.com",
+    "Role": "Специалист",
+    "AuthObject": "ZUSER",
+    "FieldName": "VKORG",
+    "Low": "3000"
+  }
 ]

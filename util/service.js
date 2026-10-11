@@ -200,9 +200,22 @@ sap.ui.define([
 
   // Key access on the LOB-carrying MailContentSet — never part of list reads.
   function getMailingContent(oComponent, sId) {
+    if (!sId) { return Promise.reject(new Error("Mailing ID is required")); }
     return entityPath(oComponent, Constants.ODATA.ENTITY_SETS.MAIL_CONTENT, { Key: sId })
       .then((sPath) => readWithRetry(oComponent, sPath, null, 0))
-      .then(extractEntity);
+      .then(extractEntity)
+      .catch((err) => {
+        // Fallback: query by LocalID filter if direct key access failed
+        const aFilters = [new Filter("LocalID", FilterOperator.EQ, sId)];
+        return readWithRetry(oComponent, "/" + Constants.ODATA.ENTITY_SETS.MAIL_CONTENT, aFilters, 1)
+          .then((res) => {
+            const aList = extractResults(res);
+            if (aList && aList.length > 0) {
+              return aList[0];
+            }
+            throw err;
+          });
+      });
   }
 
   function copyMailing(oComponent, sId) {

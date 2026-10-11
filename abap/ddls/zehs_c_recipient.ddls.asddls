@@ -46,5 +46,9 @@ define view ZEHS_C_Recipient
 
   @Consumption.filter: { selectionType: #SINGLE, multipleSelection: true }
   @EndUserText.label: 'Поле'
-  field_name       as FieldName
+  field_name       as FieldName,
+
+  @Consumption.filter: { selectionType: #SINGLE, multipleSelection: true }
+  @EndUserText.label: 'Значение поля'
+  field_value      as Low
 }

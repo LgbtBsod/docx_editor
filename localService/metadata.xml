@@ -11,6 +11,7 @@
         <Property Name="Role"        Type="Edm.String" MaxLength="100" sap:label="Роль" sap:filterable="true"/>
         <Property Name="AuthObject"  Type="Edm.String" MaxLength="100" sap:label="Объект полномочий" sap:filterable="true"/>
         <Property Name="FieldName"   Type="Edm.String" MaxLength="100" sap:label="Поле" sap:filterable="true"/>
+        <Property Name="Low"         Type="Edm.String" MaxLength="100" sap:label="Значение поля" sap:filterable="true"/>
       </EntityType>
 
       <!-- Grouped-by-user view of recipients. One row per unique email.

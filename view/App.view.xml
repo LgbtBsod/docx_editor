@@ -65,7 +65,7 @@
                   class="ebHiddenUploader" />
                 <Button text="{i18n>BROWSE}" press="onSourceBrowse" type="Transparent" class="ebDropZoneBrowseBtn" />
               </VBox>
-              <List id="sourceList" items="{state>/sources}" growing="true" growingThreshold="50" growingScrollToLoad="true"
+              <List id="sourceList" items="{state>/sources}" visible="{= (${state>/sources} || []).length &gt; 0 }" growing="true" growingThreshold="50" growingScrollToLoad="true"
                 noDataText="{i18n>NO_SOURCES}" class="ebSourceList" inset="false">
                 <items>
                   <CustomListItem class="ebSourceItem">
@@ -99,7 +99,7 @@
                   class="ebHiddenUploader" />
                 <Button text="{i18n>BROWSE}" press="onAttachmentBrowse" type="Transparent" class="ebDropZoneBrowseBtn" />
               </VBox>
-              <List id="attachmentList" items="{state>/attachments}" growing="true" growingThreshold="50" growingScrollToLoad="true"
+              <List id="attachmentList" items="{state>/attachments}" visible="{= (${state>/attachments} || []).length &gt; 0 }" growing="true" growingThreshold="50" growingScrollToLoad="true"
                 noDataText="{i18n>NO_ATTACHMENTS}" class="ebSourceList" inset="false">
                 <items>
                   <CustomListItem class="ebSourceItem">

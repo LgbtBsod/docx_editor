@@ -79,8 +79,8 @@ sap.ui.define([
       const oXhr = oEvent.getParameter("oXhr");
       const oPayload = extractDeepPayload(oXhr && oXhr.requestBody);
 
-      const sKey = oEntity.Key || ("m" + Date.now());
       const sLocalId = oEntity.LocalId || oPayload.LocalId || ("MSG-" + Date.now());
+      const sKey = oEntity.Key || sLocalId; // LocalId is unique and can serve as key
       const sSubject = oEntity.Subject || oPayload.Subject || "";
       const aRecipients = oPayload.ToRecipients || [];
       const sContent = oEntity.Content || oPayload.Content || "";

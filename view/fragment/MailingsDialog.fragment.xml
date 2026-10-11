@@ -7,8 +7,9 @@
   <Dialog
     id="mailingsDialog"
     title="{i18n>DIALOG_MAILINGS}"
-    contentWidth="850px"
-    contentHeight="650px"
+    contentWidth="880px"
+    contentHeight="640px"
+    verticalScrolling="false"
     resizable="true"
     draggable="true"
     class="ebDialog ebMailingsDialog">
@@ -22,122 +23,134 @@
     </customHeader>
 
     <content>
-      <VBox class="sapUiSmallMargin">
-        <comp:SmartFilterBar
-          id="mailingsSFB"
-          entitySet="MailHistorySet"
-          liveMode="false"
-          showGoOnFB="true"
-          showClearOnFB="true"
-          useToolbar="false"
-          search="onSmartFilterSearch"
-          clear="onSmartFilterSearch">
-          <comp:controlConfiguration>
-            <comp:ControlConfiguration
-              key="Key"
-              visibleInAdvancedArea="false" />
-            <comp:ControlConfiguration
-              key="LocalID"
-              index="0"
-              visibleInAdvancedArea="true" />
-            <comp:ControlConfiguration
-              key="Subject"
-              index="1"
-              visibleInAdvancedArea="true" />
-            <comp:ControlConfiguration
-              key="Status"
-              index="2"
-              visibleInAdvancedArea="true" />
-            <comp:ControlConfiguration
-              key="CreatedAt"
-              index="3"
-              visibleInAdvancedArea="true" />
-            <comp:ControlConfiguration
-              key="CreatedBy"
-              index="4"
-              visibleInAdvancedArea="true" />
-            <comp:ControlConfiguration
-              key="TotalCount"
-              visibleInAdvancedArea="false" />
-            <comp:ControlConfiguration
-              key="SentCount"
-              visibleInAdvancedArea="false" />
-            <comp:ControlConfiguration
-              key="ErrorCount"
-              visibleInAdvancedArea="false" />
-          </comp:controlConfiguration>
-        </comp:SmartFilterBar>
+      <VBox fitContainer="true" height="100%" class="ebDialogContentFlex">
+        <!-- Top Pinned Section: SmartFilterBar -->
+        <VBox class="ebDialogTopSection">
+          <comp:SmartFilterBar
+            id="mailingsSFB"
+            entitySet="MailHistorySet"
+            liveMode="false"
+            showGoOnFB="true"
+            showClearOnFB="true"
+            useToolbar="false"
+            search="onSmartFilterSearch"
+            clear="onSmartFilterSearch">
+            <comp:controlConfiguration>
+              <comp:ControlConfiguration
+                key="Key"
+                visibleInAdvancedArea="false" />
+              <comp:ControlConfiguration
+                key="LocalID"
+                index="0"
+                visibleInAdvancedArea="true" />
+              <comp:ControlConfiguration
+                key="Subject"
+                index="1"
+                visibleInAdvancedArea="true" />
+              <comp:ControlConfiguration
+                key="Status"
+                index="2"
+                visibleInAdvancedArea="true" />
+              <comp:ControlConfiguration
+                key="CreatedAt"
+                index="3"
+                visibleInAdvancedArea="true" />
+              <comp:ControlConfiguration
+                key="CreatedBy"
+                index="4"
+                visibleInAdvancedArea="true" />
+              <comp:ControlConfiguration
+                key="TotalCount"
+                visibleInAdvancedArea="false" />
+              <comp:ControlConfiguration
+                key="SentCount"
+                visibleInAdvancedArea="false" />
+              <comp:ControlConfiguration
+                key="ErrorCount"
+                visibleInAdvancedArea="false" />
+            </comp:controlConfiguration>
+          </comp:SmartFilterBar>
 
-        <Text text="{i18n>MAILING_CLICK_HINT}" class="sapUiSmallMarginBottom" />
+          <Text text="{i18n>MAILING_CLICK_HINT}" class="sapUiTinyMarginTop sapUiSmallMarginBottom" />
+        </VBox>
 
-        <!-- Mailings SmartTable -->
-        <smartTable:SmartTable
-          id="mailingsSmartTable"
-          entitySet="MailHistorySet"
-          smartFilterId="mailingsSFB"
-          tableType="ResponsiveTable"
-          useExportToExcel="false"
-          useVariantManagement="false"
-          useTablePersonalisation="true"
-          header="{i18n>DIALOG_MAILINGS}"
-          showRowCount="true"
-          enableAutoBinding="true"
-          demandPopin="true"
-          beforeRebindTable="onBeforeRebindMailingsTable"
-          class="ebDialogTable">
-          <Table
-            id="mailingsTable"
-            growing="true"
-            growingThreshold="20"
-            growingScrollToLoad="true"
-            noDataText="{i18n>NO_MAILINGS}">
-            <columns>
-              <Column width="22%" minScreenWidth="Phone" demandPopin="false">
-                <customData>
-                  <core:CustomData key="p13nData" value='\{"columnKey": "LocalID", "leadingProperty": "LocalID", "sortProperty": "LocalID", "filterProperty": "LocalID", "columnIndex": 0\}' />
-                </customData>
-                <Text text="{i18n>COL_LOCAL_ID}" />
-              </Column>
-              <Column width="13%" minScreenWidth="Tablet" demandPopin="true" popinDisplay="Inline">
-                <customData>
-                  <core:CustomData key="p13nData" value='\{"columnKey": "CreatedBy", "leadingProperty": "CreatedBy", "sortProperty": "CreatedBy", "filterProperty": "CreatedBy", "columnIndex": 1\}' />
-                </customData>
-                <Text text="{i18n>COL_SENDER}" />
-              </Column>
-              <Column width="15%" minScreenWidth="Tablet" demandPopin="true" popinDisplay="Inline">
-                <customData>
-                  <core:CustomData key="p13nData" value='\{"columnKey": "CreatedAt", "leadingProperty": "CreatedAt", "sortProperty": "CreatedAt", "filterProperty": "CreatedAt", "columnIndex": 2\}' />
-                </customData>
-                <Text text="{i18n>COL_DATETIME}" />
-              </Column>
-              <Column width="10%" minScreenWidth="Tablet" demandPopin="true" popinDisplay="Inline">
-                <customData>
-                  <core:CustomData key="p13nData" value='\{"columnKey": "Status", "leadingProperty": "Status", "sortProperty": "Status", "filterProperty": "Status", "columnIndex": 3\}' />
-                </customData>
-                <Text text="{i18n>COL_STATUS}" />
-              </Column>
-              <Column width="40%" minScreenWidth="Phone" demandPopin="false">
-                <customData>
-                  <core:CustomData key="p13nData" value='\{"columnKey": "Subject", "leadingProperty": "Subject", "sortProperty": "Subject", "filterProperty": "Subject", "columnIndex": 4\}' />
-                </customData>
-                <Text text="{i18n>COL_SUBJECT}" />
-              </Column>
-            </columns>
-            <items>
-              <ColumnListItem type="Active" press="onMailingPress">
-                <cells>
-                  <Label text="{LocalID}" wrapping="true" design="Bold" />
-                  <Label text="{CreatedBy}" wrapping="true" />
-                  <Text text="{ path: 'CreatedAt', formatter: '.formatter.dateTime' }" />
-                  <ObjectStatus
-                    text="{path: 'Status', formatter: '.formatter.statusText'}"
-                    state="{path: 'Status', formatter: '.formatter.statusState'}" />
-                  <Label text="{Subject}" wrapping="true" />
-                </cells>
-              </ColumnListItem>
-            </items>
-          </Table>
-        </smartTable:SmartTable>
+        <!-- Bottom Scrollable Section: Mailings table scrolls while filter bar stays pinned -->
+        <ScrollContainer
+          height="360px"
+          vertical="true"
+          horizontal="false"
+          class="ebDialogScrollableArea">
+
+          <!-- Mailings SmartTable -->
+          <smartTable:SmartTable
+            id="mailingsSmartTable"
+            entitySet="MailHistorySet"
+            smartFilterId="mailingsSFB"
+            tableType="ResponsiveTable"
+            useExportToExcel="false"
+            useVariantManagement="false"
+            useTablePersonalisation="true"
+            header="{i18n>DIALOG_MAILINGS}"
+            showRowCount="true"
+            enableAutoBinding="false"
+            demandPopin="true"
+            requestAtLeastFields="Key,LocalID,Subject,Status,CreatedAt,CreatedBy,TotalCount,SentCount,ErrorCount"
+            beforeRebindTable="onBeforeRebindMailingsTable"
+            class="ebDialogTable">
+            <Table
+              id="mailingsTable"
+              growing="true"
+              growingThreshold="20"
+              growingScrollToLoad="true"
+              noDataText="{i18n>NO_MAILINGS}">
+              <columns>
+                <Column width="22%" minScreenWidth="Phone" demandPopin="false">
+                  <customData>
+                    <core:CustomData key="p13nData" value='\{"columnKey": "LocalID", "leadingProperty": "LocalID", "sortProperty": "LocalID", "filterProperty": "LocalID", "columnIndex": 0\}' />
+                  </customData>
+                  <Text text="{i18n>COL_LOCAL_ID}" />
+                </Column>
+                <Column width="13%" minScreenWidth="Tablet" demandPopin="true" popinDisplay="Inline">
+                  <customData>
+                    <core:CustomData key="p13nData" value='\{"columnKey": "CreatedBy", "leadingProperty": "CreatedBy", "sortProperty": "CreatedBy", "filterProperty": "CreatedBy", "columnIndex": 1\}' />
+                  </customData>
+                  <Text text="{i18n>COL_SENDER}" />
+                </Column>
+                <Column width="15%" minScreenWidth="Tablet" demandPopin="true" popinDisplay="Inline">
+                  <customData>
+                    <core:CustomData key="p13nData" value='\{"columnKey": "CreatedAt", "leadingProperty": "CreatedAt", "sortProperty": "CreatedAt", "filterProperty": "CreatedAt", "columnIndex": 2\}' />
+                  </customData>
+                  <Text text="{i18n>COL_DATETIME}" />
+                </Column>
+                <Column width="10%" minScreenWidth="Tablet" demandPopin="true" popinDisplay="Inline">
+                  <customData>
+                    <core:CustomData key="p13nData" value='\{"columnKey": "Status", "leadingProperty": "Status", "sortProperty": "Status", "filterProperty": "Status", "columnIndex": 3\}' />
+                  </customData>
+                  <Text text="{i18n>COL_STATUS}" />
+                </Column>
+                <Column width="40%" minScreenWidth="Phone" demandPopin="false">
+                  <customData>
+                    <core:CustomData key="p13nData" value='\{"columnKey": "Subject", "leadingProperty": "Subject", "sortProperty": "Subject", "filterProperty": "Subject", "columnIndex": 4\}' />
+                  </customData>
+                  <Text text="{i18n>COL_SUBJECT}" />
+                </Column>
+              </columns>
+              <items>
+                <ColumnListItem type="Active" press="onMailingPress">
+                  <cells>
+                    <Label text="{LocalID}" wrapping="true" design="Bold" />
+                    <Label text="{CreatedBy}" wrapping="true" />
+                    <Text text="{ path: 'CreatedAt', formatter: '.formatter.dateTime' }" />
+                    <ObjectStatus
+                      text="{path: 'Status', formatter: '.formatter.statusText'}"
+                      state="{path: 'Status', formatter: '.formatter.statusState'}" />
+                    <Label text="{Subject}" wrapping="true" />
+                  </cells>
+                </ColumnListItem>
+              </items>
+            </Table>
+          </smartTable:SmartTable>
+        </ScrollContainer>
       </VBox>
     </content>
 

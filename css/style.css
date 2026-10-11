@@ -565,17 +565,27 @@ html, body {
 .ebRecipientsSummaryBtn {
   box-sizing: border-box !important;
   width: 100% !important;
-  margin-top: var(--eb-space-sm) !important;
-  padding: var(--eb-space-sm) var(--eb-space-md) !important;
-  border: 1px dashed var(--eb-border-strong) !important;
-  border-radius: var(--eb-radius-sm) !important;
-  background: var(--eb-surface-alt) !important;
+  margin-top: var(--eb-space-xs) !important;
+  padding: 0 !important;
+  border: none !important;
+  background: transparent !important;
 }
 
 .ebRecipientsSummaryBtn .sapMBtnInner {
+  width: 100% !important;
   justify-content: flex-start !important;
-  border: none !important;
+  border: 1px dashed var(--eb-border-strong) !important;
+  border-radius: var(--eb-radius-sm) !important;
+  background: var(--eb-surface-alt) !important;
   box-shadow: none !important;
+  padding: var(--eb-space-sm) var(--eb-space-md) !important;
+  height: auto !important;
+  min-height: 40px !important;
+}
+
+.ebRecipientsSummaryBtn:hover .sapMBtnInner {
+  border-color: var(--eb-primary) !important;
+  background: var(--eb-tint-04) !important;
 }
 
 .ebRecipientsSummaryBtn .sapMBtnContent {
@@ -1043,4 +1053,27 @@ html, body {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* Pinned filter bar & internal scrollable container in dialogs */
+.ebDialogContentFlex {
+  box-sizing: border-box !important;
+  height: 100% !important;
+}
+
+.ebDialogScrollableArea {
+  margin-top: var(--eb-space-xs) !important;
+  border: 1px solid var(--eb-border);
+  border-radius: var(--eb-radius-md);
+  background: var(--eb-surface);
+  overflow-y: auto !important;
+}
+
+.ebDialogScrollableArea .ebDialogTable {
+  border: none !important;
+}
+
+.ebSourceList .sapMListNoData {
+  border: none !important;
+  color: var(--eb-text-secondary) !important;
 }

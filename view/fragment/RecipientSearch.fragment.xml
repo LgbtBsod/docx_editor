@@ -9,276 +9,309 @@
   <Dialog
     id="recipientDialog"
     title="{i18n>DIALOG_RECIPIENTS}"
-    contentWidth="820px"
-    contentHeight="600px"
+    contentWidth="880px"
+    contentHeight="620px"
+    verticalScrolling="false"
     resizable="true"
     draggable="true"
     class="ebDialog ebRecipientDialog">
 
     <content>
-      <VBox class="sapUiSmallMargin">
-        <IconTabBar
-          id="recipientTabs"
-          select="onRecipTabSelect"
-          selectedKey="{dialog>/selectedMode}"
-          class="ebIconTabBar"
-          expandable="false">
-          <items>
-            <IconTabFilter icon="sap-icon://accept" text="{i18n>TAB_ADDED}" key="added"
-              count="{= ${state>/recipients}.length || '' }" />
+      <VBox fitContainer="true" height="100%" class="ebDialogContentFlex">
+        <!-- Top Pinned Section: Tabs and SmartFilterBar -->
+        <VBox class="ebDialogTopSection">
+          <IconTabBar
+            id="recipientTabs"
+            select="onRecipTabSelect"
+            selectedKey="{dialog>/selectedMode}"
+            class="ebIconTabBar"
+            expandable="false">
+            <items>
+              <IconTabFilter icon="sap-icon://accept" text="{i18n>TAB_ADDED}" key="added"
+                count="{= ${state>/recipients}.length || '' }" />
 
-            <IconTabFilter icon="sap-icon://search" text="{i18n>TAB_SEARCH}" key="search">
-              <VBox>
-                <SegmentedButton id="recipientModeToggle" selectedKey="grouped" select="onRecipientModeChange"
-                  class="sapUiSmallMarginBottom">
-                  <items>
-                    <SegmentedButtonItem key="grouped" icon="sap-icon://person-placeholder"
-                      text="{i18n>RECIP_MODE_GROUPED}" />
-                    <SegmentedButtonItem key="detailed" icon="sap-icon://detail-view"
-                      text="{i18n>RECIP_MODE_DETAILED}" />
-                  </items>
-                </SegmentedButton>
+              <IconTabFilter icon="sap-icon://search" text="{i18n>TAB_SEARCH}" key="search">
+                <VBox>
+                  <SegmentedButton id="recipientModeToggle" selectedKey="grouped" select="onRecipientModeChange"
+                    class="sapUiSmallMarginBottom">
+                    <items>
+                      <SegmentedButtonItem key="grouped" icon="sap-icon://person-placeholder"
+                        text="{i18n>RECIP_MODE_GROUPED}" />
+                      <SegmentedButtonItem key="detailed" icon="sap-icon://detail-view"
+                        text="{i18n>RECIP_MODE_DETAILED}" />
+                    </items>
+                  </SegmentedButton>
 
-                <!-- SmartFilterBar for recipients search -->
-                <comp:SmartFilterBar
-                  id="recipientSFB"
-                  entitySet="RecipientSet"
-                  liveMode="false"
-                  showGoOnFB="true"
-                  showClearOnFB="true"
-                  useToolbar="false"
-                  search="onSmartFilterSearch"
-                  clear="onSmartFilterSearch">
-                  <comp:controlConfiguration>
-                    <comp:ControlConfiguration
-                      key="RecipientId"
-                      visibleInAdvancedArea="false" />
-                    <comp:ControlConfiguration
-                      id="fullNameControlCfg"
-                      key="FullName"
-                      index="0"
-                      visibleInAdvancedArea="true" />
-                    <comp:ControlConfiguration
-                      id="emailControlCfg"
-                      key="Email"
-                      index="1"
-                      visibleInAdvancedArea="true" />
-                    <comp:ControlConfiguration
-                      id="roleControlCfg"
-                      key="Role"
-                      index="2"
-                      visibleInAdvancedArea="true" />
-                    <comp:ControlConfiguration
-                      id="authObjControlCfg"
-                      key="AuthObject"
-                      index="3"
-                      visibleInAdvancedArea="true" />
-                    <comp:ControlConfiguration
-                      id="fieldNameControlCfg"
-                      key="FieldName"
-                      index="4"
-                      visibleInAdvancedArea="true" />
-                  </comp:controlConfiguration>
-                </comp:SmartFilterBar>
-              </VBox>
-            </IconTabFilter>
+                  <!-- SmartFilterBar for recipients search - Pinned, manual search only -->
+                  <comp:SmartFilterBar
+                    id="recipientSFB"
+                    entitySet="RecipientSet"
+                    liveMode="false"
+                    showGoOnFB="true"
+                    showClearOnFB="true"
+                    useToolbar="false"
+                    search="onSmartFilterSearch"
+                    clear="onSmartFilterSearch">
+                    <comp:controlConfiguration>
+                      <comp:ControlConfiguration
+                        key="RecipientId"
+                        visibleInAdvancedArea="false" />
+                      <comp:ControlConfiguration
+                        id="fullNameControlCfg"
+                        key="FullName"
+                        index="0"
+                        visibleInAdvancedArea="true" />
+                      <comp:ControlConfiguration
+                        id="emailControlCfg"
+                        key="Email"
+                        index="1"
+                        visibleInAdvancedArea="true" />
+                      <comp:ControlConfiguration
+                        id="roleControlCfg"
+                        key="Role"
+                        index="2"
+                        visibleInAdvancedArea="true" />
+                      <comp:ControlConfiguration
+                        id="authObjControlCfg"
+                        key="AuthObject"
+                        index="3"
+                        visibleInAdvancedArea="true" />
+                      <comp:ControlConfiguration
+                        id="fieldNameControlCfg"
+                        key="FieldName"
+                        index="4"
+                        visibleInAdvancedArea="true" />
+                      <comp:ControlConfiguration
+                        id="lowControlCfg"
+                        key="Low"
+                        index="5"
+                        visibleInAdvancedArea="true" />
+                    </comp:controlConfiguration>
+                  </comp:SmartFilterBar>
+                </VBox>
+              </IconTabFilter>
 
-            <IconTabFilter icon="sap-icon://csv" text="{i18n>TAB_CSV_UPLOAD}" key="csv">
-              <VBox class="sapUiSmallMarginBegin sapUiSmallMarginEnd">
-                <HBox alignItems="Center" justifyContent="SpaceBetween" wrap="Wrap" class="sapUiSmallMarginBottom">
-                  <VBox>
-                    <Text text="{i18n>CSV_UPLOAD_DESCRIPTION}" class="sapUiSmallMarginBottom" />
-                    <Text text="{i18n>CSV_UPLOAD_FORMAT_HINT}" class="sapUiTinyMarginBottom" />
-                  </VBox>
-                </HBox>
-                <HBox alignItems="Center" wrap="Wrap" class="sapUiMediumMarginBottom">
-                  <Button
-                    id="csvDownloadTemplateBtn"
-                    icon="sap-icon://download"
-                    text="{i18n>CSV_DOWNLOAD_TEMPLATE}"
-                    press="onDownloadCsvTemplate"
-                    type="Emphasized"
-                    class="sapUiSmallMarginEnd" />
-                  <u:FileUploader
-                    id="csvFileUploader"
-                    buttonText="{i18n>CSV_UPLOAD_FILE}"
-                    icon="sap-icon://upload"
-                    fileType="csv"
-                    sameFilenameAllowed="true"
-                    change="onCsvFileChange"
-                    maximumFileSize="5"
-                    class="sapUiSmallMarginBegin" />
-                </HBox>
-                <VBox id="csvPreviewBox" visible="{= !!${dialog>/csvPreviewCount} }" class="sapUiSmallMarginTop">
-                  <HBox alignItems="Center" justifyContent="SpaceBetween">
-                    <Text text="{i18n>CSV_PREVIEW_TITLE}" />
-                    <Text text="{= ${dialog>/csvPreviewCount} + ' ' + ${i18n>CSV_EMAILS_FOUND} }" />
+              <IconTabFilter icon="sap-icon://csv" text="{i18n>TAB_CSV_UPLOAD}" key="csv">
+                <VBox class="sapUiSmallMarginBegin sapUiSmallMarginEnd">
+                  <HBox alignItems="Center" justifyContent="SpaceBetween" wrap="Wrap" class="sapUiSmallMarginBottom">
+                    <VBox>
+                      <Text text="{i18n>CSV_UPLOAD_DESCRIPTION}" class="sapUiSmallMarginBottom" />
+                      <Text text="{i18n>CSV_UPLOAD_FORMAT_HINT}" class="sapUiTinyMarginBottom" />
+                    </VBox>
                   </HBox>
-                  <ScrollContainer
-                    height="250px"
-                    vertical="true"
-                    horizontal="false"
-                    class="ebDialogTable">
-                    <List
-                      id="csvPreviewList"
-                      items="{dialog>/csvPreview}"
-                      growing="true"
-                      growingThreshold="50"
-                      growingScrollToLoad="true"
-                      inset="false"
-                      noDataText="{i18n>CSV_NO_EMAILS}">
-                      <items>
-                        <StandardListItem title="{dialog>email}" />
-                      </items>
-                    </List>
-                  </ScrollContainer>
+                  <HBox alignItems="Center" wrap="Wrap" class="sapUiMediumMarginBottom">
+                    <Button
+                      id="csvDownloadTemplateBtn"
+                      icon="sap-icon://download"
+                      text="{i18n>CSV_DOWNLOAD_TEMPLATE}"
+                      press="onDownloadCsvTemplate"
+                      type="Emphasized"
+                      class="sapUiSmallMarginEnd" />
+                    <u:FileUploader
+                      id="csvFileUploader"
+                      buttonText="{i18n>CSV_UPLOAD_FILE}"
+                      icon="sap-icon://upload"
+                      fileType="csv"
+                      sameFilenameAllowed="true"
+                      change="onCsvFileChange"
+                      maximumFileSize="5"
+                      class="sapUiSmallMarginBegin" />
+                  </HBox>
+                  <VBox id="csvPreviewBox" visible="{= !!${dialog>/csvPreviewCount} }" class="sapUiSmallMarginTop">
+                    <HBox alignItems="Center" justifyContent="SpaceBetween">
+                      <Text text="{i18n>CSV_PREVIEW_TITLE}" />
+                      <Text text="{= ${dialog>/csvPreviewCount} + ' ' + ${i18n>CSV_EMAILS_FOUND} }" />
+                    </HBox>
+                    <ScrollContainer
+                      height="200px"
+                      vertical="true"
+                      horizontal="false"
+                      class="ebDialogTable">
+                      <List
+                        id="csvPreviewList"
+                        items="{dialog>/csvPreview}"
+                        growing="true"
+                        growingThreshold="50"
+                        growingScrollToLoad="true"
+                        inset="false"
+                        noDataText="{i18n>CSV_NO_EMAILS}">
+                        <items>
+                          <StandardListItem title="{dialog>email}" />
+                        </items>
+                      </List>
+                    </ScrollContainer>
+                  </VBox>
                 </VBox>
-              </VBox>
-            </IconTabFilter>
-          </items>
-        </IconTabBar>
-
-        <!-- Detailed Recipients SmartTable (RecipientSet) -->
-        <smartTable:SmartTable
-          id="recipientSmartTable"
-          entitySet="RecipientSet"
-          smartFilterId="recipientSFB"
-          tableType="ResponsiveTable"
-          useExportToExcel="false"
-          useVariantManagement="false"
-          useTablePersonalisation="true"
-          header="{i18n>RECIP_MODE_DETAILED}"
-          showRowCount="true"
-          enableAutoBinding="true"
-          demandPopin="true"
-          beforeRebindTable="onBeforeRebindRecipientTable"
-          visible="{= ${dialog>/selectedMode} !== 'added' &amp;&amp; ${dialog>/selectedMode} !== 'csv' &amp;&amp; ${dialog>/searchMode} === 'detailed' }"
-          class="ebDialogTable">
-          <Table
-            id="recipientTable"
-            mode="MultiSelect"
-            growing="true"
-            growingThreshold="20"
-            growingScrollToLoad="true"
-            noDataText="{i18n>NO_RECIPIENTS_FOUND}">
-            <columns>
-              <Column width="30%" minScreenWidth="Phone" demandPopin="false">
-                <customData>
-                  <core:CustomData key="p13nData" value='\{"columnKey": "FullName", "leadingProperty": "FullName", "sortProperty": "FullName", "filterProperty": "FullName", "columnIndex": 0\}' />
-                </customData>
-                <Text text="{i18n>COL_NAME}" />
-              </Column>
-              <Column width="20%" minScreenWidth="Tablet" demandPopin="true" popinDisplay="Inline">
-                <customData>
-                  <core:CustomData key="p13nData" value='\{"columnKey": "Role", "leadingProperty": "Role", "sortProperty": "Role", "filterProperty": "Role", "columnIndex": 1\}' />
-                </customData>
-                <Text text="{i18n>COL_ROLE}" />
-              </Column>
-              <Column width="50%" minScreenWidth="Desktop" demandPopin="true" popinDisplay="Block">
-                <customData>
-                  <core:CustomData key="p13nData" value='\{"columnKey": "Email", "leadingProperty": "Email", "sortProperty": "Email", "filterProperty": "Email", "columnIndex": 2\}' />
-                </customData>
-                <Text text="{i18n>COL_EMAIL}" />
-              </Column>
-            </columns>
-            <items>
-              <ColumnListItem type="Active">
-                <cells>
-                  <Text text="{FullName}" wrapping="true" />
-                  <Text text="{Role}" wrapping="true" />
-                  <Text text="{Email}" wrapping="true" />
-                </cells>
-              </ColumnListItem>
+              </IconTabFilter>
             </items>
-          </Table>
-        </smartTable:SmartTable>
+          </IconTabBar>
+        </VBox>
 
-        <!-- Grouped Recipients SmartTable (RecipientUserSet) -->
-        <smartTable:SmartTable
-          id="recipientGroupedSmartTable"
-          entitySet="RecipientUserSet"
-          smartFilterId="recipientSFB"
-          tableType="ResponsiveTable"
-          useExportToExcel="false"
-          useVariantManagement="false"
-          useTablePersonalisation="true"
-          header="{i18n>RECIP_MODE_GROUPED}"
-          showRowCount="true"
-          enableAutoBinding="true"
-          demandPopin="true"
-          beforeRebindTable="onBeforeRebindRecipientGroupedTable"
-          visible="{= ${dialog>/selectedMode} !== 'added' &amp;&amp; ${dialog>/selectedMode} !== 'csv' &amp;&amp; ${dialog>/searchMode} !== 'detailed' }"
-          class="ebDialogTable">
-          <Table
-            id="recipientGroupedTable"
-            mode="MultiSelect"
+        <!-- Bottom Scrollable Section: Tables scroll independently while filters stay pinned -->
+        <ScrollContainer
+          height="330px"
+          vertical="true"
+          horizontal="false"
+          class="ebDialogScrollableArea">
+
+          <!-- Detailed Recipients SmartTable (RecipientSet) - enableAutoBinding="false" prevents heavy unneeded pre-search -->
+          <smartTable:SmartTable
+            id="recipientSmartTable"
+            entitySet="RecipientSet"
+            smartFilterId="recipientSFB"
+            tableType="ResponsiveTable"
+            useExportToExcel="false"
+            useVariantManagement="false"
+            useTablePersonalisation="true"
+            header="{i18n>RECIP_MODE_DETAILED}"
+            showRowCount="true"
+            enableAutoBinding="false"
+            demandPopin="true"
+            requestAtLeastFields="RecipientId,FullName,Email,Role,AuthObject,FieldName,Low"
+            beforeRebindTable="onBeforeRebindRecipientTable"
+            visible="{= ${dialog>/selectedMode} !== 'added' &amp;&amp; ${dialog>/selectedMode} !== 'csv' &amp;&amp; ${dialog>/searchMode} === 'detailed' }"
+            class="ebDialogTable">
+            <Table
+              id="recipientTable"
+              mode="MultiSelect"
+              growing="true"
+              growingThreshold="20"
+              growingScrollToLoad="true"
+              noDataText="{i18n>NO_RECIPIENTS_FOUND}">
+              <columns>
+                <Column width="25%" minScreenWidth="Phone" demandPopin="false">
+                  <customData>
+                    <core:CustomData key="p13nData" value='\{"columnKey": "FullName", "leadingProperty": "FullName", "sortProperty": "FullName", "filterProperty": "FullName", "columnIndex": 0\}' />
+                  </customData>
+                  <Text text="{i18n>COL_NAME}" />
+                </Column>
+                <Column width="15%" minScreenWidth="Tablet" demandPopin="true" popinDisplay="Inline">
+                  <customData>
+                    <core:CustomData key="p13nData" value='\{"columnKey": "AuthObject", "leadingProperty": "AuthObject", "sortProperty": "AuthObject", "filterProperty": "AuthObject", "columnIndex": 1\}' />
+                  </customData>
+                  <Text text="{i18n>COL_AUTH_OBJECT}" />
+                </Column>
+                <Column width="15%" minScreenWidth="Tablet" demandPopin="true" popinDisplay="Inline">
+                  <customData>
+                    <core:CustomData key="p13nData" value='\{"columnKey": "FieldName", "leadingProperty": "FieldName", "sortProperty": "FieldName", "filterProperty": "FieldName", "columnIndex": 2\}' />
+                  </customData>
+                  <Text text="{i18n>COL_FIELD_NAME}" />
+                </Column>
+                <Column width="15%" minScreenWidth="Tablet" demandPopin="true" popinDisplay="Inline">
+                  <customData>
+                    <core:CustomData key="p13nData" value='\{"columnKey": "Low", "leadingProperty": "Low", "sortProperty": "Low", "filterProperty": "Low", "columnIndex": 3\}' />
+                  </customData>
+                  <Text text="{i18n>COL_VALUE}" />
+                </Column>
+                <Column width="30%" minScreenWidth="Desktop" demandPopin="true" popinDisplay="Block">
+                  <customData>
+                    <core:CustomData key="p13nData" value='\{"columnKey": "Email", "leadingProperty": "Email", "sortProperty": "Email", "filterProperty": "Email", "columnIndex": 4\}' />
+                  </customData>
+                  <Text text="{i18n>COL_EMAIL}" />
+                </Column>
+              </columns>
+              <items>
+                <ColumnListItem type="Active">
+                  <cells>
+                    <Text text="{FullName}" wrapping="true" />
+                    <Text text="{AuthObject}" wrapping="true" />
+                    <Text text="{FieldName}" wrapping="true" />
+                    <Text text="{Low}" wrapping="true" />
+                    <Text text="{Email}" wrapping="true" />
+                  </cells>
+                </ColumnListItem>
+              </items>
+            </Table>
+          </smartTable:SmartTable>
+
+          <!-- Grouped Recipients SmartTable (RecipientUserSet) - enableAutoBinding="false" prevents heavy unneeded pre-search -->
+          <smartTable:SmartTable
+            id="recipientGroupedSmartTable"
+            entitySet="RecipientUserSet"
+            smartFilterId="recipientSFB"
+            tableType="ResponsiveTable"
+            useExportToExcel="false"
+            useVariantManagement="false"
+            useTablePersonalisation="true"
+            header="{i18n>RECIP_MODE_GROUPED}"
+            showRowCount="true"
+            enableAutoBinding="false"
+            demandPopin="true"
+            requestAtLeastFields="Email,FullName,Roles,AuthCount"
+            beforeRebindTable="onBeforeRebindRecipientGroupedTable"
+            visible="{= ${dialog>/selectedMode} !== 'added' &amp;&amp; ${dialog>/selectedMode} !== 'csv' &amp;&amp; ${dialog>/searchMode} !== 'detailed' }"
+            class="ebDialogTable">
+            <Table
+              id="recipientGroupedTable"
+              mode="MultiSelect"
+              growing="true"
+              growingThreshold="20"
+              growingScrollToLoad="true"
+              noDataText="{i18n>NO_RECIPIENTS_FOUND}">
+              <columns>
+                <Column width="25%" minScreenWidth="Phone" demandPopin="false">
+                  <customData>
+                    <core:CustomData key="p13nData" value='\{"columnKey": "FullName", "leadingProperty": "FullName", "sortProperty": "FullName", "filterProperty": "FullName", "columnIndex": 0\}' />
+                  </customData>
+                  <Text text="{i18n>COL_NAME}" />
+                </Column>
+                <Column width="45%" minScreenWidth="Tablet" demandPopin="true" popinDisplay="Inline">
+                  <customData>
+                    <core:CustomData key="p13nData" value='\{"columnKey": "Email", "leadingProperty": "Email", "sortProperty": "Email", "filterProperty": "Email", "columnIndex": 1\}' />
+                  </customData>
+                  <Text text="{i18n>COL_EMAIL}" />
+                </Column>
+                <Column width="20%" minScreenWidth="Desktop" demandPopin="true" popinDisplay="Inline">
+                  <customData>
+                    <core:CustomData key="p13nData" value='\{"columnKey": "Roles", "leadingProperty": "Roles", "sortProperty": "Roles", "filterProperty": "Roles", "columnIndex": 2\}' />
+                  </customData>
+                  <Text text="{i18n>COL_ROLES}" />
+                </Column>
+                <Column width="10%" hAlign="End" minScreenWidth="Desktop" demandPopin="true" popinDisplay="Inline">
+                  <customData>
+                    <core:CustomData key="p13nData" value='\{"columnKey": "AuthCount", "leadingProperty": "AuthCount", "sortProperty": "AuthCount", "filterProperty": "AuthCount", "columnIndex": 3\}' />
+                  </customData>
+                  <Text text="{i18n>COL_AUTH_COUNT}" />
+                </Column>
+              </columns>
+              <items>
+                <ColumnListItem type="Active">
+                  <cells>
+                    <Text text="{FullName}" wrapping="true" />
+                    <Text text="{Email}" wrapping="true" />
+                    <Text text="{Roles}" wrapping="true" />
+                    <ObjectNumber number="{AuthCount}" visible="{= !!${AuthCount} }" />
+                  </cells>
+                </ColumnListItem>
+              </items>
+            </Table>
+          </smartTable:SmartTable>
+
+          <!-- Bound to "state" (not OData) — reflects local compose state. -->
+          <List
+            id="addedRecipientsList"
+            visible="{= ${dialog>/selectedMode} === 'added' }"
+            items="{state>/recipients}"
             growing="true"
-            growingThreshold="20"
+            growingThreshold="50"
             growingScrollToLoad="true"
-            noDataText="{i18n>NO_RECIPIENTS_FOUND}">
-            <columns>
-              <Column width="25%" minScreenWidth="Phone" demandPopin="false">
-                <customData>
-                  <core:CustomData key="p13nData" value='\{"columnKey": "FullName", "leadingProperty": "FullName", "sortProperty": "FullName", "filterProperty": "FullName", "columnIndex": 0\}' />
-                </customData>
-                <Text text="{i18n>COL_NAME}" />
-              </Column>
-              <Column width="45%" minScreenWidth="Tablet" demandPopin="true" popinDisplay="Inline">
-                <customData>
-                  <core:CustomData key="p13nData" value='\{"columnKey": "Email", "leadingProperty": "Email", "sortProperty": "Email", "filterProperty": "Email", "columnIndex": 1\}' />
-                </customData>
-                <Text text="{i18n>COL_EMAIL}" />
-              </Column>
-              <Column width="20%" minScreenWidth="Desktop" demandPopin="true" popinDisplay="Inline">
-                <customData>
-                  <core:CustomData key="p13nData" value='\{"columnKey": "Roles", "leadingProperty": "Roles", "sortProperty": "Roles", "filterProperty": "Roles", "columnIndex": 2\}' />
-                </customData>
-                <Text text="{i18n>COL_ROLES}" />
-              </Column>
-              <Column width="10%" hAlign="End" minScreenWidth="Desktop" demandPopin="true" popinDisplay="Inline">
-                <customData>
-                  <core:CustomData key="p13nData" value='\{"columnKey": "AuthCount", "leadingProperty": "AuthCount", "sortProperty": "AuthCount", "filterProperty": "AuthCount", "columnIndex": 3\}' />
-                </customData>
-                <Text text="{i18n>COL_AUTH_COUNT}" />
-              </Column>
-            </columns>
+            noDataText="{i18n>NO_RECIPIENTS}"
+            class="ebDialogTable"
+            inset="false">
             <items>
-              <ColumnListItem type="Active">
-                <cells>
-                  <Text text="{FullName}" wrapping="true" />
-                  <Text text="{Email}" wrapping="true" />
-                  <Text text="{Roles}" wrapping="true" />
-                  <ObjectNumber number="{AuthCount}" visible="{= !!${AuthCount} }" />
-                </cells>
-              </ColumnListItem>
+              <CustomListItem class="ebSourceItem">
+                <HBox alignItems="Center" width="100%" class="ebSourceItemRow">
+                  <core:Icon src="sap-icon://person-placeholder" size="1.2rem" class="ebSourceIcon" />
+                  <VBox class="ebSourceInfo">
+                    <Text text="{state>name}" class="ebSourceName" wrapping="true" />
+                    <Text text="{state>email}" class="ebSourceMeta" />
+                  </VBox>
+                  <Button icon="sap-icon://decline" type="Transparent" press="onRemoveAddedRecipient" tooltip="{i18n>TIP_REMOVE_SOURCE}" />
+                </HBox>
+              </CustomListItem>
             </items>
-          </Table>
-        </smartTable:SmartTable>
-
-        <!-- Bound to "state" (not OData) — reflects local compose state. -->
-        <List
-          id="addedRecipientsList"
-          visible="{= ${dialog>/selectedMode} === 'added' }"
-          items="{state>/recipients}"
-          growing="true"
-          growingThreshold="50"
-          growingScrollToLoad="true"
-          noDataText="{i18n>NO_RECIPIENTS}"
-          class="ebDialogTable"
-          inset="false">
-          <items>
-            <CustomListItem class="ebSourceItem">
-              <HBox alignItems="Center" width="100%" class="ebSourceItemRow">
-                <core:Icon src="sap-icon://person-placeholder" size="1.2rem" class="ebSourceIcon" />
-                <VBox class="ebSourceInfo">
-                  <Text text="{state>name}" class="ebSourceName" wrapping="true" />
-                  <Text text="{state>email}" class="ebSourceMeta" />
-                </VBox>
-                <Button icon="sap-icon://decline" type="Transparent" press="onRemoveAddedRecipient" tooltip="{i18n>TIP_REMOVE_SOURCE}" />
-              </HBox>
-            </CustomListItem>
-          </items>
-        </List>
+          </List>
+        </ScrollContainer>
       </VBox>
     </content>
 

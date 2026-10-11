@@ -94,12 +94,13 @@ sap.ui.define([
   // 2. Grouped mode: Role → Roles rename, AuthObject/FieldName dropped.
   function adaptSfbFiltersForMode(aFilters, bDetailed) {
     if (!aFilters || aFilters.length === 0) { return []; }
-    const mDrop   = { AuthObject: true, FieldName: true };
+    const mDrop   = { AuthObject: true, FieldName: true, Low: true };
     const mRename = { Role: "Roles" };
     const mContainsFields = {
       FullName: true, Email: true, Role: true, Roles: true,
       LocalID: true, Subject: true, CreatedBy: true,
-      Title: true, Area: true, ChangeNumber: true, InitiatorName: true
+      Title: true, Area: true, ChangeNumber: true, InitiatorName: true,
+      AuthObject: true, FieldName: true, Low: true
     };
 
     function adaptLeaf(oF) {
@@ -171,9 +172,6 @@ sap.ui.define([
 
           oDialog.attachAfterOpen(() => {
             this._applyRecipientSFBVisibility();
-            if (oModel.getProperty("/selectedMode") !== "added") {
-              this._searchRecipients();
-            }
           });
 
           // Cancel/Escape/a successful add all end up here — clears a CSV
@@ -202,7 +200,6 @@ sap.ui.define([
 
       oDialogModel.setProperty("/searchMode", sKey);
       this._applyRecipientSFBVisibility();
-      this._searchRecipients();
     },
 
     _applyRecipientSFBVisibility() {
@@ -216,6 +213,9 @@ sap.ui.define([
 
       const oFieldCfg   = this.byId("fieldNameControlCfg");
       if (oFieldCfg)   { oFieldCfg.setVisibleInAdvancedArea(bDetailed); }
+
+      const oLowCfg     = this.byId("lowControlCfg");
+      if (oLowCfg)     { oLowCfg.setVisibleInAdvancedArea(bDetailed); }
 
       const oNameCfg    = this.byId("fullNameControlCfg");
       if (oNameCfg)    { oNameCfg.setVisibleInAdvancedArea(!bDetailed); }
@@ -253,9 +253,7 @@ sap.ui.define([
           this._setNewsDialogDefaultTab();
 
           oDialog.attachAfterOpen(() => {
-            if (oModel.getProperty("/selectedMode") !== "added") {
-              this._searchNews();
-            }
+            // Manual search only — user enters criteria and clicks Go
           });
         }).then((oDialog) => {
           oDialog.open();
@@ -269,7 +267,7 @@ sap.ui.define([
     },
 
     onNewsTabSelect(oEvent) {
-      if (oEvent.getParameter("selectedKey") !== "added") { this._searchNews(); }
+      // Manual search only — user enters criteria and clicks Go
     },
 
     // ----------------------------------------------------------------
@@ -392,8 +390,7 @@ sap.ui.define([
     },
 
     onRecipTabSelect(oEvent) {
-      const sKey = oEvent.getParameter("selectedKey");
-      if (sKey !== "added" && sKey !== "csv") { this._searchRecipients(); }
+      // Manual search only — user enters criteria and clicks Go
     },
 
     // ----------------------------------------------------------------
@@ -469,8 +466,17 @@ sap.ui.define([
       if (!oItem || !oItem.getBindingContext) { return; }
       const oCtx = oItem.getBindingContext();
       if (!oCtx) { return; }
-      const oMailing = oCtx.getObject();
-      if (!oMailing) { return; }
+      const oMailing = oCtx.getObject() || {};
+
+      // Defensive: ensure Key is populated (from getObject, or path regex "/MailHistorySet('...')")
+      if (!oMailing.Key) {
+        const sPath = oCtx.getPath();
+        const mMatch = sPath && sPath.match(/\('?([^\')]+)'?\)/);
+        if (mMatch) {
+          oMailing.Key = mMatch[1];
+        }
+      }
+
       this._closeDialog(this._oMailingsDialog);
       this._openHistoryView(oMailing);
     },
@@ -554,21 +560,41 @@ sap.ui.define([
     onCopyViewingMailing() {
       const oModel = this._oHistoryViewDialog && this._oHistoryViewDialog.getModel("history");
       const sId = oModel && oModel.getProperty("/mailingId");
-      if (!sId) { return; }
+      const sModelSubject = oModel && oModel.getProperty("/subject");
+      const sModelContent = oModel && oModel.getProperty("/content");
+
+      if (!sId && !sModelContent && !sModelSubject) { return; }
+
       MessageBox.confirm(this._t("CONFIRM_COPY"), {
         title: this._t("CONFIRM_COPY_TITLE"),
         onClose: (action) => {
           if (action !== MessageBox.Action.OK) { return; }
-          Service.copyMailing(this.getOwnerComponent(), sId)
-            .then((data) => {
-              this._closeDialog(this._oHistoryViewDialog);
-              this._resetComposer();
-              this._oState.setProperty("/viewingSubject", data.Subject || "");
-              this._oState.setProperty("/localId", data.LocalId);
-              if (data.Content) { this._oEditor.setValue(data.Content); }
-              Toast.success(this._t("MSG_MAILING_COPIED", [data.LocalId]));
-            })
-            .catch(() => { Toast.error(this._t("MSG_SEND_ERROR")); });
+
+          const applyCopiedData = (data) => {
+            this._closeDialog(this._oHistoryViewDialog);
+            this._resetComposer();
+            const sSub = data.Subject || sModelSubject || "";
+            const sLoc = data.LocalId || ("MSG-" + Date.now());
+            const sCnt = data.Content || sModelContent || "";
+            this._oState.setProperty("/viewingSubject", sSub);
+            this._oState.setProperty("/localId", sLoc);
+            if (sCnt) { this._oEditor.setValue(sCnt); }
+            Toast.success(this._t("MSG_MAILING_COPIED", [sLoc]));
+          };
+
+          if (sId) {
+            Service.copyMailing(this.getOwnerComponent(), sId)
+              .then(applyCopiedData)
+              .catch(() => {
+                if (sModelContent || sModelSubject) {
+                  applyCopiedData({});
+                } else {
+                  Toast.error(this._t("MSG_SEND_ERROR"));
+                }
+              });
+          } else {
+            applyCopiedData({});
+          }
         }
       });
     },

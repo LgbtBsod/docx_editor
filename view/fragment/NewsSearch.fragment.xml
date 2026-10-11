@@ -7,173 +7,186 @@
   <Dialog
     id="newsDialog"
     title="{i18n>DIALOG_NEWS}"
-    contentWidth="780px"
-    contentHeight="600px"
+    contentWidth="820px"
+    contentHeight="620px"
+    verticalScrolling="false"
     resizable="true"
     draggable="true"
     class="ebDialog ebNewsDialog">
 
     <content>
-      <VBox class="sapUiSmallMargin">
-        <IconTabBar
-          id="newsTabs"
-          select="onNewsTabSelect"
-          selectedKey="{dialog>/selectedMode}"
-          class="ebIconTabBar"
-          expandable="false">
-          <items>
-            <IconTabFilter icon="sap-icon://accept" text="{i18n>TAB_ADDED}" key="added"
-              count="{= ${state>/newsItems}.length || '' }" />
-
-            <IconTabFilter icon="sap-icon://search" text="{i18n>TAB_SEARCH}" key="search">
-              <VBox>
-                <comp:SmartFilterBar
-                  id="newsSFB"
-                  entitySet="NewsSet"
-                  liveMode="false"
-                  showGoOnFB="true"
-                  showClearOnFB="true"
-                  useToolbar="false"
-                  search="onSmartFilterSearch"
-                  clear="onSmartFilterSearch">
-                  <comp:controlConfiguration>
-                    <comp:ControlConfiguration
-                      key="NewID"
-                      visibleInAdvancedArea="false" />
-                    <comp:ControlConfiguration
-                      key="NewsType"
-                      index="0"
-                      visibleInAdvancedArea="true" />
-                    <comp:ControlConfiguration
-                      key="Title"
-                      index="1"
-                      visibleInAdvancedArea="true" />
-                    <comp:ControlConfiguration
-                      key="Year"
-                      index="2"
-                      visibleInAdvancedArea="true" />
-                    <comp:ControlConfiguration
-                      key="Quarter"
-                      index="3"
-                      visibleInAdvancedArea="true" />
-                    <comp:ControlConfiguration
-                      key="Area"
-                      index="4"
-                      visibleInAdvancedArea="true" />
-                    <comp:ControlConfiguration
-                      key="ChangeNumber"
-                      index="5"
-                      visibleInAdvancedArea="true" />
-                    <comp:ControlConfiguration
-                      key="InitiatorName"
-                      index="6"
-                      visibleInAdvancedArea="true" />
-                    <comp:ControlConfiguration
-                      key="NewsTypeText"
-                      visibleInAdvancedArea="false" />
-                    <comp:ControlConfiguration
-                      key="Content"
-                      visibleInAdvancedArea="false" />
-                  </comp:controlConfiguration>
-                </comp:SmartFilterBar>
-              </VBox>
-            </IconTabFilter>
-          </items>
-        </IconTabBar>
-
-        <!-- News SmartTable -->
-        <smartTable:SmartTable
-          id="newsSmartTable"
-          entitySet="NewsSet"
-          smartFilterId="newsSFB"
-          tableType="ResponsiveTable"
-          useExportToExcel="false"
-          useVariantManagement="false"
-          useTablePersonalisation="true"
-          header="{i18n>DIALOG_NEWS}"
-          showRowCount="true"
-          enableAutoBinding="true"
-          demandPopin="true"
-          beforeRebindTable="onBeforeRebindNewsTable"
-          visible="{= ${dialog>/selectedMode} !== 'added' }"
-          class="ebDialogTable">
-          <Table
-            id="newsTable"
-            mode="MultiSelect"
-            growing="true"
-            growingThreshold="20"
-            growingScrollToLoad="true"
-            noDataText="{i18n>NO_NEWS_RESULTS}">
-            <columns>
-              <Column width="15%" minScreenWidth="Tablet" demandPopin="true" popinDisplay="Inline">
-                <customData>
-                  <core:CustomData key="p13nData" value='\{"columnKey": "NewsTypeText", "leadingProperty": "NewsTypeText", "sortProperty": "NewsTypeText", "filterProperty": "NewsTypeText", "columnIndex": 0\}' />
-                </customData>
-                <Text text="{i18n>NEWS_TYPE_LABEL}" />
-              </Column>
-              <Column width="12%" minScreenWidth="Tablet" demandPopin="true" popinDisplay="Inline">
-                <customData>
-                  <core:CustomData key="p13nData" value='\{"columnKey": "ChangeNumber", "leadingProperty": "ChangeNumber", "sortProperty": "ChangeNumber", "filterProperty": "ChangeNumber", "columnIndex": 1\}' />
-                </customData>
-                <Text text="{i18n>NEWS_CHANGE_NUMBER}" />
-              </Column>
-              <Column width="38%" minScreenWidth="Phone" demandPopin="false">
-                <customData>
-                  <core:CustomData key="p13nData" value='\{"columnKey": "Title", "leadingProperty": "Title", "sortProperty": "Title", "filterProperty": "Title", "columnIndex": 2\}' />
-                </customData>
-                <Text text="{i18n>NEWS_TITLE}" />
-              </Column>
-              <Column width="12%" minScreenWidth="Tablet" demandPopin="true" popinDisplay="Inline">
-                <customData>
-                  <core:CustomData key="p13nData" value='\{"columnKey": "Year", "leadingProperty": "Year", "sortProperty": "Year", "filterProperty": "Year", "columnIndex": 3\}' />
-                </customData>
-                <Text text="{i18n>YEAR}" />
-              </Column>
-              <Column width="23%" minScreenWidth="Tablet" demandPopin="true" popinDisplay="Block">
-                <customData>
-                  <core:CustomData key="p13nData" value='\{"columnKey": "Area", "leadingProperty": "Area", "sortProperty": "Area", "filterProperty": "Area", "columnIndex": 4\}' />
-                </customData>
-                <Text text="{i18n>AREA}" />
-              </Column>
-            </columns>
+      <VBox fitContainer="true" height="100%" class="ebDialogContentFlex">
+        <!-- Top Pinned Section: Tabs and SmartFilterBar -->
+        <VBox class="ebDialogTopSection">
+          <IconTabBar
+            id="newsTabs"
+            select="onNewsTabSelect"
+            selectedKey="{dialog>/selectedMode}"
+            class="ebIconTabBar"
+            expandable="false">
             <items>
-              <ColumnListItem type="Active">
-                <cells>
-                  <Text text="{NewsTypeText}" wrapping="true" />
-                  <Text text="{ChangeNumber}" />
-                  <Text text="{Title}" wrapping="true" />
-                  <Text text="{Year}" />
-                  <Text text="{Area}" wrapping="true" />
-                </cells>
-              </ColumnListItem>
-            </items>
-          </Table>
-        </smartTable:SmartTable>
+              <IconTabFilter icon="sap-icon://accept" text="{i18n>TAB_ADDED}" key="added"
+                count="{= ${state>/newsItems}.length || '' }" />
 
-        <!-- Bound to "state" (not OData) — reflects local compose state. -->
-        <List
-          id="addedNewsList"
-          visible="{= ${dialog>/selectedMode} === 'added' }"
-          items="{state>/newsItems}"
-          growing="true"
-          growingThreshold="50"
-          growingScrollToLoad="true"
-          noDataText="{i18n>NO_NEWS}"
-          class="ebDialogTable"
-          inset="false">
-          <items>
-            <CustomListItem class="ebSourceItem">
-              <HBox alignItems="Center" width="100%" class="ebSourceItemRow">
-                <core:Icon src="sap-icon://notification" size="1.2rem" class="ebSourceIcon" />
-                <VBox class="ebSourceInfo">
-                  <Text text="{state>title}" class="ebSourceName" wrapping="true" />
-                  <Text text="{state>meta}" class="ebSourceMeta" />
+              <IconTabFilter icon="sap-icon://search" text="{i18n>TAB_SEARCH}" key="search">
+                <VBox>
+                  <comp:SmartFilterBar
+                    id="newsSFB"
+                    entitySet="NewsSet"
+                    liveMode="false"
+                    showGoOnFB="true"
+                    showClearOnFB="true"
+                    useToolbar="false"
+                    search="onSmartFilterSearch"
+                    clear="onSmartFilterSearch">
+                    <comp:controlConfiguration>
+                      <comp:ControlConfiguration
+                        key="NewID"
+                        visibleInAdvancedArea="false" />
+                      <comp:ControlConfiguration
+                        key="NewsType"
+                        index="0"
+                        visibleInAdvancedArea="true" />
+                      <comp:ControlConfiguration
+                        key="Title"
+                        index="1"
+                        visibleInAdvancedArea="true" />
+                      <comp:ControlConfiguration
+                        key="Year"
+                        index="2"
+                        visibleInAdvancedArea="true" />
+                      <comp:ControlConfiguration
+                        key="Quarter"
+                        index="3"
+                        visibleInAdvancedArea="true" />
+                      <comp:ControlConfiguration
+                        key="Area"
+                        index="4"
+                        visibleInAdvancedArea="true" />
+                      <comp:ControlConfiguration
+                        key="ChangeNumber"
+                        index="5"
+                        visibleInAdvancedArea="true" />
+                      <comp:ControlConfiguration
+                        key="InitiatorName"
+                        index="6"
+                        visibleInAdvancedArea="true" />
+                      <comp:ControlConfiguration
+                        key="NewsTypeText"
+                        visibleInAdvancedArea="false" />
+                      <comp:ControlConfiguration
+                        key="Content"
+                        visibleInAdvancedArea="false" />
+                    </comp:controlConfiguration>
+                  </comp:SmartFilterBar>
                 </VBox>
-                <Button icon="sap-icon://decline" type="Transparent" press="onRemoveNewsItem" tooltip="{i18n>TIP_REMOVE_SOURCE}" />
-              </HBox>
-            </CustomListItem>
-          </items>
-        </List>
+              </IconTabFilter>
+            </items>
+          </IconTabBar>
+        </VBox>
+
+        <!-- Bottom Scrollable Section: Table scrolls while filters stay pinned -->
+        <ScrollContainer
+          height="330px"
+          vertical="true"
+          horizontal="false"
+          class="ebDialogScrollableArea">
+
+          <!-- News SmartTable -->
+          <smartTable:SmartTable
+            id="newsSmartTable"
+            entitySet="NewsSet"
+            smartFilterId="newsSFB"
+            tableType="ResponsiveTable"
+            useExportToExcel="false"
+            useVariantManagement="false"
+            useTablePersonalisation="true"
+            header="{i18n>DIALOG_NEWS}"
+            showRowCount="true"
+            enableAutoBinding="false"
+            demandPopin="true"
+            requestAtLeastFields="NewID,NewsType,NewsTypeText,ChangeNumber,Title,Year,Quarter,Area,Content,InitiatorName,InitiatorOrg"
+            beforeRebindTable="onBeforeRebindNewsTable"
+            visible="{= ${dialog>/selectedMode} !== 'added' }"
+            class="ebDialogTable">
+            <Table
+              id="newsTable"
+              mode="MultiSelect"
+              growing="true"
+              growingThreshold="20"
+              growingScrollToLoad="true"
+              noDataText="{i18n>NO_NEWS_RESULTS}">
+              <columns>
+                <Column width="15%" minScreenWidth="Tablet" demandPopin="true" popinDisplay="Inline">
+                  <customData>
+                    <core:CustomData key="p13nData" value='\{"columnKey": "NewsTypeText", "leadingProperty": "NewsTypeText", "sortProperty": "NewsTypeText", "filterProperty": "NewsTypeText", "columnIndex": 0\}' />
+                  </customData>
+                  <Text text="{i18n>NEWS_TYPE_LABEL}" />
+                </Column>
+                <Column width="12%" minScreenWidth="Tablet" demandPopin="true" popinDisplay="Inline">
+                  <customData>
+                    <core:CustomData key="p13nData" value='\{"columnKey": "ChangeNumber", "leadingProperty": "ChangeNumber", "sortProperty": "ChangeNumber", "filterProperty": "ChangeNumber", "columnIndex": 1\}' />
+                  </customData>
+                  <Text text="{i18n>NEWS_CHANGE_NUMBER}" />
+                </Column>
+                <Column width="38%" minScreenWidth="Phone" demandPopin="false">
+                  <customData>
+                    <core:CustomData key="p13nData" value='\{"columnKey": "Title", "leadingProperty": "Title", "sortProperty": "Title", "filterProperty": "Title", "columnIndex": 2\}' />
+                  </customData>
+                  <Text text="{i18n>NEWS_TITLE}" />
+                </Column>
+                <Column width="12%" minScreenWidth="Tablet" demandPopin="true" popinDisplay="Inline">
+                  <customData>
+                    <core:CustomData key="p13nData" value='\{"columnKey": "Year", "leadingProperty": "Year", "sortProperty": "Year", "filterProperty": "Year", "columnIndex": 3\}' />
+                  </customData>
+                  <Text text="{i18n>YEAR}" />
+                </Column>
+                <Column width="23%" minScreenWidth="Tablet" demandPopin="true" popinDisplay="Block">
+                  <customData>
+                    <core:CustomData key="p13nData" value='\{"columnKey": "Area", "leadingProperty": "Area", "sortProperty": "Area", "filterProperty": "Area", "columnIndex": 4\}' />
+                  </customData>
+                  <Text text="{i18n>AREA}" />
+                </Column>
+              </columns>
+              <items>
+                <ColumnListItem type="Active">
+                  <cells>
+                    <Text text="{NewsTypeText}" wrapping="true" />
+                    <Text text="{ChangeNumber}" />
+                    <Text text="{Title}" wrapping="true" />
+                    <Text text="{Year}" />
+                    <Text text="{Area}" wrapping="true" />
+                  </cells>
+                </ColumnListItem>
+              </items>
+            </Table>
+          </smartTable:SmartTable>
+
+          <!-- Bound to "state" (not OData) — reflects local compose state. -->
+          <List
+            id="addedNewsList"
+            visible="{= ${dialog>/selectedMode} === 'added' }"
+            items="{state>/newsItems}"
+            growing="true"
+            growingThreshold="50"
+            growingScrollToLoad="true"
+            noDataText="{i18n>NO_NEWS}"
+            class="ebDialogTable"
+            inset="false">
+            <items>
+              <CustomListItem class="ebSourceItem">
+                <HBox alignItems="Center" width="100%" class="ebSourceItemRow">
+                  <core:Icon src="sap-icon://notification" size="1.2rem" class="ebSourceIcon" />
+                  <VBox class="ebSourceInfo">
+                    <Text text="{state>title}" class="ebSourceName" wrapping="true" />
+                    <Text text="{state>meta}" class="ebSourceMeta" />
+                  </VBox>
+                  <Button icon="sap-icon://decline" type="Transparent" press="onRemoveNewsItem" tooltip="{i18n>TIP_REMOVE_SOURCE}" />
+                </HBox>
+              </CustomListItem>
+            </items>
+          </List>
+        </ScrollContainer>
       </VBox>
     </content>
 
