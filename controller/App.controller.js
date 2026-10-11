@@ -20,11 +20,6 @@ sap.ui.define([
 ) => {
   "use strict";
 
-  // BaseController.extend(name, Object.assign({}, DialogMixin, SourcesMixin, {
-  //   ...App's own methods...
-  // })) flattens DialogMixin / SourcesMixin plus App's own methods into one
-  // controller prototype (UI5 1.71 LTS has no first-class class composition).
-  // LAST object wins for method name collisions; mixins share state via `this`.
   return BaseController.extend("MAILING_CONSTRUCTOR.controller.App",
     Object.assign({}, DialogMixin, SourcesMixin, {
 
@@ -34,10 +29,6 @@ sap.ui.define([
       const oComp = this.getOwnerComponent();
       const oView = this.getView();
 
-      // Inject the resource bundle before any model is attached to the view —
-      // attaching "state" triggers an immediate formatter evaluation, which
-      // would otherwise run with no bundle and permanently stick to the
-      // hardcoded fallback text.
       Formatter.setResourceBundle(oComp.getModel("i18n").getResourceBundle());
 
       ["state", "config", "i18n", "constants"].forEach((sName) => {
@@ -51,7 +42,6 @@ sap.ui.define([
       this._bFirstRenderDone = false;
       this._sUserId = null;
 
-      // Capture userId for draft isolation (SAP Launchpad / SAP Fiori)
       try {
         if (sap.ushell && sap.ushell.Container) {
           const oUser = sap.ushell.Container.getUser();
@@ -117,12 +107,9 @@ sap.ui.define([
     },
 
     onCancelDialog(oEvent) {
-      this._closeDialog(oEvent.getSource());
+      this._closeDialog(oEvent);
     },
 
-    // UI5 1.71 FileUploader has no openFileSelector() method (added in
-    // 1.84+). The FileUploader with buttonOnly="true" already renders a
-    // native <input type="file"> — trigger its click() directly via the DOM.
     _triggerFileBrowse(sUploaderId) {
       const oUploader = this.byId(sUploaderId);
       const oInput = oUploader && oUploader.getDomRef
@@ -138,8 +125,6 @@ sap.ui.define([
       this._triggerFileBrowse("attachmentUploader");
     },
 
-    // Placed here (not in SourcesMixin) — generic UI action, not a
-    // source-management concern.
     onCopyLocalId() {
       const sText = this._oState.getProperty("/localId") || "";
       if (sText && navigator && navigator.clipboard

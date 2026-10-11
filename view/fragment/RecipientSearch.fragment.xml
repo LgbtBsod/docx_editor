@@ -3,7 +3,6 @@
   xmlns:u="sap.ui.unified"
   xmlns:comp="sap.ui.comp.smartfilterbar"
   xmlns:smartTable="sap.ui.comp.smarttable"
-  xmlns:f="sap.f"
   xmlns:core="sap.ui.core">
 
   <Dialog
@@ -18,7 +17,7 @@
 
     <content>
       <VBox fitContainer="true" height="100%" class="ebDialogContentFlex">
-        <!-- Top Pinned Section: Tabs and SmartFilterBar -->
+        <!-- Верхняя закреплённая панель -->
         <VBox class="ebDialogTopSection">
           <IconTabBar
             id="recipientTabs"
@@ -27,9 +26,7 @@
             class="ebIconTabBar"
             expandable="false">
             <items>
-              <IconTabFilter icon="sap-icon://accept" text="{i18n>TAB_ADDED}" key="added"
-                count="{= ${state>/recipients}.length || '' }" />
-
+              <!-- 1. Поиск по умолчанию -->
               <IconTabFilter icon="sap-icon://search" text="{i18n>TAB_SEARCH}" key="search">
                 <VBox>
                   <SegmentedButton id="recipientModeToggle" selectedKey="grouped" select="onRecipientModeChange"
@@ -42,7 +39,6 @@
                     </items>
                   </SegmentedButton>
 
-                  <!-- SmartFilterBar for recipients search - Pinned, manual search only -->
                   <comp:SmartFilterBar
                     id="recipientSFB"
                     entitySet="RecipientSet"
@@ -53,44 +49,23 @@
                     search="onSmartFilterSearch"
                     clear="onSmartFilterSearch">
                     <comp:controlConfiguration>
-                      <comp:ControlConfiguration
-                        key="RecipientId"
-                        visibleInAdvancedArea="false" />
-                      <comp:ControlConfiguration
-                        id="fullNameControlCfg"
-                        key="FullName"
-                        index="0"
-                        visibleInAdvancedArea="true" />
-                      <comp:ControlConfiguration
-                        id="emailControlCfg"
-                        key="Email"
-                        index="1"
-                        visibleInAdvancedArea="true" />
-                      <comp:ControlConfiguration
-                        id="roleControlCfg"
-                        key="Role"
-                        index="2"
-                        visibleInAdvancedArea="true" />
-                      <comp:ControlConfiguration
-                        id="authObjControlCfg"
-                        key="AuthObject"
-                        index="3"
-                        visibleInAdvancedArea="true" />
-                      <comp:ControlConfiguration
-                        id="fieldNameControlCfg"
-                        key="FieldName"
-                        index="4"
-                        visibleInAdvancedArea="true" />
-                      <comp:ControlConfiguration
-                        id="lowControlCfg"
-                        key="Low"
-                        index="5"
-                        visibleInAdvancedArea="true" />
+                      <comp:ControlConfiguration key="RecipientId" visibleInAdvancedArea="false" />
+                      <comp:ControlConfiguration id="fullNameControlCfg" key="FullName" index="0" visibleInAdvancedArea="true" />
+                      <comp:ControlConfiguration id="emailControlCfg" key="Email" index="1" visibleInAdvancedArea="true" />
+                      <comp:ControlConfiguration id="roleControlCfg" key="Role" index="2" visibleInAdvancedArea="true" />
+                      <comp:ControlConfiguration id="authObjControlCfg" key="AuthObject" index="3" visibleInAdvancedArea="true" />
+                      <comp:ControlConfiguration id="fieldNameControlCfg" key="FieldName" index="4" visibleInAdvancedArea="true" />
+                      <comp:ControlConfiguration id="lowControlCfg" key="Low" index="5" visibleInAdvancedArea="true" />
                     </comp:controlConfiguration>
                   </comp:SmartFilterBar>
                 </VBox>
               </IconTabFilter>
 
+              <!-- 2. Список уже добавленных получателей -->
+              <IconTabFilter icon="sap-icon://accept" text="{i18n>TAB_ADDED}" key="added"
+                count="{= ${state>/recipients}.length || '' }" />
+
+              <!-- 3. Загрузка CSV -->
               <IconTabFilter icon="sap-icon://csv" text="{i18n>TAB_CSV_UPLOAD}" key="csv">
                 <VBox class="sapUiSmallMarginBegin sapUiSmallMarginEnd">
                   <HBox alignItems="Center" justifyContent="SpaceBetween" wrap="Wrap" class="sapUiSmallMarginBottom">
@@ -122,11 +97,7 @@
                       <Text text="{i18n>CSV_PREVIEW_TITLE}" />
                       <Text text="{= ${dialog>/csvPreviewCount} + ' ' + ${i18n>CSV_EMAILS_FOUND} }" />
                     </HBox>
-                    <ScrollContainer
-                      height="200px"
-                      vertical="true"
-                      horizontal="false"
-                      class="ebDialogTable">
+                    <ScrollContainer height="200px" vertical="true" horizontal="false" class="ebDialogTable">
                       <List
                         id="csvPreviewList"
                         items="{dialog>/csvPreview}"
@@ -147,14 +118,9 @@
           </IconTabBar>
         </VBox>
 
-        <!-- Bottom Scrollable Section: Tables scroll independently while filters stay pinned -->
-        <ScrollContainer
-          height="330px"
-          vertical="true"
-          horizontal="false"
-          class="ebDialogScrollableArea">
-
-          <!-- Detailed Recipients SmartTable (RecipientSet) - enableAutoBinding="false" prevents heavy unneeded pre-search -->
+        <!-- Нижняя прокручиваемая область с таблицами -->
+        <ScrollContainer height="330px" vertical="true" horizontal="false" class="ebDialogScrollableArea">
+          <!-- Детальная SmartTable -->
           <smartTable:SmartTable
             id="recipientSmartTable"
             entitySet="RecipientSet"
@@ -169,7 +135,7 @@
             demandPopin="true"
             requestAtLeastFields="RecipientId,FullName,Email,Role,AuthObject,FieldName,Low"
             beforeRebindTable="onBeforeRebindRecipientTable"
-            visible="{= ${dialog>/selectedMode} !== 'added' &amp;&amp; ${dialog>/selectedMode} !== 'csv' &amp;&amp; ${dialog>/searchMode} === 'detailed' }"
+            visible="{= ${dialog>/selectedMode} === 'search' &amp;&amp; ${dialog>/searchMode} === 'detailed' }"
             class="ebDialogTable">
             <Table
               id="recipientTable"
@@ -224,7 +190,7 @@
             </Table>
           </smartTable:SmartTable>
 
-          <!-- Grouped Recipients SmartTable (RecipientUserSet) - enableAutoBinding="false" prevents heavy unneeded pre-search -->
+          <!-- Групповая SmartTable -->
           <smartTable:SmartTable
             id="recipientGroupedSmartTable"
             entitySet="RecipientUserSet"
@@ -239,7 +205,7 @@
             demandPopin="true"
             requestAtLeastFields="Email,FullName,Roles,AuthCount"
             beforeRebindTable="onBeforeRebindRecipientGroupedTable"
-            visible="{= ${dialog>/selectedMode} !== 'added' &amp;&amp; ${dialog>/selectedMode} !== 'csv' &amp;&amp; ${dialog>/searchMode} !== 'detailed' }"
+            visible="{= ${dialog>/selectedMode} === 'search' &amp;&amp; ${dialog>/searchMode} !== 'detailed' }"
             class="ebDialogTable">
             <Table
               id="recipientGroupedTable"
@@ -287,7 +253,7 @@
             </Table>
           </smartTable:SmartTable>
 
-          <!-- Bound to "state" (not OData) — reflects local compose state. -->
+          <!-- Список добавленных получателей -->
           <List
             id="addedRecipientsList"
             visible="{= ${dialog>/selectedMode} === 'added' }"
@@ -317,7 +283,7 @@
 
     <buttons>
       <Button text="{i18n>ADD_SELECTED}" press="onAddSelectedRecipients" type="Emphasized"
-        visible="{= ${dialog>/selectedMode} !== 'added' &amp;&amp; ${dialog>/selectedMode} !== 'csv' }" />
+        visible="{= ${dialog>/selectedMode} === 'search' }" />
       <Button text="{i18n>CSV_ADD_TO_RECIPIENTS}" press="onAddCsvRecipients" type="Emphasized"
         visible="{= ${dialog>/selectedMode} === 'csv' }"
         enabled="{= (${dialog>/csvPreviewCount} || 0) &gt; 0 }" />

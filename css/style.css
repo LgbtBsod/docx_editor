@@ -561,39 +561,63 @@ html, body {
   min-width: 0 !important;
 }
 
-/* Recipients summary button */
+/* --- Фикс кнопок-сводок получателей и новостей в левой панели --- */
 .ebRecipientsSummaryBtn {
   box-sizing: border-box !important;
   width: 100% !important;
-  margin-top: var(--eb-space-xs) !important;
+  margin-top: var(--eb-space-xs, 4px) !important;
   padding: 0 !important;
   border: none !important;
   background: transparent !important;
 }
 
 .ebRecipientsSummaryBtn .sapMBtnInner {
-  width: 100% !important;
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
   justify-content: flex-start !important;
-  border: 1px dashed var(--eb-border-strong) !important;
-  border-radius: var(--eb-radius-sm) !important;
-  background: var(--eb-surface-alt) !important;
+  width: 100% !important;
+  border: 1px dashed var(--eb-border-strong, #b0b7c0) !important;
+  border-radius: var(--eb-radius-sm, 4px) !important;
+  background: var(--eb-surface-alt, #fafbfc) !important;
   box-shadow: none !important;
-  padding: var(--eb-space-sm) var(--eb-space-md) !important;
+  padding: 8px 12px !important;
   height: auto !important;
-  min-height: 40px !important;
+  min-height: 42px !important;
+  text-align: left !important;
 }
 
 .ebRecipientsSummaryBtn:hover .sapMBtnInner {
-  border-color: var(--eb-primary) !important;
-  background: var(--eb-tint-04) !important;
+  border-color: var(--eb-primary, #0070f2) !important;
+  background: var(--eb-tint-04, #f0f6ff) !important;
 }
 
+/* Иконка: фиксированный размер, предотвращение схлопывания и отступ справа */
+.ebRecipientsSummaryBtn .sapMBtnIcon {
+  position: static !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex-shrink: 0 !important;
+  margin-right: 10px !important;
+  margin-left: 0 !important;
+  font-size: 1.125rem !important;
+  color: var(--eb-primary, #0070f2) !important;
+}
+
+/* Текст: убираем абсолютные сдвиги UI5, гарантируем перенос или обрезку */
 .ebRecipientsSummaryBtn .sapMBtnContent {
+  position: static !important;
+  display: inline-block !important;
+  flex: 1 1 auto !important;
   font-size: 13px !important;
   font-weight: 500 !important;
-  color: var(--eb-text) !important;
+  line-height: 1.4 !important;
+  color: var(--eb-text, #1d2d3e) !important;
   white-space: normal !important;
   text-align: left !important;
+  padding: 0 !important;
+  margin: 0 !important;
 }
 
 .ebRecipientsSummaryBtn:hover {

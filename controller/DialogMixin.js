@@ -4,7 +4,7 @@ sap.ui.define([
   "sap/ui/model/Filter",
   "sap/ui/model/FilterOperator",
   "sap/ui/model/Sorter",
-  "sap/m/library",                 // URLHelper.download for CSV template
+  "sap/m/library",
   "MAILING_CONSTRUCTOR/util/toast",
   "sap/m/MessageBox",
   "sap/base/Log",
@@ -13,141 +13,146 @@ sap.ui.define([
   "MAILING_CONSTRUCTOR/util/dateUtils"
 ], (Fragment, JSONModel, Filter, FilterOperator, Sorter, mobileLibrary, Toast, MessageBox,
     Log, Service, Constants, DateUtils) => {
-
   "use strict";
 
-  const parseODataDate = DateUtils.parseODataDate;
-  const URLHelper = mobileLibrary.URLHelper;
+  const { parseODataDate } = DateUtils;
+  const { URLHelper } = mobileLibrary;
 
-  // Centralised so the dialog table binding lookup isn't repeated.
-  function applyItemsFilter(oTable, aFilters) {
-    const oBinding = oTable && oTable.getBinding("items");
-    if (oBinding) { oBinding.filter(aFilters); }
-  }
-
-  // Shared by the recipient/news dialogs: land on "added" when the compose
-  // state already has items, otherwise default to "search".
-  function setDialogDefaultTab(oDialog, aItems) {
-    const oModel = oDialog && oDialog.getModel("dialog");
-    if (!oModel) { return; }
-    oModel.setProperty("/selectedMode", (aItems || []).length > 0 ? "added" : "search");
-  }
-
-  // Loads (once) and caches the Fragment.load PROMISE itself, not just the
-  // eventual dialog, keyed by two properties on the controller instance —
-  // a second opener call arriving before the first load resolves (a fast
-  // double-click, or two list-press events firing in quick succession)
-  // reuses this same in-flight promise instead of re-entering
-  // Fragment.load with the same view-scoped id, which fails outright
-  // (the fragment's declared ids are already registered from the first,
-  // still-pending load). fnOnFirstLoad runs exactly once, right after the
-  // dialog is created, for setup that must not repeat on later opens
-  // (caching child tables, creating the dialog's own JSONModel, wiring
-  // one-time event handlers).
-  function loadDialogOnce(oCtrl, sDialogProp, sLoadingProp, sFragmentName, fnOnFirstLoad) {
-    if (oCtrl[sDialogProp]) { return Promise.resolve(oCtrl[sDialogProp]); }
-    if (!oCtrl[sLoadingProp]) {
-      oCtrl[sLoadingProp] = Fragment.load({
-        id: oCtrl.getView().getId(),
-        name: sFragmentName,
-        controller: oCtrl
-      }).then((oDialog) => {
-        oCtrl[sDialogProp] = oDialog;
-        oCtrl.getView().addDependent(oDialog);
-        if (fnOnFirstLoad) { fnOnFirstLoad(oDialog); }
-        return oDialog;
-      }).catch((err) => {
-        oCtrl[sLoadingProp] = null;
-        return Promise.reject(err);
-      });
+  const applyItemsFilter = (oTable, aFilters) => {
+    const oBinding = oTable?.getBinding("items");
+    if (oBinding) {
+      oBinding.filter(aFilters);
     }
-    return oCtrl[sLoadingProp];
-  }
+  };
 
-  // Shared by all three dialog search handlers below (recipients/news/
-  // mailings): basic-search OR group across aBasicSearchFields, plus
-  // adaptSfbFiltersForMode()'s structured filters, with an optional
-  // exclusion predicate (news drops the free-text Title field).
-  function buildSfbFilters(oSmartFilter, aBasicSearchFields, bDetailed, fnExclude) {
-    if (!oSmartFilter) { return []; }
+  const loadDialogOnce = (oTarget, sDialogProp, sLoadingProp, sFragmentName, fnOnFirstLoad) => {
+    if (oTarget[sDialogProp]) {
+      return Promise.resolve(oTarget[sDialogProp]);
+    }
+    if (oTarget[sLoadingProp]) {
+      return oTarget[sLoadingProp];
+    }
 
-    const sSearch = oSmartFilter.getBasicSearchValue
-      ? (oSmartFilter.getBasicSearchValue() || "").trim()
-      : "";
-    const aFilters = (sSearch && aBasicSearchFields.length > 0)
-      ? [new Filter(
-          aBasicSearchFields.map((sField) => new Filter(sField, FilterOperator.Contains, sSearch)),
-          false // OR
-        )]
-      : [];
+    oTarget[sLoadingProp] = Fragment.load({
+      id: oTarget.getView().getId(),
+      name: sFragmentName,
+      controller: oTarget
+    }).then((oDialog) => {
+      oTarget[sDialogProp] = oDialog;
+      oTarget[sLoadingProp] = null;
+      oTarget.getView().addDependent(oDialog);
+      if (typeof fnOnFirstLoad === "function") {
+        fnOnFirstLoad(oDialog);
+      }
+      return oDialog;
+    }).catch((err) => {
+      oTarget[sLoadingProp] = null;
+      throw err;
+    });
 
-    const aSfbFilters = oSmartFilter.getFilters ? (oSmartFilter.getFilters() || []) : [];
-    let aAdapted = adaptSfbFiltersForMode(aSfbFilters, bDetailed);
-    if (fnExclude) { aAdapted = aAdapted.filter((oF) => !fnExclude(oF)); }
+    return oTarget[sLoadingProp];
+  };
 
-    return aFilters.concat(aAdapted);
-  }
+  const buildSfbFilters = (oSFB, aStringFieldNames = [], bIncludeSelectVariants = false, fnExclude = null) => {
+    if (!oSFB) { return []; }
+    const aFilters = [];
 
-  // Adapts SmartFilterBar#getFilters() output for the currently active table:
-  // 1. EQ → Contains: SFB 1.71 defaults to EQ for text fields, but a user
-  //    typing "Кузнецов" in ФИО expects a substring match, not exact.
-  // 2. Grouped mode: Role → Roles rename, AuthObject/FieldName dropped.
-  function adaptSfbFiltersForMode(aFilters, bDetailed) {
-    if (!aFilters || aFilters.length === 0) { return []; }
-    const mDrop   = { AuthObject: true, FieldName: true, Low: true };
-    const mRename = { Role: "Roles" };
-    const mContainsFields = {
-      FullName: true, Email: true, Role: true, Roles: true,
-      LocalID: true, Subject: true, CreatedBy: true,
-      Title: true, Area: true, ChangeNumber: true, InitiatorName: true,
-      AuthObject: true, FieldName: true, Low: true
+    (aStringFieldNames || []).forEach((sField) => {
+      const oCtrl = oSFB.getControlByKey(sField);
+      const sVal = oCtrl?.getValue ? oCtrl.getValue().trim() : "";
+      if (sVal) {
+        aFilters.push(new Filter(sField, FilterOperator.Contains, sVal));
+      }
+    });
+
+    if (bIncludeSelectVariants) {
+      const aFilterData = oSFB.getFilters() || [];
+      const flattenFilters = (aList) => {
+        (aList || []).forEach((oF) => {
+          if (oF.aFilters) {
+            flattenFilters(oF.aFilters);
+          } else if (oF.sPath) {
+            if (typeof fnExclude === "function" && fnExclude(oF)) {
+              return;
+            }
+            aFilters.push(oF);
+          }
+        });
+      };
+      flattenFilters(aFilterData);
+    }
+
+    return aFilters;
+  };
+
+  const adaptSfbFiltersForMode = (aFilters = [], bDetailed = false) => {
+    const aDisallowed = bDetailed ? ["Roles", "AuthCount"] : ["AuthObject", "FieldName", "Low"];
+    const aResult = [];
+
+    const walk = (aList) => {
+      (aList || []).forEach((oFilter) => {
+        if (oFilter.aFilters) {
+          const aChild = adaptSfbFiltersForMode(oFilter.aFilters, bDetailed);
+          if (aChild.length > 0) {
+            aResult.push(new Filter({ filters: aChild, and: oFilter.bAnd }));
+          }
+        } else if (oFilter.sPath && !aDisallowed.includes(oFilter.sPath)) {
+          aResult.push(oFilter);
+        }
+      });
     };
 
-    function adaptLeaf(oF) {
-      // UI5 1.71 Filter exposes sPath/sOperator/oValue1 as direct properties
-      // (getPath()/getOperator()/getValue1() were added in later versions).
-      const sPath = oF.sPath || null;
-      if (!sPath) { return oF; }
-      if (!bDetailed && mDrop[sPath]) { return null; }
-      const sTarget = (!bDetailed && mRename[sPath]) ? mRename[sPath] : sPath;
-      const sOp = oF.sOperator || null;
-      if (sOp === FilterOperator.EQ && mContainsFields[sPath]) {
-        return new Filter(sTarget, FilterOperator.Contains, oF.oValue1, oF.oValue2);
-      }
-      if (sTarget !== sPath) {
-        return new Filter(sTarget, sOp, oF.oValue1, oF.oValue2);
-      }
-      return oF;
-    }
-    function adapt(oF) {
-      // Multi-filter: aFilters is non-empty, _bMultiFilter is true.
-      const aSub = oF.aFilters;
-      if (aSub && aSub.length > 0) {
-        const aAdapted = aSub.map(adapt).filter(Boolean);
-        if (aAdapted.length === 0) { return null; }
-        // oF.bAnd (UI5 1.71 internal) — true=AND, false=OR.
-        return new Filter(aAdapted, oF.bAnd !== undefined ? oF.bAnd : true);
-      }
-      return adaptLeaf(oF);
-    }
-    return aFilters.map(adapt).filter(Boolean);
-  }
+    walk(aFilters);
+    return aResult;
+  };
 
   return {
+    _clearTableSelections(oTable) {
+      if (oTable && typeof oTable.removeSelections === "function") {
+        oTable.removeSelections(true);
+      }
+    },
+
+    _ensureDefaultModel() {
+      const oView = this.getView();
+      if (oView && !oView.getModel()) {
+        const oComponent = this.getOwnerComponent();
+        const oComponentModel = oComponent?.getModel();
+        if (oComponentModel) {
+          oView.setModel(oComponentModel);
+        }
+      }
+    },
 
     // ----------------------------------------------------------------
-    // Recipient dialog
+    // Диалог получателей
     // ----------------------------------------------------------------
 
     onOpenRecipientDialog() {
       this._ensureDefaultModel();
-      if (this._oRecipDialog) {
-        this._setRecipientDialogDefaultTab();
-        const oModel = this._oRecipDialog.getModel("dialog");
-        if (oModel && !oModel.getProperty("/searchMode")) {
-          oModel.setProperty("/searchMode", "grouped");
+
+      const prepareDialogState = (oDialog) => {
+        const oModel = oDialog.getModel("dialog");
+        if (oModel) {
+          oModel.setProperty("/selectedMode", "search");
+          if (!oModel.getProperty("/searchMode")) {
+            oModel.setProperty("/searchMode", "grouped");
+          }
         }
-        this._oRecipDialog.open();
+
+        const oTabs = Fragment.byId(this.getView().getId(), "recipientTabs");
+        if (oTabs) {
+          oTabs.setSelectedKey("search");
+        }
+
+        this._clearTableSelections(this._oRecipTable);
+        this._clearTableSelections(this._oRecipGroupedTable);
+        this._applyRecipientSFBVisibility();
+        oDialog.open();
+      };
+
+      if (this._oRecipDialog) {
+        prepareDialogState(this._oRecipDialog);
         return;
       }
 
@@ -168,60 +173,113 @@ sap.ui.define([
           oModel.setSizeLimit(1000);
           oDialog.setModel(oModel, "dialog");
 
-          this._setRecipientDialogDefaultTab();
-
-          oDialog.attachAfterOpen(() => {
-            this._applyRecipientSFBVisibility();
-          });
-
-          // Cancel/Escape/a successful add all end up here — clears a CSV
-          // preview the user uploaded but never added (or already added),
-          // so reopening later never shows stale, already-resolved rows
-          // with "Add to Recipients" still enabled.
           oDialog.attachAfterClose(() => {
             oModel.setProperty("/csvPreview", []);
             oModel.setProperty("/csvPreviewCount", 0);
+            this._clearTableSelections(this._oRecipTable);
+            this._clearTableSelections(this._oRecipGroupedTable);
           });
         }).then((oDialog) => {
-          oDialog.open();
-        }).catch(() => {
-          Log.error("[MAILING_CONSTRUCTOR] Failed to load RecipientSearch fragment");
+          prepareDialogState(oDialog);
+        }).catch((err) => {
+          Log.error("[MAILING_CONSTRUCTOR] Failed to load RecipientSearch fragment: " + (err?.message || err));
         });
     },
 
-    _setRecipientDialogDefaultTab() {
-      setDialogDefaultTab(this._oRecipDialog, this._oState.getProperty("/recipients"));
+    onRecipTabSelect(oEvent) {
+      const sKey = oEvent.getParameter("key") || oEvent.getParameter("selectedKey");
+      const oModel = this._oRecipDialog?.getModel("dialog");
+      if (oModel && sKey) {
+        oModel.setProperty("/selectedMode", sKey);
+      }
     },
 
     onRecipientModeChange(oEvent) {
       const sKey = oEvent.getParameter("key") || oEvent.getParameter("selectedKey");
-      const oDialogModel = this._oRecipDialog && this._oRecipDialog.getModel("dialog");
+      const oDialogModel = this._oRecipDialog?.getModel("dialog");
       if (!oDialogModel || !sKey) { return; }
 
       oDialogModel.setProperty("/searchMode", sKey);
+      this._clearTableSelections(this._oRecipTable);
+      this._clearTableSelections(this._oRecipGroupedTable);
       this._applyRecipientSFBVisibility();
     },
 
     _applyRecipientSFBVisibility() {
-      const oDialogModel = this._oRecipDialog && this._oRecipDialog.getModel("dialog");
-      const bDetailed = oDialogModel && oDialogModel.getProperty("/searchMode") === "detailed";
+      const oDialogModel = this._oRecipDialog?.getModel("dialog");
+      const bDetailed = oDialogModel?.getProperty("/searchMode") === "detailed";
 
-      // Detailed shows AuthObject/FieldName; grouped shows FullName/Email —
-      // never both, they answer different search questions.
-      const oAuthCfg    = this.byId("authObjControlCfg");
-      if (oAuthCfg)    { oAuthCfg.setVisibleInAdvancedArea(bDetailed); }
+      const mControls = {
+        authObjControlCfg: bDetailed,
+        fieldNameControlCfg: bDetailed,
+        lowControlCfg: bDetailed,
+        fullNameControlCfg: !bDetailed,
+        emailControlCfg: !bDetailed
+      };
 
-      const oFieldCfg   = this.byId("fieldNameControlCfg");
-      if (oFieldCfg)   { oFieldCfg.setVisibleInAdvancedArea(bDetailed); }
+      Object.entries(mControls).forEach(([sId, bVisible]) => {
+        const oCfg = Fragment.byId(this.getView().getId(), sId) || this.byId(sId);
+        if (oCfg?.setVisibleInAdvancedArea) {
+          oCfg.setVisibleInAdvancedArea(bVisible);
+        }
+      });
+    },
 
-      const oLowCfg     = this.byId("lowControlCfg");
-      if (oLowCfg)     { oLowCfg.setVisibleInAdvancedArea(bDetailed); }
+    onAddSelectedRecipients() {
+      if (!this._oRecipDialog) { return; }
 
-      const oNameCfg    = this.byId("fullNameControlCfg");
-      if (oNameCfg)    { oNameCfg.setVisibleInAdvancedArea(!bDetailed); }
+      const oDialogModel = this._oRecipDialog.getModel("dialog");
+      const bDetailed = oDialogModel.getProperty("/searchMode") === "detailed";
+      const oTable = bDetailed
+        ? (this._oRecipSmartTable ? this._oRecipSmartTable.getTable() : this._oRecipTable)
+        : (this._oRecipGroupedSmartTable ? this._oRecipGroupedSmartTable.getTable() : this._oRecipGroupedTable);
 
-      const oEmailCfg   = this.byId("emailControlCfg");
-      if (oEmailCfg)   { oEmailCfg.setVisibleInAdvancedArea(!bDetailed); }
+      if (!oTable) { return; }
+
+      const aSelected = oTable.getSelectedContexts().map((ctx) => ctx.getObject()).filter(Boolean);
+      const aNew = bDetailed
+        ? aSelected.map((obj) => ({
+            id: obj.RecipientId,
+            name: obj.FullName,
+            email: obj.Email,
+            role: obj.Role
+          }))
+        : aSelected.map((obj) => ({
+            id: `grp_${(obj.Email || "").replace(/[^a-zA-Z0-9@._-]/g, "_")}`,
+            name: obj.FullName,
+            email: obj.Email,
+            role: obj.Roles || ""
+          }));
+
+      if (aNew.length === 0) {
+        Toast.warning(this._t("WARN_NO_RECIPIENTS"));
+        return;
+      }
+
+      const aMerged = [...(this._oState.getProperty("/recipients") || [])];
+      const mExisting = new Set(aMerged.map((r) => (r.email || "").toLowerCase()));
+
+      let iAdded = 0;
+      aNew.forEach((r) => {
+        const sKey = (r.email || "").toLowerCase();
+        if (!mExisting.has(sKey)) {
+          aMerged.push(r);
+          mExisting.add(sKey);
+          iAdded++;
+        }
+      });
+
+      this._oState.setProperty("/recipients", aMerged);
+      this._updateHeaderBadges();
+      this._clearTableSelections(oTable);
+      Toast.success(this._t("MSG_RECIPIENTS_ADDED", [iAdded]));
+      this._closeDialog(this._oRecipDialog);
+    },
+
+    onClearAllRecipients() {
+      this._oState.setProperty("/recipients", []);
+      this._updateHeaderBadges();
+      Toast.info(this._t("MSG_RECIPIENTS_CLEARED"));
     },
 
     onRemoveAddedRecipient(oEvent) {
@@ -229,14 +287,27 @@ sap.ui.define([
     },
 
     // ----------------------------------------------------------------
-    // News dialog
+    // Диалог новостей
     // ----------------------------------------------------------------
 
     onOpenNewsDialog() {
       this._ensureDefaultModel();
+
+      const prepareNewsDialogState = (oDialog) => {
+        const oModel = oDialog.getModel("dialog");
+        if (oModel) {
+          oModel.setProperty("/selectedMode", "search");
+        }
+        const oTabs = Fragment.byId(this.getView().getId(), "newsTabs");
+        if (oTabs) {
+          oTabs.setSelectedKey("search");
+        }
+        this._clearTableSelections(this._oNewsTable);
+        oDialog.open();
+      };
+
       if (this._oNewsDialog) {
-        this._setNewsDialogDefaultTab();
-        this._oNewsDialog.open();
+        prepareNewsDialogState(this._oNewsDialog);
         return;
       }
 
@@ -250,80 +321,80 @@ sap.ui.define([
           oModel.setSizeLimit(1000);
           oDialog.setModel(oModel, "dialog");
 
-          this._setNewsDialogDefaultTab();
-
-          oDialog.attachAfterOpen(() => {
-            // Manual search only — user enters criteria and clicks Go
+          oDialog.attachAfterClose(() => {
+            this._clearTableSelections(this._oNewsTable);
           });
         }).then((oDialog) => {
-          oDialog.open();
-        }).catch(() => {
-          Log.error("[MAILING_CONSTRUCTOR] Failed to load NewsSearch fragment");
+          prepareNewsDialogState(oDialog);
+        }).catch((err) => {
+          Log.error("[MAILING_CONSTRUCTOR] Failed to load NewsSearch fragment: " + (err?.message || err));
         });
-    },
-
-    _setNewsDialogDefaultTab() {
-      setDialogDefaultTab(this._oNewsDialog, this._oState.getProperty("/newsItems"));
     },
 
     onNewsTabSelect(oEvent) {
-      // Manual search only — user enters criteria and clicks Go
-    },
-
-    // ----------------------------------------------------------------
-    // Mailings dialog
-    // ----------------------------------------------------------------
-
-    onOpenMailingsDialog() {
-      this._ensureDefaultModel();
-      if (this._oMailingsDialog) {
-        this._oMailingsDialog.open();
-        return;
+      const sKey = oEvent.getParameter("key") || oEvent.getParameter("selectedKey");
+      const oModel = this._oNewsDialog?.getModel("dialog");
+      if (oModel && sKey) {
+        oModel.setProperty("/selectedMode", sKey);
       }
-      const sViewId = this.getView().getId();
-      loadDialogOnce(this, "_oMailingsDialog", "_pMailingsDialogLoading",
-        "MAILING_CONSTRUCTOR.view.fragment.MailingsDialog", (oDialog) => {
-          this._oMailingsSmartTable = Fragment.byId(sViewId, "mailingsSmartTable");
-          this._oMailingsTable = Fragment.byId(sViewId, "mailingsTable");
-          if (this._oMailingsTable) {
-            this._oMailingsTable.attachItemPress((oEvent) => this.onMailingPress(oEvent));
-          }
-        }).then((oDialog) => {
-          oDialog.open();
-        }).catch((err) => {
-          Log.error("[MAILING_CONSTRUCTOR] Failed to load MailingsDialog fragment: " + (err && err.message));
-        });
+    },
+
+    onAddSelectedNews() {
+      if (!this._oNewsDialog) { return; }
+      const oTable = this._oNewsSmartTable ? this._oNewsSmartTable.getTable() : this._oNewsTable;
+      if (!oTable) { return; }
+
+      const aSelected = oTable.getSelectedContexts().map((ctx) => ctx.getObject()).filter(Boolean);
+      aSelected.forEach((item) => this._addNewsAsSource(item));
+
+      if (aSelected.length > 0) {
+        Toast.success(this._t("MSG_NEWS_ADDED", [aSelected.length]));
+      }
+
+      this._clearTableSelections(oTable);
+      this._closeDialog(this._oNewsDialog);
+    },
+
+    onClearAllNews() {
+      const aNews = [...(this._oState.getProperty("/newsItems") || [])];
+      aNews.forEach((item) => {
+        if (item.sourceId && this._oEditor) {
+          this._oEditor.removeSource(item.sourceId);
+        }
+      });
+      this._oState.setProperty("/newsItems", []);
+      this._updateHeaderBadges();
+      Toast.info(this._t("MSG_NEWS_CLEARED"));
     },
 
     // ----------------------------------------------------------------
-    // SmartFilterBar search dispatcher
+    // SmartFilterBar & Поиск
     // ----------------------------------------------------------------
 
     onSmartFilterSearch(oEvent) {
       const oSource = oEvent.getSource();
-      if (oSource && oSource.getId().includes("recipientSFB")) {
-        this._searchRecipients(oEvent);
-      } else if (oSource && oSource.getId().includes("newsSFB")) {
-        this._searchNews(oEvent);
-      } else if (oSource && oSource.getId().includes("mailingsSFB")) {
+      const sId = oSource?.getId() || "";
+      if (sId.includes("recipientSFB")) {
+        this._searchRecipients();
+      } else if (sId.includes("newsSFB")) {
+        this._searchNews();
+      } else if (sId.includes("mailingsSFB")) {
         this.onMailingsFilterSearch();
       }
     },
 
-    // Dispatches to grouped (RecipientUserSet) or detailed (RecipientSet)
-    // SmartTable based on the current searchMode.
-    _searchRecipients(oEvent) {
+    _searchRecipients() {
       if (!this._oRecipDialog) { return; }
-
       const oDialogModel = this._oRecipDialog.getModel("dialog");
-      const bDetailed = oDialogModel.getProperty("/searchMode") === "detailed";
+      const bDetailed = oDialogModel?.getProperty("/searchMode") === "detailed";
       const oSmartTable = bDetailed ? this._oRecipSmartTable : this._oRecipGroupedSmartTable;
+
       if (oSmartTable) {
         oSmartTable.rebindTable();
       } else {
         const oTable = bDetailed ? this._oRecipTable : this._oRecipGroupedTable;
         if (oTable) {
-          const aFilters = buildSfbFilters(this.byId("recipientSFB"), ["FullName", "Email"], bDetailed);
+          const aFilters = buildSfbFilters(Fragment.byId(this.getView().getId(), "recipientSFB"), ["FullName", "Email"], bDetailed);
           applyItemsFilter(oTable, aFilters);
         }
       }
@@ -343,445 +414,49 @@ sap.ui.define([
       }
     },
 
-    onAddSelectedRecipients() {
-      if (!this._oRecipDialog) { return; }
-
-      const oDialogModel = this._oRecipDialog.getModel("dialog");
-      const bDetailed = oDialogModel.getProperty("/searchMode") === "detailed";
-      const oTable = bDetailed
-        ? (this._oRecipSmartTable ? this._oRecipSmartTable.getTable() : this._oRecipTable)
-        : (this._oRecipGroupedSmartTable ? this._oRecipGroupedSmartTable.getTable() : this._oRecipGroupedTable);
-      if (!oTable) { return; }
-
-      const aSelected = oTable.getSelectedContexts().map((oCtx) => oCtx.getObject()).filter(Boolean);
-      const aNew = bDetailed
-        ? aSelected.map((oObj) => ({
-            id: oObj.RecipientId,
-            name: oObj.FullName,
-            email: oObj.Email,
-            role: oObj.Role
-          }))
-        : aSelected.map((oObj) => ({
-            id: "grp_" + (oObj.Email || "").replace(/[^a-zA-Z0-9@._-]/g, "_"),
-            name: oObj.FullName,
-            email: oObj.Email,
-            role: oObj.Roles || ""
-          }));
-
-      if (aNew.length === 0) {
-        Toast.warning(this._t("WARN_NO_RECIPIENTS"));
-        return;
-      }
-
-      const aMerged = (this._oState.getProperty("/recipients") || []).slice();
-      const mExisting = {};
-      aMerged.forEach((r) => { mExisting[(r.email || "").toLowerCase()] = true; });
-
-      let iAdded = 0;
-      aNew.forEach((r) => {
-        const sKey = (r.email || "").toLowerCase();
-        if (!mExisting[sKey]) { aMerged.push(r); mExisting[sKey] = true; iAdded++; }
-      });
-
-      this._oState.setProperty("/recipients", aMerged);
-      this._updateHeaderBadges();
-      Toast.success(this._t("MSG_RECIPIENTS_ADDED", [iAdded]));
-      this._closeDialog(this._oRecipDialog);
-    },
-
-    onRecipTabSelect(oEvent) {
-      // Manual search only — user enters criteria and clicks Go
-    },
-
-    // ----------------------------------------------------------------
-    // News search
-    // ----------------------------------------------------------------
-
-    // UI5 1.71 ODataListBinding has no changeParameters() for $search, so
-    // structured $filter fields cover search here; Title is dropped
-    // (free-text, $search-only on prod).
-    _searchNews(oEvent) {
+    _searchNews() {
       if (!this._oNewsDialog) { return; }
       if (this._oNewsSmartTable) {
         this._oNewsSmartTable.rebindTable();
       } else if (this._oNewsTable) {
-        const aFilters = buildSfbFilters(this.byId("newsSFB"), [], true, (oF) => oF.sPath === "Title");
+        const aFilters = buildSfbFilters(Fragment.byId(this.getView().getId(), "newsSFB"), [], true, (f) => f.sPath === "Title");
         applyItemsFilter(this._oNewsTable, aFilters);
       }
     },
 
     onBeforeRebindNewsTable(oEvent) {
       const mParams = oEvent.getParameter("bindingParams");
-      if (mParams && mParams.filters) {
-        mParams.filters = mParams.filters.filter((oF) => oF.sPath !== "Title");
-      }
-    },
-
-    onAddSelectedNews() {
-      if (!this._oNewsDialog) { return; }
-      const oTable = this._oNewsSmartTable ? this._oNewsSmartTable.getTable() : this._oNewsTable;
-      if (!oTable) { return; }
-      const aSelected = oTable.getSelectedContexts()
-        .map((oCtx) => oCtx.getObject())
-        .filter(Boolean);
-      aSelected.forEach((oObj) => this._addNewsAsSource(oObj));
-      if (aSelected.length > 0) {
-        Toast.success(this._t("MSG_NEWS_ADDED", [aSelected.length]));
-      }
-      this._closeDialog(this._oNewsDialog);
-    },
-
-    // ----------------------------------------------------------------
-    // Mailings filter — SmartFilterBar-driven server-side $filter
-    // ----------------------------------------------------------------
-
-    onMailingsFilterSearch() {
-      if (!this._oMailingsDialog) { return; }
-      if (this._oMailingsSmartTable) {
-        this._oMailingsSmartTable.rebindTable();
-      } else if (this._oMailingsTable) {
-        const aFilters = buildSfbFilters(this.byId("mailingsSFB"), ["LocalID", "Subject"], true);
-        applyItemsFilter(this._oMailingsTable, aFilters);
-      }
-    },
-
-    onBeforeRebindMailingsTable(oEvent) {
-      const mParams = oEvent.getParameter("bindingParams");
-      if (mParams) {
-        if (!mParams.sorter) {
-          mParams.sorter = [];
-        }
-        if (mParams.sorter.length === 0) {
-          mParams.sorter.push(new Sorter("CreatedAt", true));
-        }
+      if (mParams?.filters) {
+        mParams.filters = mParams.filters.filter((f) => f.sPath !== "Title");
       }
     },
 
     // ----------------------------------------------------------------
-    // History view
+    // Закрытие диалогов
     // ----------------------------------------------------------------
 
-    onMailingPress(oEvent) {
-      const oItem = oEvent.getParameter("listItem") || oEvent.getSource();
-      if (!oItem || !oItem.getBindingContext) { return; }
-      const oCtx = oItem.getBindingContext();
-      if (!oCtx) { return; }
-      const oMailing = oCtx.getObject() || {};
+    _closeDialog(oTarget) {
+  if (!oTarget) { return; }
 
-      // Defensive: ensure Key is populated (from getObject, or path regex "/MailHistorySet('...')")
-      if (!oMailing.Key) {
-        const sPath = oCtx.getPath();
-        const mMatch = sPath && sPath.match(/\('?([^\')]+)'?\)/);
-        if (mMatch) {
-          oMailing.Key = mMatch[1];
-        }
-      }
+  // 1. Если передали sap.ui.base.Event — извлекаем источник (кнопку)
+  let oControl = typeof oTarget.getSource === "function" ? oTarget.getSource() : oTarget;
 
-      this._closeDialog(this._oMailingsDialog);
-      this._openHistoryView(oMailing);
-    },
+  // 2. Поднимаемся вверх по дереву родителей, пока не найдем sap.m.Dialog
+  while (oControl && typeof oControl.isA === "function" && !oControl.isA("sap.m.Dialog")) {
+    oControl = oControl.getParent();
+  }
 
-    _openHistoryView(mailing) {
-      const oData = {
-        mailingId: mailing.Key,
-        subject: mailing.Subject,
-        localId: mailing.LocalID || mailing.LocalId || "",
-        createdAt: this.formatter.dateTime(mailing.CreatedAt),
-        content: "",
-        hud: { statuses: [], total: 0 }
-      };
-
-      const openWithModel = (oModel) => {
-        oModel.setData(oData);
-        this._applyMailingStatusToHud(oModel, mailing);
-        this._loadStatusHud(oModel, mailing.Key);
-
-        Service.getMailingContent(this.getOwnerComponent(), mailing.Key)
-          .then((oEntry) => {
-            // Discard a stale response: the user may have closed this
-            // mailing and opened a different one on this same long-lived
-            // "history" model before this resolved.
-            if (oModel.getProperty("/mailingId") !== mailing.Key) { return; }
-            oModel.setProperty("/content", oEntry.Content || "");
-          })
-          .catch(() => { Log.warning("[MAILING_CONSTRUCTOR] Failed to load mailing content"); });
-
-        this._oHistoryViewDialog.open();
-      };
-
-      loadDialogOnce(this, "_oHistoryViewDialog", "_pHistoryViewDialogLoading",
-        "MAILING_CONSTRUCTOR.view.fragment.HistoryView", (oDialog) => {
-          oDialog.setModel(new JSONModel(oData), "history");
-        }).then((oDialog) => {
-          openWithModel(oDialog.getModel("history"));
-        }).catch((err) => {
-          Log.error("[MAILING_CONSTRUCTOR] Failed to load HistoryView fragment: " + (err && err.message));
-        });
-    },
-
-    onCloseHistoryView() {
-      if (this._oHistoryViewDialog) { this._oHistoryViewDialog.close(); }
-    },
-
-    // Seeds the HUD from the mailing summary's pre-aggregated counts so
-    // chips render immediately, before the async per-status breakdown from
-    // _loadStatusHud (MailingStatusSet) resolves. Status codes use the
-    // Constants.STATUS.DISP SSOT so the HistoryView's chip formatter
-    // (which keys off the same codes) lights up correctly.
-    _applyMailingStatusToHud(oModel, mailing) {
-      const iTotal   = mailing.TotalCount || 0;
-      const iSent    = mailing.SentCount  || 0;
-      const iError   = mailing.ErrorCount || 0;
-      const iPending = Math.max(0, iTotal - iSent - iError);
-      const aStatuses = [];
-      if (iSent > 0)    { aStatuses.push({ Status: Constants.STATUS.DISP.SENT,    Count: iSent }); }
-      if (iError > 0)   { aStatuses.push({ Status: Constants.STATUS.DISP.FAILED,  Count: iError }); }
-      if (iPending > 0) { aStatuses.push({ Status: Constants.STATUS.DISP.PENDING, Count: iPending }); }
-      oModel.setProperty("/hud", { statuses: aStatuses, total: iTotal });
-    },
-
-    _loadStatusHud(oModel, sId) {
-      Service.getMailingStatus(this.getOwnerComponent(), sId)
-        .then((aStatuses) => {
-          // Same stale-response guard as the content load in
-          // _openHistoryView — this model outlives any single mailing.
-          if (oModel.getProperty("/mailingId") !== sId) { return; }
-          if (aStatuses && aStatuses.length > 0) {
-            const iTotal = aStatuses.reduce((acc, s) => acc + (s.Count || s.Cnt || 0), 0);
-            oModel.setProperty("/hud", {
-              statuses: aStatuses.map((s) => ({ Status: s.Status, Count: s.Count || s.Cnt || 0 })),
-              total: iTotal
-            });
-          }
-        })
-        .catch(() => { Log.warning("[MAILING_CONSTRUCTOR] Failed to load status HUD"); });
-    },
-
-    onCopyViewingMailing() {
-      const oModel = this._oHistoryViewDialog && this._oHistoryViewDialog.getModel("history");
-      const sId = oModel && oModel.getProperty("/mailingId");
-      const sModelSubject = oModel && oModel.getProperty("/subject");
-      const sModelContent = oModel && oModel.getProperty("/content");
-
-      if (!sId && !sModelContent && !sModelSubject) { return; }
-
-      MessageBox.confirm(this._t("CONFIRM_COPY"), {
-        title: this._t("CONFIRM_COPY_TITLE"),
-        onClose: (action) => {
-          if (action !== MessageBox.Action.OK) { return; }
-
-          const applyCopiedData = (data) => {
-            this._closeDialog(this._oHistoryViewDialog);
-            this._resetComposer();
-            const sSub = data.Subject || sModelSubject || "";
-            const sLoc = data.LocalId || ("MSG-" + Date.now());
-            const sCnt = data.Content || sModelContent || "";
-            this._oState.setProperty("/viewingSubject", sSub);
-            this._oState.setProperty("/localId", sLoc);
-            if (sCnt) { this._oEditor.setValue(sCnt); }
-            Toast.success(this._t("MSG_MAILING_COPIED", [sLoc]));
-          };
-
-          if (sId) {
-            Service.copyMailing(this.getOwnerComponent(), sId)
-              .then(applyCopiedData)
-              .catch(() => {
-                if (sModelContent || sModelSubject) {
-                  applyCopiedData({});
-                } else {
-                  Toast.error(this._t("MSG_SEND_ERROR"));
-                }
-              });
-          } else {
-            applyCopiedData({});
-          }
-        }
-      });
-    },
-
-    // ----------------------------------------------------------------
-    // CSV upload
-    // ----------------------------------------------------------------
-
-    // sap.m.URLHelper.download is only available from UI5 1.86 — the 1.71
-    // LTS baseline falls back to a manual anchor click below.
-    onDownloadCsvTemplate() {
-      const sContent = "example@noreply.com\n";
-      const oBlob = new Blob(["\uFEFF" + sContent], { type: "text/csv;charset=utf-8" });
-      const sUrl = URL.createObjectURL(oBlob);
-      const sFilename = "recipients_template.csv";
-
-      if (URLHelper && typeof URLHelper.download === "function") {
-        URLHelper.download(sUrl, sFilename, "text/csv");
-        // URLHelper.download manages its own anchor; revoke after a tick
-        // to give the browser time to start the download.
-        setTimeout(() => URL.revokeObjectURL(sUrl), 1000);
-      } else {
-        const oLink = document.createElement("a");
-        oLink.href = sUrl;
-        oLink.download = sFilename;
-        document.body.appendChild(oLink);
-        oLink.click();
-        document.body.removeChild(oLink);
-        URL.revokeObjectURL(sUrl);
-      }
-      Toast.success(this._t("CSV_TEMPLATE_DOWNLOADED"));
-    },
-
-    onCsvFileChange(oEvent) {
-      const oFile = oEvent.getParameter("files") && oEvent.getParameter("files")[0];
-      if (!oFile) { return; }
-
-      const oDialogModel = this._oRecipDialog && this._oRecipDialog.getModel("dialog");
-      if (!oDialogModel) { return; }
-
-      oDialogModel.setProperty("/csvPreview", []);
-      oDialogModel.setProperty("/csvPreviewCount", 0);
-
-      const oReader = new FileReader();
-      oReader.onload = (oReadEvent) => {
-        try {
-          let sRaw = oReadEvent.target.result || "";
-          if (window.DOMPurify && typeof window.DOMPurify.sanitize === "function") {
-            sRaw = window.DOMPurify.sanitize(sRaw, {
-              ALLOWED_TAGS: [],
-              ALLOWED_ATTR: []
-            });
-          }
-
-          const aLines = sRaw.split(/\r?\n/);
-          const aEmails = [];
-          const mSeen = {};
-          const aExisting = this._oState.getProperty("/recipients") || [];
-          aExisting.forEach((r) => {
-            const sEmail = (r.email || "").toLowerCase().trim();
-            if (sEmail) { mSeen[sEmail] = true; }
-          });
-
-          for (let i = 0; i < aLines.length; i++) {
-            const sLine = aLines[i].trim();
-            if (!sLine) { continue; }
-
-            const aParts = sLine.split(/[,;\t]/);
-            const sCell = (aParts[0] || "").trim().replace(/^["']|["']$/g, "");
-            if (!sCell) { continue; }
-
-            const sLower = sCell.toLowerCase();
-            if (mSeen[sLower]) { continue; }
-            if (!Constants.VALIDATION.EMAIL_PATTERN.test(sCell)) { continue; }
-
-            mSeen[sLower] = true;
-            aEmails.push({
-              id: "csv_" + i + "_" + Date.now(),
-              name: sCell,
-              email: sCell,
-              role: ""
-            });
-          }
-
-          if (aEmails.length === 0) {
-            Toast.warning(this._t("CSV_NO_VALID_EMAILS"));
-            return;
-          }
-
-          oDialogModel.setProperty("/csvPreview", aEmails);
-          oDialogModel.setProperty("/csvPreviewCount", aEmails.length);
-          Toast.success(this._t("CSV_PARSED_SUCCESS", [aEmails.length]));
-        } catch (e) {
-          Log.error("[MAILING_CONSTRUCTOR] CSV parse error: " + e.message);
-          Toast.error(this._t("CSV_PARSE_ERROR"));
-        }
-      };
-
-      oReader.onerror = () => {
-        Toast.error(this._t("MSG_FILE_READ_ERROR"));
-      };
-
-      oReader.readAsText(oFile, "utf-8");
-    },
-
-    onAddCsvRecipients() {
-      if (!this._oRecipDialog) { return; }
-      const oDialogModel = this._oRecipDialog.getModel("dialog");
-      if (!oDialogModel) { return; }
-
-      const aCsvEmails = oDialogModel.getProperty("/csvPreview") || [];
-      if (aCsvEmails.length === 0) {
-        Toast.warning(this._t("CSV_NO_VALID_EMAILS"));
-        return;
-      }
-
-      const aMerged = (this._oState.getProperty("/recipients") || []).slice();
-      const mExisting = {};
-      aMerged.forEach((r) => {
-        const sKey = (r.email || "").toLowerCase().trim();
-        if (sKey) { mExisting[sKey] = true; }
-      });
-
-      let iAdded = 0;
-      aCsvEmails.forEach((r) => {
-        const sKey = (r.email || "").toLowerCase().trim();
-        if (!mExisting[sKey]) {
-          aMerged.push({ id: r.id, name: r.email, email: r.email, role: "" });
-          mExisting[sKey] = true;
-          iAdded++;
-        }
-      });
-
-      this._oState.setProperty("/recipients", aMerged);
-      this._updateHeaderBadges();
-
-      oDialogModel.setProperty("/csvPreview", []);
-      oDialogModel.setProperty("/csvPreviewCount", 0);
-
-      const sViewId = this.getView().getId();
-      const oUploader = Fragment.byId(sViewId, "csvFileUploader");
-      if (oUploader && typeof oUploader.clear === "function") {
-        try { oUploader.clear(); } catch (e) { /* FileUploader.clear may not exist in 1.71 */ }
-      }
-
-      oDialogModel.setProperty("/selectedMode", "added");
-
-      if (iAdded > 0) {
-        Toast.success(this._t("MSG_RECIPIENTS_ADDED", [iAdded]));
-      } else {
-        Toast.warning(this._t("CSV_ALL_DUPLICATES"));
-      }
-    },
-
-    // ----------------------------------------------------------------
-    // Lifecycle
-    // ----------------------------------------------------------------
-
-    // Called from App.controller#onExit.
-    onExitCleanup() {
-      // Destroy dialog models before dialogs — setModel() doesn't auto-destroy
-      // the previous model, so the "dialog"/"history" named models leak if
-      // not explicitly destroyed (one model per dialog × N opens = N leaks).
-      const aDialogs = [this._oRecipDialog, this._oNewsDialog, this._oMailingsDialog,
-        this._oPdfModeDialog, this._oHistoryViewDialog];
-      aDialogs.forEach((oDialog) => {
-        if (!oDialog || oDialog.isDestroyed()) { return; }
-        ["dialog", "history", "mailings"].forEach((sName) => {
-          const oM = oDialog.getModel(sName);
-          if (oM && oM.destroy && !oM.isDestroyed()) {
-            oM.destroy();
-          }
-        });
-        oDialog.destroyContent();
-        oDialog.destroy();
-      });
-      this._oRecipDialog = this._oNewsDialog = this._oMailingsDialog =
-        this._oPdfModeDialog = this._oHistoryViewDialog = null;
-      this._oRecipSmartTable = this._oRecipGroupedSmartTable =
-        this._oNewsSmartTable = this._oMailingsSmartTable = null;
-      this._oRecipTable = this._oRecipGroupedTable = this._oNewsTable =
-        this._oMailingsTable = null;
-      // loadDialogOnce caches these as long-lived promises — a stale
-      // resolved one left behind would resolve a post-reinit opener call
-      // straight to the dialog instance just destroyed above.
-      this._pRecipDialogLoading = this._pNewsDialogLoading =
-        this._pMailingsDialogLoading = this._pHistoryViewDialogLoading = null;
+  // 3. Безопасно проверяем isOpen и вызываем close
+  if (oControl && typeof oControl.close === "function") {
+    const bIsOpen = typeof oControl.isOpen === "function" ? oControl.isOpen() : true;
+    if (bIsOpen) {
+      oControl.close();
     }
+  }
+},
+
+onCancelDialog(oEvent) {
+  this._closeDialog(oEvent);
+}
   };
 });

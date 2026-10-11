@@ -16,7 +16,6 @@
 
     <content>
       <VBox fitContainer="true" height="100%" class="ebDialogContentFlex">
-        <!-- Top Pinned Section: Tabs and SmartFilterBar -->
         <VBox class="ebDialogTopSection">
           <IconTabBar
             id="newsTabs"
@@ -25,9 +24,7 @@
             class="ebIconTabBar"
             expandable="false">
             <items>
-              <IconTabFilter icon="sap-icon://accept" text="{i18n>TAB_ADDED}" key="added"
-                count="{= ${state>/newsItems}.length || '' }" />
-
+              <!-- 1. Поиск новостей по умолчанию -->
               <IconTabFilter icon="sap-icon://search" text="{i18n>TAB_SEARCH}" key="search">
                 <VBox>
                   <comp:SmartFilterBar
@@ -40,59 +37,29 @@
                     search="onSmartFilterSearch"
                     clear="onSmartFilterSearch">
                     <comp:controlConfiguration>
-                      <comp:ControlConfiguration
-                        key="NewID"
-                        visibleInAdvancedArea="false" />
-                      <comp:ControlConfiguration
-                        key="NewsType"
-                        index="0"
-                        visibleInAdvancedArea="true" />
-                      <comp:ControlConfiguration
-                        key="Title"
-                        index="1"
-                        visibleInAdvancedArea="true" />
-                      <comp:ControlConfiguration
-                        key="Year"
-                        index="2"
-                        visibleInAdvancedArea="true" />
-                      <comp:ControlConfiguration
-                        key="Quarter"
-                        index="3"
-                        visibleInAdvancedArea="true" />
-                      <comp:ControlConfiguration
-                        key="Area"
-                        index="4"
-                        visibleInAdvancedArea="true" />
-                      <comp:ControlConfiguration
-                        key="ChangeNumber"
-                        index="5"
-                        visibleInAdvancedArea="true" />
-                      <comp:ControlConfiguration
-                        key="InitiatorName"
-                        index="6"
-                        visibleInAdvancedArea="true" />
-                      <comp:ControlConfiguration
-                        key="NewsTypeText"
-                        visibleInAdvancedArea="false" />
-                      <comp:ControlConfiguration
-                        key="Content"
-                        visibleInAdvancedArea="false" />
+                      <comp:ControlConfiguration key="NewID" visibleInAdvancedArea="false" />
+                      <comp:ControlConfiguration key="NewsType" index="0" visibleInAdvancedArea="true" />
+                      <comp:ControlConfiguration key="Title" index="1" visibleInAdvancedArea="true" />
+                      <comp:ControlConfiguration key="Year" index="2" visibleInAdvancedArea="true" />
+                      <comp:ControlConfiguration key="Quarter" index="3" visibleInAdvancedArea="true" />
+                      <comp:ControlConfiguration key="Area" index="4" visibleInAdvancedArea="true" />
+                      <comp:ControlConfiguration key="ChangeNumber" index="5" visibleInAdvancedArea="true" />
+                      <comp:ControlConfiguration key="InitiatorName" index="6" visibleInAdvancedArea="true" />
+                      <comp:ControlConfiguration key="NewsTypeText" visibleInAdvancedArea="false" />
+                      <comp:ControlConfiguration key="Content" visibleInAdvancedArea="false" />
                     </comp:controlConfiguration>
                   </comp:SmartFilterBar>
                 </VBox>
               </IconTabFilter>
+
+              <!-- 2. Добавленные новости -->
+              <IconTabFilter icon="sap-icon://accept" text="{i18n>TAB_ADDED}" key="added"
+                count="{= ${state>/newsItems}.length || '' }" />
             </items>
           </IconTabBar>
         </VBox>
 
-        <!-- Bottom Scrollable Section: Table scrolls while filters stay pinned -->
-        <ScrollContainer
-          height="330px"
-          vertical="true"
-          horizontal="false"
-          class="ebDialogScrollableArea">
-
-          <!-- News SmartTable -->
+        <ScrollContainer height="330px" vertical="true" horizontal="false" class="ebDialogScrollableArea">
           <smartTable:SmartTable
             id="newsSmartTable"
             entitySet="NewsSet"
@@ -107,7 +74,7 @@
             demandPopin="true"
             requestAtLeastFields="NewID,NewsType,NewsTypeText,ChangeNumber,Title,Year,Quarter,Area,Content,InitiatorName,InitiatorOrg"
             beforeRebindTable="onBeforeRebindNewsTable"
-            visible="{= ${dialog>/selectedMode} !== 'added' }"
+            visible="{= ${dialog>/selectedMode} === 'search' }"
             class="ebDialogTable">
             <Table
               id="newsTable"
@@ -162,7 +129,6 @@
             </Table>
           </smartTable:SmartTable>
 
-          <!-- Bound to "state" (not OData) — reflects local compose state. -->
           <List
             id="addedNewsList"
             visible="{= ${dialog>/selectedMode} === 'added' }"
@@ -192,7 +158,7 @@
 
     <buttons>
       <Button text="{i18n>ADD_AS_SOURCES}" press="onAddSelectedNews" type="Emphasized"
-        visible="{= ${dialog>/selectedMode} !== 'added' }" />
+        visible="{= ${dialog>/selectedMode} === 'search' }" />
       <Button text="{i18n>CLEAR_ALL_NEWS}" press="onClearAllNews" type="Transparent"
         visible="{= ${dialog>/selectedMode} === 'added' }" />
       <Button text="{i18n>CANCEL}" press="onCancelDialog" />
