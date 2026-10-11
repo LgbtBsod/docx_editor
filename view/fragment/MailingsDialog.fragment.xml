@@ -1,13 +1,14 @@
 <core:FragmentDefinition
   xmlns="sap.m"
   xmlns:core="sap.ui.core"
-  xmlns:comp="sap.ui.comp.smartfilterbar">
+  xmlns:comp="sap.ui.comp.smartfilterbar"
+  xmlns:smartTable="sap.ui.comp.smarttable">
 
   <Dialog
     id="mailingsDialog"
     title="{i18n>DIALOG_MAILINGS}"
-    contentWidth="820px"
-    contentHeight="620px"
+    contentWidth="850px"
+    contentHeight="650px"
     resizable="true"
     draggable="true"
     class="ebDialog ebMailingsDialog">
@@ -22,9 +23,6 @@
 
     <content>
       <VBox class="sapUiSmallMargin">
-        <!-- Replaces a manual DatePicker/Select/SearchField combo — reads
-             filter metadata from $metadata and builds server-side Filter
-             objects via getFilters(). -->
         <comp:SmartFilterBar
           id="mailingsSFB"
           entitySet="MailHistorySet"
@@ -32,8 +30,8 @@
           showGoOnFB="true"
           showClearOnFB="true"
           useToolbar="false"
-          search="onMailingsFilterSearch"
-          clear="onMailingsFilterSearch">
+          search="onSmartFilterSearch"
+          clear="onSmartFilterSearch">
           <comp:controlConfiguration>
             <comp:ControlConfiguration
               key="Key"
@@ -72,45 +70,74 @@
 
         <Text text="{i18n>MAILING_CLICK_HINT}" class="sapUiSmallMarginBottom" />
 
-        <Table
-          id="mailingsTable"
-          items="{ path: '/MailHistorySet', parameters: { countMode: 'Inline' }, sorter: { path: 'CreatedAt', descending: true } }"
-          growing="true"
-          growingThreshold="20"
-          growingScrollToLoad="true"
-          class="ebDialogTable"
-          noDataText="{i18n>NO_MAILINGS}">
-          <columns>
-            <Column width="22%" minScreenWidth="Phone" demandPopin="false">
-              <Text text="{i18n>COL_LOCAL_ID}" />
-            </Column>
-            <Column width="13%" minScreenWidth="Tablet" demandPopin="true" popinDisplay="Inline">
-              <Text text="{i18n>COL_SENDER}" />
-            </Column>
-            <Column width="15%" minScreenWidth="Tablet" demandPopin="true" popinDisplay="Inline">
-              <Text text="{i18n>COL_DATETIME}" />
-            </Column>
-            <Column width="10%" minScreenWidth="Tablet" demandPopin="true" popinDisplay="Inline">
-              <Text text="{i18n>COL_STATUS}" />
-            </Column>
-            <Column width="40%" minScreenWidth="Phone" demandPopin="false">
-              <Text text="{i18n>COL_SUBJECT}" />
-            </Column>
-          </columns>
-          <items>
-            <ColumnListItem type="Active">
-              <cells>
-                <Label text="{LocalID}" wrapping="true" design="Bold" />
-                <Label text="{CreatedBy}" wrapping="true" />
-                <Text text="{ path: 'CreatedAt', formatter: '.formatter.dateTime' }" />
-                <ObjectStatus
-                  text="{path: 'Status', formatter: '.formatter.statusText'}"
-                  state="{path: 'Status', formatter: '.formatter.statusState'}" />
-                <Label text="{Subject}" wrapping="true" />
-              </cells>
-            </ColumnListItem>
-          </items>
-        </Table>
+        <!-- Mailings SmartTable -->
+        <smartTable:SmartTable
+          id="mailingsSmartTable"
+          entitySet="MailHistorySet"
+          smartFilterId="mailingsSFB"
+          tableType="ResponsiveTable"
+          useExportToExcel="false"
+          useVariantManagement="false"
+          useTablePersonalisation="true"
+          header="{i18n>DIALOG_MAILINGS}"
+          showRowCount="true"
+          enableAutoBinding="true"
+          demandPopin="true"
+          beforeRebindTable="onBeforeRebindMailingsTable"
+          class="ebDialogTable">
+          <Table
+            id="mailingsTable"
+            growing="true"
+            growingThreshold="20"
+            growingScrollToLoad="true"
+            noDataText="{i18n>NO_MAILINGS}">
+            <columns>
+              <Column width="22%" minScreenWidth="Phone" demandPopin="false">
+                <customData>
+                  <core:CustomData key="p13nData" value='\{"columnKey": "LocalID", "leadingProperty": "LocalID", "sortProperty": "LocalID", "filterProperty": "LocalID", "columnIndex": 0\}' />
+                </customData>
+                <Text text="{i18n>COL_LOCAL_ID}" />
+              </Column>
+              <Column width="13%" minScreenWidth="Tablet" demandPopin="true" popinDisplay="Inline">
+                <customData>
+                  <core:CustomData key="p13nData" value='\{"columnKey": "CreatedBy", "leadingProperty": "CreatedBy", "sortProperty": "CreatedBy", "filterProperty": "CreatedBy", "columnIndex": 1\}' />
+                </customData>
+                <Text text="{i18n>COL_SENDER}" />
+              </Column>
+              <Column width="15%" minScreenWidth="Tablet" demandPopin="true" popinDisplay="Inline">
+                <customData>
+                  <core:CustomData key="p13nData" value='\{"columnKey": "CreatedAt", "leadingProperty": "CreatedAt", "sortProperty": "CreatedAt", "filterProperty": "CreatedAt", "columnIndex": 2\}' />
+                </customData>
+                <Text text="{i18n>COL_DATETIME}" />
+              </Column>
+              <Column width="10%" minScreenWidth="Tablet" demandPopin="true" popinDisplay="Inline">
+                <customData>
+                  <core:CustomData key="p13nData" value='\{"columnKey": "Status", "leadingProperty": "Status", "sortProperty": "Status", "filterProperty": "Status", "columnIndex": 3\}' />
+                </customData>
+                <Text text="{i18n>COL_STATUS}" />
+              </Column>
+              <Column width="40%" minScreenWidth="Phone" demandPopin="false">
+                <customData>
+                  <core:CustomData key="p13nData" value='\{"columnKey": "Subject", "leadingProperty": "Subject", "sortProperty": "Subject", "filterProperty": "Subject", "columnIndex": 4\}' />
+                </customData>
+                <Text text="{i18n>COL_SUBJECT}" />
+              </Column>
+            </columns>
+            <items>
+              <ColumnListItem type="Active" press="onMailingPress">
+                <cells>
+                  <Label text="{LocalID}" wrapping="true" design="Bold" />
+                  <Label text="{CreatedBy}" wrapping="true" />
+                  <Text text="{ path: 'CreatedAt', formatter: '.formatter.dateTime' }" />
+                  <ObjectStatus
+                    text="{path: 'Status', formatter: '.formatter.statusText'}"
+                    state="{path: 'Status', formatter: '.formatter.statusState'}" />
+                  <Label text="{Subject}" wrapping="true" />
+                </cells>
+              </ColumnListItem>
+            </items>
+          </Table>
+        </smartTable:SmartTable>
       </VBox>
     </content>
 

@@ -350,9 +350,15 @@ CLASS zcl_eb_mailing_dpc_ext IMPLEMENTATION.
     " BOPF save() commits its own LUW internally — an explicit COMMIT
     " WORK here would break the rollback path and flush unrelated work
     " the caller's LUW had pending. Trust BOPF's contract.
-    DATA(lo_save_msg) = /bobf/cl_tra_trans_mgr_factory=>get_transaction_manager( )->save( /bobf/if_znewsletter_bo_c=>sc_bo_key ).
+    DATA: lo_save_msg TYPE REF TO /bobf/if_frw_message,
+          lv_rejected TYPE abap_bool.
 
-    IF lo_save_msg IS BOUND AND lo_save_msg->has_errors( ).
+    /bobf/cl_tra_trans_mgr_factory=>get_transaction_manager( )->save(
+      IMPORTING
+        eo_message  = lo_save_msg
+        ev_rejected = lv_rejected ).
+
+    IF lv_rejected = abap_true OR ( lo_save_msg IS BOUND AND lo_save_msg->has_errors( ) ).
       " The UNIQUE index on zmail_hdr~local_id catches the duplicate
       " LocalId case; BOPF surfaces the DB-side error as a message here,
       " and detect_save_status maps it to 409 vs 500 from the text.
@@ -364,42 +370,37 @@ CLASS zcl_eb_mailing_dpc_ext IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD add_bopf_messages_to_container.
-    " Shared by the modify-error and save-error branches of persist_mailing
-    " so both surface BOPF messages identically to the Gateway container.
-    LOOP AT io_message->get_messages( ) ASSIGNING FIELD-SYMBOL(<msg>)
-         WHERE msg_type = 'E' OR msg_type = 'A'.
-      mo_context->get_message_container( )->add_message(
-        iv_msg_type   = <msg>-msg_type
-        iv_msg_id     = <msg>-msg_id
-        iv_msg_number = <msg>-msg_number
-        iv_msg_text   = <msg>-message_text
-        iv_add_to_response_header = abap_true ).
+    CHECK io_message IS BOUND.
+    DATA lt_messages TYPE /bobf/t_frw_message_k.
+    io_message->get_messages( IMPORTING et_message = lt_messages ).
+    LOOP AT lt_messages ASSIGNING FIELD-SYMBOL(<msg_k>).
+      IF <msg_k>-message IS BOUND.
+        DATA(lv_text) = <msg_k>-message->get_text( ).
+        mo_context->get_message_container( )->add_message_text_only(
+          iv_msg_type               = 'E'
+          iv_msg_text               = lv_text
+          iv_add_to_response_header = abap_true ).
+      ENDIF.
     ENDLOOP.
   ENDMETHOD.
 
   METHOD detect_save_status.
-    " Fallback only: persist_mailing's pre-check already catches the
-    " common duplicate-LocalId case language-independently before the
-    " BOPF save ever runs. This only fires for the residual race window
-    " between that check and the actual INSERT, where the DB's own
-    " duplicate-key error is carried back as free-text with no stable
-    " msg_id/msg_number to key on — a case-insensitive substring scan
-    " across this app's supported logon languages (EN/DE/RU) is the
-    " cheapest available discriminator. Default to 500 so an unmapped
-    " message type isn't mis-reported as a conflict.
     rv_status = zcl_newsletter_constants=>http_status-server_error.
-
     CHECK io_save_msg IS BOUND.
 
-    LOOP AT io_save_msg->get_messages( ) ASSIGNING FIELD-SYMBOL(<msg>).
-      DATA(lv_text) = to_lower( |{ <msg>-message_text }| ).
-      IF    lv_text CS 'duplicate'
-         OR lv_text CS 'already exists'
-         OR lv_text CS 'doppelt'
-         OR lv_text CS 'уже существ'
-         OR lv_text CS 'дублир'.
-        rv_status = zcl_newsletter_constants=>http_status-conflict.
-        RETURN.
+    DATA lt_messages TYPE /bobf/t_frw_message_k.
+    io_save_msg->get_messages( IMPORTING et_message = lt_messages ).
+    LOOP AT lt_messages ASSIGNING FIELD-SYMBOL(<msg_k>).
+      IF <msg_k>-message IS BOUND.
+        DATA(lv_text) = to_lower( <msg_k>-message->get_text( ) ).
+        IF    lv_text CS 'duplicate'
+           OR lv_text CS 'already exists'
+           OR lv_text CS 'doppelt'
+           OR lv_text CS 'уже существ'
+           OR lv_text CS 'дублир'.
+          rv_status = zcl_newsletter_constants=>http_status-conflict.
+          RETURN.
+        ENDIF.
       ENDIF.
     ENDLOOP.
   ENDMETHOD.

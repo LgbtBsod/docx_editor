@@ -3,6 +3,7 @@ sap.ui.define([
   "sap/ui/model/json/JSONModel",
   "sap/ui/model/Filter",
   "sap/ui/model/FilterOperator",
+  "sap/ui/model/Sorter",
   "sap/m/library",                 // URLHelper.download for CSV template
   "MAILING_CONSTRUCTOR/util/toast",
   "sap/m/MessageBox",
@@ -10,7 +11,7 @@ sap.ui.define([
   "MAILING_CONSTRUCTOR/util/service",
   "MAILING_CONSTRUCTOR/util/constants",
   "MAILING_CONSTRUCTOR/util/dateUtils"
-], (Fragment, JSONModel, Filter, FilterOperator, mobileLibrary, Toast, MessageBox,
+], (Fragment, JSONModel, Filter, FilterOperator, Sorter, mobileLibrary, Toast, MessageBox,
     Log, Service, Constants, DateUtils) => {
 
   "use strict";
@@ -152,6 +153,8 @@ sap.ui.define([
       const sViewId = this.getView().getId();
       loadDialogOnce(this, "_oRecipDialog", "_pRecipDialogLoading",
         "MAILING_CONSTRUCTOR.view.fragment.RecipientSearch", (oDialog) => {
+          this._oRecipSmartTable = Fragment.byId(sViewId, "recipientSmartTable");
+          this._oRecipGroupedSmartTable = Fragment.byId(sViewId, "recipientGroupedSmartTable");
           this._oRecipTable = Fragment.byId(sViewId, "recipientTable");
           this._oRecipGroupedTable = Fragment.byId(sViewId, "recipientGroupedTable");
 
@@ -240,6 +243,7 @@ sap.ui.define([
       const sViewId = this.getView().getId();
       loadDialogOnce(this, "_oNewsDialog", "_pNewsDialogLoading",
         "MAILING_CONSTRUCTOR.view.fragment.NewsSearch", (oDialog) => {
+          this._oNewsSmartTable = Fragment.byId(sViewId, "newsSmartTable");
           this._oNewsTable = Fragment.byId(sViewId, "newsTable");
 
           const oModel = new JSONModel({ selectedMode: "search" });
@@ -281,6 +285,7 @@ sap.ui.define([
       const sViewId = this.getView().getId();
       loadDialogOnce(this, "_oMailingsDialog", "_pMailingsDialogLoading",
         "MAILING_CONSTRUCTOR.view.fragment.MailingsDialog", (oDialog) => {
+          this._oMailingsSmartTable = Fragment.byId(sViewId, "mailingsSmartTable");
           this._oMailingsTable = Fragment.byId(sViewId, "mailingsTable");
           if (this._oMailingsTable) {
             this._oMailingsTable.attachItemPress((oEvent) => this.onMailingPress(oEvent));
@@ -308,17 +313,36 @@ sap.ui.define([
     },
 
     // Dispatches to grouped (RecipientUserSet) or detailed (RecipientSet)
-    // table based on the current searchMode.
+    // SmartTable based on the current searchMode.
     _searchRecipients(oEvent) {
       if (!this._oRecipDialog) { return; }
 
       const oDialogModel = this._oRecipDialog.getModel("dialog");
       const bDetailed = oDialogModel.getProperty("/searchMode") === "detailed";
-      const oTable = bDetailed ? this._oRecipTable : this._oRecipGroupedTable;
-      if (!oTable) { return; }
+      const oSmartTable = bDetailed ? this._oRecipSmartTable : this._oRecipGroupedSmartTable;
+      if (oSmartTable) {
+        oSmartTable.rebindTable();
+      } else {
+        const oTable = bDetailed ? this._oRecipTable : this._oRecipGroupedTable;
+        if (oTable) {
+          const aFilters = buildSfbFilters(this.byId("recipientSFB"), ["FullName", "Email"], bDetailed);
+          applyItemsFilter(oTable, aFilters);
+        }
+      }
+    },
 
-      const aFilters = buildSfbFilters(this.byId("recipientSFB"), ["FullName", "Email"], bDetailed);
-      applyItemsFilter(oTable, aFilters);
+    onBeforeRebindRecipientTable(oEvent) {
+      const mParams = oEvent.getParameter("bindingParams");
+      if (mParams) {
+        mParams.filters = adaptSfbFiltersForMode(mParams.filters, true);
+      }
+    },
+
+    onBeforeRebindRecipientGroupedTable(oEvent) {
+      const mParams = oEvent.getParameter("bindingParams");
+      if (mParams) {
+        mParams.filters = adaptSfbFiltersForMode(mParams.filters, false);
+      }
     },
 
     onAddSelectedRecipients() {
@@ -326,7 +350,9 @@ sap.ui.define([
 
       const oDialogModel = this._oRecipDialog.getModel("dialog");
       const bDetailed = oDialogModel.getProperty("/searchMode") === "detailed";
-      const oTable = bDetailed ? this._oRecipTable : this._oRecipGroupedTable;
+      const oTable = bDetailed
+        ? (this._oRecipSmartTable ? this._oRecipSmartTable.getTable() : this._oRecipTable)
+        : (this._oRecipGroupedSmartTable ? this._oRecipGroupedSmartTable.getTable() : this._oRecipGroupedTable);
       if (!oTable) { return; }
 
       const aSelected = oTable.getSelectedContexts().map((oCtx) => oCtx.getObject()).filter(Boolean);
@@ -378,15 +404,27 @@ sap.ui.define([
     // structured $filter fields cover search here; Title is dropped
     // (free-text, $search-only on prod).
     _searchNews(oEvent) {
-      if (!this._oNewsDialog || !this._oNewsTable) { return; }
+      if (!this._oNewsDialog) { return; }
+      if (this._oNewsSmartTable) {
+        this._oNewsSmartTable.rebindTable();
+      } else if (this._oNewsTable) {
+        const aFilters = buildSfbFilters(this.byId("newsSFB"), [], true, (oF) => oF.sPath === "Title");
+        applyItemsFilter(this._oNewsTable, aFilters);
+      }
+    },
 
-      const aFilters = buildSfbFilters(this.byId("newsSFB"), [], true, (oF) => oF.sPath === "Title");
-      applyItemsFilter(this._oNewsTable, aFilters);
+    onBeforeRebindNewsTable(oEvent) {
+      const mParams = oEvent.getParameter("bindingParams");
+      if (mParams && mParams.filters) {
+        mParams.filters = mParams.filters.filter((oF) => oF.sPath !== "Title");
+      }
     },
 
     onAddSelectedNews() {
-      if (!this._oNewsDialog || !this._oNewsTable) { return; }
-      const aSelected = this._oNewsTable.getSelectedContexts()
+      if (!this._oNewsDialog) { return; }
+      const oTable = this._oNewsSmartTable ? this._oNewsSmartTable.getTable() : this._oNewsTable;
+      if (!oTable) { return; }
+      const aSelected = oTable.getSelectedContexts()
         .map((oCtx) => oCtx.getObject())
         .filter(Boolean);
       aSelected.forEach((oObj) => this._addNewsAsSource(oObj));
@@ -401,10 +439,25 @@ sap.ui.define([
     // ----------------------------------------------------------------
 
     onMailingsFilterSearch() {
-      if (!this._oMailingsDialog || !this._oMailingsTable) { return; }
+      if (!this._oMailingsDialog) { return; }
+      if (this._oMailingsSmartTable) {
+        this._oMailingsSmartTable.rebindTable();
+      } else if (this._oMailingsTable) {
+        const aFilters = buildSfbFilters(this.byId("mailingsSFB"), ["LocalID", "Subject"], true);
+        applyItemsFilter(this._oMailingsTable, aFilters);
+      }
+    },
 
-      const aFilters = buildSfbFilters(this.byId("mailingsSFB"), ["LocalID", "Subject"], true);
-      applyItemsFilter(this._oMailingsTable, aFilters);
+    onBeforeRebindMailingsTable(oEvent) {
+      const mParams = oEvent.getParameter("bindingParams");
+      if (mParams) {
+        if (!mParams.sorter) {
+          mParams.sorter = [];
+        }
+        if (mParams.sorter.length === 0) {
+          mParams.sorter.push(new Sorter("CreatedAt", true));
+        }
+      }
     },
 
     // ----------------------------------------------------------------
@@ -694,6 +747,8 @@ sap.ui.define([
       });
       this._oRecipDialog = this._oNewsDialog = this._oMailingsDialog =
         this._oPdfModeDialog = this._oHistoryViewDialog = null;
+      this._oRecipSmartTable = this._oRecipGroupedSmartTable =
+        this._oNewsSmartTable = this._oMailingsSmartTable = null;
       this._oRecipTable = this._oRecipGroupedTable = this._oNewsTable =
         this._oMailingsTable = null;
       // loadDialogOnce caches these as long-lived promises — a stale

@@ -22,13 +22,13 @@
     data-sap-ui-theme="sap_fiori_3"
     data-sap-ui-compatVersion="edge"
     data-sap-ui-async="true"
-    data-sap-ui-resourceroots='{"MAILING_CONSTRUCTOR": "/ui5/"}'
+    data-sap-ui-resourceroots='{"MAILING_CONSTRUCTOR": "./"}'
     data-sap-ui-frameOptions="trusted"
   ></script>
   <!-- DOMPurify stays eager: the sanitizer must exist before any HTML rendering
        (fail-closed policy in util/sanitize.js). docx-preview / pdf.js / marked
        are lazy-loaded by util/fileProcessor.js on first use (~2 MB off cold start). -->
-  <script src="/ui5/lib/dompurify/purify.min.js" defer></script>
+  <script src="lib/dompurify/purify.min.js" defer></script>
 </head>
 <body class="sapUiBody">
   <div id="content"></div>

@@ -83,20 +83,34 @@ CLASS zcl_mail_transport IMPLEMENTATION.
     DATA(lt_body) = cl_bcs_convert=>string_to_soli( iv_string = iv_content ).
 
     eo_document = cl_document_bcs=>create_document(
-               iv_type    = zcl_newsletter_constants=>document-html_type
-               iv_text    = lt_body
-               iv_subject = CONV so_obj_des( iv_subject ) ).
+               i_type    = zcl_newsletter_constants=>document-html_type
+               i_text    = lt_body
+               i_subject = CONV so_obj_des( iv_subject ) ).
 
     LOOP AT it_attachments ASSIGNING FIELD-SYMBOL(<att>).
       TRY.
+          DATA(lv_xcontent) = cl_http_utility=>if_http_utility~decode_x_base64( <att>-content_base64 ).
+          DATA(lt_solix)    = cl_bcs_convert=>xstring_to_solix( iv_xstring = lv_xcontent ).
+
+          DATA(lv_ext) = VALUE soodk-objtp( ).
+          IF <att>-file_name CS '.'.
+            SPLIT <att>-file_name AT '.' INTO TABLE DATA(lt_parts).
+            DATA(lv_num_parts) = lines( lt_parts ).
+            IF lv_num_parts > 0.
+              DATA(lv_last_part) = lt_parts[ lv_num_parts ].
+              lv_ext = to_upper( lv_last_part(nmin( val1 = 3 val2 = strlen( lv_last_part ) )) ).
+            ENDIF.
+          ENDIF.
+          IF lv_ext IS INITIAL.
+            lv_ext = 'BIN'.
+          ENDIF.
+
           eo_document->add_attachment(
-            iv_attachment_name    = <att>-file_name
-            iv_attachment_type    = <att>-mime_type
-            iv_attachment_content = cl_http_utility=>if_http_utility~decode_x_base64( <att>-content_base64 ) ).
+            i_attachment_type    = lv_ext
+            i_attachment_subject = CONV so_obj_des( <att>-file_name )
+            i_attachment_size    = CONV so_obj_len( xstrlen( lv_xcontent ) )
+            i_att_content_hex    = lt_solix ).
         CATCH cx_bcs cx_sy_conv_codepage cx_sy_conversion_no_codepage.
-          " Surface this drop instead of swallowing it. The narrowed
-          " exception list (the three cl_bcs_convert/decode can realistically
-          " raise) stays.
           APPEND <att>-file_name TO et_skipped.
       ENDTRY.
     ENDLOOP.

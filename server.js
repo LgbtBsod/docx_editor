@@ -75,17 +75,20 @@ function serveStaticFile(res, absPath) {
 // Anything else -> null (404) — this is a dev-only static server for this
 // one app, not a general file host.
 function resolveStaticPath(pathname) {
-  if (pathname === "/" || pathname === "") {
+  if (pathname === "/" || pathname === "" || pathname === "/index.html") {
     return path.join(ROOT, "index.html");
   }
-  if (pathname.indexOf("/") === 0) {
-    const sRelative = decodeURIComponent(pathname.slice("/".length));
-    const sAbs = path.normalize(path.join(ROOT, sRelative));
-    // Path-traversal guard: resolved path must stay under ROOT.
-    if (sAbs !== ROOT && sAbs.indexOf(ROOT + path.sep) !== 0) { return null; }
-    return sAbs;
+  let sPath = pathname;
+  if (sPath.startsWith("/ui5/")) {
+    sPath = sPath.slice("/ui5/".length);
+  } else if (sPath.startsWith("/")) {
+    sPath = sPath.slice(1);
   }
-  return null;
+  const sRelative = decodeURIComponent(sPath);
+  const sAbs = path.normalize(path.join(ROOT, sRelative));
+  // Path-traversal guard: resolved path must stay under ROOT.
+  if (sAbs !== ROOT && sAbs.indexOf(ROOT + path.sep) !== 0) { return null; }
+  return sAbs;
 }
 
 // Mirrors what MockServer already fakes for MailHistorySet/MailContentSet,

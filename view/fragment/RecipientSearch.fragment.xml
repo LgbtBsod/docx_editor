@@ -2,14 +2,15 @@
   xmlns="sap.m"
   xmlns:u="sap.ui.unified"
   xmlns:comp="sap.ui.comp.smartfilterbar"
+  xmlns:smartTable="sap.ui.comp.smarttable"
   xmlns:f="sap.f"
   xmlns:core="sap.ui.core">
 
   <Dialog
     id="recipientDialog"
     title="{i18n>DIALOG_RECIPIENTS}"
-    contentWidth="780px"
-    contentHeight="580px"
+    contentWidth="820px"
+    contentHeight="600px"
     resizable="true"
     draggable="true"
     class="ebDialog ebRecipientDialog">
@@ -38,10 +39,7 @@
                   </items>
                 </SegmentedButton>
 
-                <!-- One SmartFilterBar for both modes: field visibility (Role/
-                     AuthObject/FieldName for detailed vs FullName/Email/Role
-                     for grouped) is toggled by _applyRecipientSFBVisibility
-                     in DialogMixin, not by two separate control sets. -->
+                <!-- SmartFilterBar for recipients search -->
                 <comp:SmartFilterBar
                   id="recipientSFB"
                   entitySet="RecipientSet"
@@ -116,8 +114,6 @@
                     <Text text="{i18n>CSV_PREVIEW_TITLE}" />
                     <Text text="{= ${dialog>/csvPreviewCount} + ' ' + ${i18n>CSV_EMAILS_FOUND} }" />
                   </HBox>
-                  <!-- 1.71 LTS: sap.m.List has no `height` property; wrap in
-                       ScrollContainer to constrain the preview height. -->
                   <ScrollContainer
                     height="250px"
                     vertical="true"
@@ -142,76 +138,122 @@
           </items>
         </IconTabBar>
 
-        <!-- One row per auth-object value (vs. one row per user below). -->
-        <Table
-          id="recipientTable"
+        <!-- Detailed Recipients SmartTable (RecipientSet) -->
+        <smartTable:SmartTable
+          id="recipientSmartTable"
+          entitySet="RecipientSet"
+          smartFilterId="recipientSFB"
+          tableType="ResponsiveTable"
+          useExportToExcel="false"
+          useVariantManagement="false"
+          useTablePersonalisation="true"
+          header="{i18n>RECIP_MODE_DETAILED}"
+          showRowCount="true"
+          enableAutoBinding="true"
+          demandPopin="true"
+          beforeRebindTable="onBeforeRebindRecipientTable"
           visible="{= ${dialog>/selectedMode} !== 'added' &amp;&amp; ${dialog>/selectedMode} !== 'csv' &amp;&amp; ${dialog>/searchMode} === 'detailed' }"
-          items="{ path: '/RecipientSet', parameters: { countMode: 'Inline' } }"
-          mode="MultiSelect"
-          growing="true"
-          growingThreshold="20"
-          growingScrollToLoad="true"
-          class="ebDialogTable"
-          noDataText="{i18n>NO_RECIPIENTS_FOUND}">
-          <columns>
-            <Column width="30%" minScreenWidth="Phone" demandPopin="false">
-              <Text text="{i18n>COL_NAME}" />
-            </Column>
-            <Column width="15%" minScreenWidth="Tablet" demandPopin="true" popinDisplay="Inline">
-              <Text text="{i18n>COL_ROLE}" />
-            </Column>
-            <Column width="55%" minScreenWidth="Desktop" demandPopin="true" popinDisplay="Block">
-              <Text text="{i18n>COL_EMAIL}" />
-            </Column>
-          </columns>
-          <items>
-            <ColumnListItem type="Active">
-              <cells>
-                <Text text="{FullName}" wrapping="true" />
-                <Text text="{Role}" wrapping="true" />
-                <Text text="{Email}" wrapping="true" />
-              </cells>
-            </ColumnListItem>
-          </items>
-        </Table>
+          class="ebDialogTable">
+          <Table
+            id="recipientTable"
+            mode="MultiSelect"
+            growing="true"
+            growingThreshold="20"
+            growingScrollToLoad="true"
+            noDataText="{i18n>NO_RECIPIENTS_FOUND}">
+            <columns>
+              <Column width="30%" minScreenWidth="Phone" demandPopin="false">
+                <customData>
+                  <core:CustomData key="p13nData" value='\{"columnKey": "FullName", "leadingProperty": "FullName", "sortProperty": "FullName", "filterProperty": "FullName", "columnIndex": 0\}' />
+                </customData>
+                <Text text="{i18n>COL_NAME}" />
+              </Column>
+              <Column width="20%" minScreenWidth="Tablet" demandPopin="true" popinDisplay="Inline">
+                <customData>
+                  <core:CustomData key="p13nData" value='\{"columnKey": "Role", "leadingProperty": "Role", "sortProperty": "Role", "filterProperty": "Role", "columnIndex": 1\}' />
+                </customData>
+                <Text text="{i18n>COL_ROLE}" />
+              </Column>
+              <Column width="50%" minScreenWidth="Desktop" demandPopin="true" popinDisplay="Block">
+                <customData>
+                  <core:CustomData key="p13nData" value='\{"columnKey": "Email", "leadingProperty": "Email", "sortProperty": "Email", "filterProperty": "Email", "columnIndex": 2\}' />
+                </customData>
+                <Text text="{i18n>COL_EMAIL}" />
+              </Column>
+            </columns>
+            <items>
+              <ColumnListItem type="Active">
+                <cells>
+                  <Text text="{FullName}" wrapping="true" />
+                  <Text text="{Role}" wrapping="true" />
+                  <Text text="{Email}" wrapping="true" />
+                </cells>
+              </ColumnListItem>
+            </items>
+          </Table>
+        </smartTable:SmartTable>
 
-        <!-- One row per user — bound to RecipientUserSet, the ABAP-side
-             GROUP BY email CDS. -->
-        <Table
-          id="recipientGroupedTable"
+        <!-- Grouped Recipients SmartTable (RecipientUserSet) -->
+        <smartTable:SmartTable
+          id="recipientGroupedSmartTable"
+          entitySet="RecipientUserSet"
+          smartFilterId="recipientSFB"
+          tableType="ResponsiveTable"
+          useExportToExcel="false"
+          useVariantManagement="false"
+          useTablePersonalisation="true"
+          header="{i18n>RECIP_MODE_GROUPED}"
+          showRowCount="true"
+          enableAutoBinding="true"
+          demandPopin="true"
+          beforeRebindTable="onBeforeRebindRecipientGroupedTable"
           visible="{= ${dialog>/selectedMode} !== 'added' &amp;&amp; ${dialog>/selectedMode} !== 'csv' &amp;&amp; ${dialog>/searchMode} !== 'detailed' }"
-          items="{ path: '/RecipientUserSet', parameters: { countMode: 'Inline' } }"
-          mode="MultiSelect"
-          growing="true"
-          growingThreshold="20"
-          growingScrollToLoad="true"
-          class="ebDialogTable"
-          noDataText="{i18n>NO_RECIPIENTS_FOUND}">
-          <columns>
-            <Column width="25%" minScreenWidth="Phone" demandPopin="false">
-              <Text text="{i18n>COL_NAME}" />
-            </Column>
-            <Column width="45%" minScreenWidth="Tablet" demandPopin="true" popinDisplay="Inline">
-              <Text text="{i18n>COL_EMAIL}" />
-            </Column>
-            <Column width="20%" minScreenWidth="Desktop" demandPopin="true" popinDisplay="Inline">
-              <Text text="{i18n>COL_ROLES}" />
-            </Column>
-            <Column width="10%" hAlign="End" minScreenWidth="Desktop" demandPopin="true" popinDisplay="Inline">
-              <Text text="{i18n>COL_AUTH_COUNT}" />
-            </Column>
-          </columns>
-          <items>
-            <ColumnListItem type="Active">
-              <cells>
-                <Text text="{FullName}" wrapping="true" />
-                <Text text="{Email}" wrapping="true" />
-                <Text text="{Roles}" wrapping="true" />
-                <ObjectNumber number="{AuthCount}" visible="{= !!${AuthCount} }" />
-              </cells>
-            </ColumnListItem>
-          </items>
-        </Table>
+          class="ebDialogTable">
+          <Table
+            id="recipientGroupedTable"
+            mode="MultiSelect"
+            growing="true"
+            growingThreshold="20"
+            growingScrollToLoad="true"
+            noDataText="{i18n>NO_RECIPIENTS_FOUND}">
+            <columns>
+              <Column width="25%" minScreenWidth="Phone" demandPopin="false">
+                <customData>
+                  <core:CustomData key="p13nData" value='\{"columnKey": "FullName", "leadingProperty": "FullName", "sortProperty": "FullName", "filterProperty": "FullName", "columnIndex": 0\}' />
+                </customData>
+                <Text text="{i18n>COL_NAME}" />
+              </Column>
+              <Column width="45%" minScreenWidth="Tablet" demandPopin="true" popinDisplay="Inline">
+                <customData>
+                  <core:CustomData key="p13nData" value='\{"columnKey": "Email", "leadingProperty": "Email", "sortProperty": "Email", "filterProperty": "Email", "columnIndex": 1\}' />
+                </customData>
+                <Text text="{i18n>COL_EMAIL}" />
+              </Column>
+              <Column width="20%" minScreenWidth="Desktop" demandPopin="true" popinDisplay="Inline">
+                <customData>
+                  <core:CustomData key="p13nData" value='\{"columnKey": "Roles", "leadingProperty": "Roles", "sortProperty": "Roles", "filterProperty": "Roles", "columnIndex": 2\}' />
+                </customData>
+                <Text text="{i18n>COL_ROLES}" />
+              </Column>
+              <Column width="10%" hAlign="End" minScreenWidth="Desktop" demandPopin="true" popinDisplay="Inline">
+                <customData>
+                  <core:CustomData key="p13nData" value='\{"columnKey": "AuthCount", "leadingProperty": "AuthCount", "sortProperty": "AuthCount", "filterProperty": "AuthCount", "columnIndex": 3\}' />
+                </customData>
+                <Text text="{i18n>COL_AUTH_COUNT}" />
+              </Column>
+            </columns>
+            <items>
+              <ColumnListItem type="Active">
+                <cells>
+                  <Text text="{FullName}" wrapping="true" />
+                  <Text text="{Email}" wrapping="true" />
+                  <Text text="{Roles}" wrapping="true" />
+                  <ObjectNumber number="{AuthCount}" visible="{= !!${AuthCount} }" />
+                </cells>
+              </ColumnListItem>
+            </items>
+          </Table>
+        </smartTable:SmartTable>
 
         <!-- Bound to "state" (not OData) — reflects local compose state. -->
         <List

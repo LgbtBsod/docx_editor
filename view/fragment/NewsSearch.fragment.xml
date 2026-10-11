@@ -1,13 +1,14 @@
 <core:FragmentDefinition
   xmlns="sap.m"
   xmlns:comp="sap.ui.comp.smartfilterbar"
+  xmlns:smartTable="sap.ui.comp.smarttable"
   xmlns:core="sap.ui.core">
 
   <Dialog
     id="newsDialog"
     title="{i18n>DIALOG_NEWS}"
-    contentWidth="680px"
-    contentHeight="560px"
+    contentWidth="780px"
+    contentHeight="600px"
     resizable="true"
     draggable="true"
     class="ebDialog ebNewsDialog">
@@ -75,52 +76,79 @@
                       visibleInAdvancedArea="false" />
                   </comp:controlConfiguration>
                 </comp:SmartFilterBar>
-                <!-- No separate "Только изменения" toggle — the NewsType
-                     dropdown above already covers Filter("NewsType", EQ, "CHG"). -->
               </VBox>
             </IconTabFilter>
           </items>
         </IconTabBar>
 
-        <Table
-          id="newsTable"
+        <!-- News SmartTable -->
+        <smartTable:SmartTable
+          id="newsSmartTable"
+          entitySet="NewsSet"
+          smartFilterId="newsSFB"
+          tableType="ResponsiveTable"
+          useExportToExcel="false"
+          useVariantManagement="false"
+          useTablePersonalisation="true"
+          header="{i18n>DIALOG_NEWS}"
+          showRowCount="true"
+          enableAutoBinding="true"
+          demandPopin="true"
+          beforeRebindTable="onBeforeRebindNewsTable"
           visible="{= ${dialog>/selectedMode} !== 'added' }"
-          items="{ path: '/NewsSet', parameters: { countMode: 'Inline' } }"
-          mode="MultiSelect"
-          growing="true"
-          growingThreshold="20"
-          growingScrollToLoad="true"
-          class="ebDialogTable"
-          noDataText="{i18n>NO_NEWS_RESULTS}">
-          <columns>
-            <Column width="15%" minScreenWidth="Tablet" demandPopin="true" popinDisplay="Inline">
-              <Text text="{i18n>NEWS_TYPE_LABEL}" />
-            </Column>
-            <Column width="12%" minScreenWidth="Tablet" demandPopin="true" popinDisplay="Inline">
-              <Text text="{i18n>NEWS_CHANGE_NUMBER}" />
-            </Column>
-            <Column width="38%" minScreenWidth="Phone" demandPopin="false">
-              <Text text="{i18n>NEWS_TITLE}" />
-            </Column>
-            <Column width="12%" minScreenWidth="Tablet" demandPopin="true" popinDisplay="Inline">
-              <Text text="{i18n>YEAR}" />
-            </Column>
-            <Column width="23%" minScreenWidth="Tablet" demandPopin="true" popinDisplay="Block">
-              <Text text="{i18n>AREA}" />
-            </Column>
-          </columns>
-          <items>
-            <ColumnListItem type="Active">
-              <cells>
-                <Text text="{NewsTypeText}" wrapping="true" />
-                <Text text="{ChangeNumber}" />
-                <Text text="{Title}" wrapping="true" />
-                <Text text="{Year}" />
-                <Text text="{Area}" wrapping="true" />
-              </cells>
-            </ColumnListItem>
-          </items>
-        </Table>
+          class="ebDialogTable">
+          <Table
+            id="newsTable"
+            mode="MultiSelect"
+            growing="true"
+            growingThreshold="20"
+            growingScrollToLoad="true"
+            noDataText="{i18n>NO_NEWS_RESULTS}">
+            <columns>
+              <Column width="15%" minScreenWidth="Tablet" demandPopin="true" popinDisplay="Inline">
+                <customData>
+                  <core:CustomData key="p13nData" value='\{"columnKey": "NewsTypeText", "leadingProperty": "NewsTypeText", "sortProperty": "NewsTypeText", "filterProperty": "NewsTypeText", "columnIndex": 0\}' />
+                </customData>
+                <Text text="{i18n>NEWS_TYPE_LABEL}" />
+              </Column>
+              <Column width="12%" minScreenWidth="Tablet" demandPopin="true" popinDisplay="Inline">
+                <customData>
+                  <core:CustomData key="p13nData" value='\{"columnKey": "ChangeNumber", "leadingProperty": "ChangeNumber", "sortProperty": "ChangeNumber", "filterProperty": "ChangeNumber", "columnIndex": 1\}' />
+                </customData>
+                <Text text="{i18n>NEWS_CHANGE_NUMBER}" />
+              </Column>
+              <Column width="38%" minScreenWidth="Phone" demandPopin="false">
+                <customData>
+                  <core:CustomData key="p13nData" value='\{"columnKey": "Title", "leadingProperty": "Title", "sortProperty": "Title", "filterProperty": "Title", "columnIndex": 2\}' />
+                </customData>
+                <Text text="{i18n>NEWS_TITLE}" />
+              </Column>
+              <Column width="12%" minScreenWidth="Tablet" demandPopin="true" popinDisplay="Inline">
+                <customData>
+                  <core:CustomData key="p13nData" value='\{"columnKey": "Year", "leadingProperty": "Year", "sortProperty": "Year", "filterProperty": "Year", "columnIndex": 3\}' />
+                </customData>
+                <Text text="{i18n>YEAR}" />
+              </Column>
+              <Column width="23%" minScreenWidth="Tablet" demandPopin="true" popinDisplay="Block">
+                <customData>
+                  <core:CustomData key="p13nData" value='\{"columnKey": "Area", "leadingProperty": "Area", "sortProperty": "Area", "filterProperty": "Area", "columnIndex": 4\}' />
+                </customData>
+                <Text text="{i18n>AREA}" />
+              </Column>
+            </columns>
+            <items>
+              <ColumnListItem type="Active">
+                <cells>
+                  <Text text="{NewsTypeText}" wrapping="true" />
+                  <Text text="{ChangeNumber}" />
+                  <Text text="{Title}" wrapping="true" />
+                  <Text text="{Year}" />
+                  <Text text="{Area}" wrapping="true" />
+                </cells>
+              </ColumnListItem>
+            </items>
+          </Table>
+        </smartTable:SmartTable>
 
         <!-- Bound to "state" (not OData) — reflects local compose state. -->
         <List

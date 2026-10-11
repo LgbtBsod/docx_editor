@@ -572,9 +572,15 @@ CLASS zcl_mail_dispatcher IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD save_bopf.
-    DATA(lo_msg) = /bobf/cl_tra_trans_mgr_factory=>get_transaction_manager( )->save( /bobf/if_znewsletter_bo_c=>sc_bo_key ).
+    DATA: lo_msg      TYPE REF TO /bobf/if_frw_message,
+          lv_rejected TYPE abap_bool.
 
-    IF lo_msg IS BOUND AND lo_msg->has_errors( ).
+    /bobf/cl_tra_trans_mgr_factory=>get_transaction_manager( )->save(
+      IMPORTING
+        eo_message  = lo_msg
+        ev_rejected = lv_rejected ).
+
+    IF lv_rejected = abap_true OR ( lo_msg IS BOUND AND lo_msg->has_errors( ) ).
       ROLLBACK WORK.
       log_msg( iv_log_handle = iv_log_handle iv_msgty = zcl_newsletter_constants=>msg_type-error
                iv_msgno = zcl_newsletter_constants=>dispatcher_msgno-send_error iv_msgv1 = 'BOPF save failed' ).
